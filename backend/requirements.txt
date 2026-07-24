@@ -1,0 +1,26 @@
+# FastAPI et Configuration
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+email-validator
+python-dotenv
+
+
+# Base de données (PostgreSQL & ORM)
+sqlalchemy
+psycopg2-binary
+alembic
+
+# Sécurité & Authentification (JWT & Bcrypt)
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt
+
+# Tâches de fond (Celery & Redis)
+celery
+redis
+
+# Tests et Validation
+pytest
+httpx

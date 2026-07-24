@@ -1,0 +1,6 @@
+# Ignore environment variables and local virtual environments
+backend/.env
+frontend/.env
+backend/env/
+backend/__pycache__/
+
