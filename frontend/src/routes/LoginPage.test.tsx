@@ -22,7 +22,7 @@ describe('LoginPage', () => {
     render(<AppRoutes />);
 
     await userEvent.type(screen.getByLabelText(/adresse e-mail/i), 'jean@example.com');
-    await userEvent.type(screen.getByLabelText(/mot de passe/i), 'mauvais-mdp');
+    await userEvent.type(screen.getByLabelText('Mot de passe'), 'mauvais-mdp');
     await userEvent.click(screen.getByRole('button', { name: /se connecter/i }));
 
     expect(await screen.findByText(/adresse e-mail ou mot de passe incorrect/i)).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe('LoginPage', () => {
     render(<AppRoutes />);
 
     await userEvent.type(screen.getByLabelText(/adresse e-mail/i), 'jean@example.com');
-    await userEvent.type(screen.getByLabelText(/mot de passe/i), 'motdepasse123');
+    await userEvent.type(screen.getByLabelText('Mot de passe'), 'motdepasse123');
     await userEvent.click(screen.getByRole('button', { name: /se connecter/i }));
 
     await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(true));

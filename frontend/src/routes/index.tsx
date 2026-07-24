@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import {
   Sun, Moon, Compass, ArrowRight, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
-  HelpCircle, Mail, Loader2, User, Phone,
+  HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
@@ -567,8 +567,9 @@ const AuthLayout = ({
   );
 };
 
-const inputClassName =
-  'w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
+const baseInputClassName =
+  'w-full py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
+const inputClassName = `${baseInputClassName} pl-11 pr-4`;
 
 // Champ de formulaire avec icône, pour un rendu plus professionnel sur les pages d'authentification
 const IconInput = ({
@@ -581,6 +582,33 @@ const IconInput = ({
     <input {...props} className={className ?? inputClassName} />
   </div>
 );
+
+// Champ mot de passe avec bouton afficher/masquer, pour un rendu plus professionnel
+const PasswordInput = ({
+  className,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) => {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      <input
+        {...props}
+        type={visible ? 'text' : 'password'}
+        className={className ?? `${baseInputClassName} pl-11 pr-11`}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((prev) => !prev)}
+        aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+};
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -627,10 +655,8 @@ const LoginPage = () => {
         </div>
         <div className="space-y-1.5">
           <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
-          <IconInput
-            icon={Lock}
+          <PasswordInput
             id="mot_de_passe"
-            type="password"
             required
             minLength={6}
             autoComplete="current-password"
@@ -776,10 +802,8 @@ const RegisterPage = () => {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
-            <IconInput
-              icon={Lock}
+            <PasswordInput
               id="mot_de_passe"
-              type="password"
               required
               minLength={6}
               autoComplete="new-password"
@@ -790,10 +814,8 @@ const RegisterPage = () => {
           </div>
           <div className="space-y-1.5">
             <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">Confirmer</label>
-            <IconInput
-              icon={Lock}
+            <PasswordInput
               id="confirm_mot_de_passe"
-              type="password"
               required
               minLength={6}
               autoComplete="new-password"
