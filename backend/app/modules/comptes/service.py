@@ -193,13 +193,21 @@ def calculer_patrimoine_net(db: Session, id_client: int) -> Decimal:
     (principe 6.9). Interroge directement la table Dette : le module
     Dettes complet (validations, endpoints) n'est pas encore construit,
     mais la donnée existe déjà et le calcul est correct dès maintenant.
+
+    Les créances classées PERTE sont exclues : une fois jugées
+    irrécouvrables, elles cessent de compter comme actif (voir
+    Dette.get_impact_patrimoine_net).
     """
     compte_principal = synchroniser_compte_principal(db, id_client)
 
     dettes = db.query(Dette).filter(Dette.id_client == id_client, Dette.type == "DETTE").all()
     total_dettes = sum((d.montant_total - d.montant_rembourse for d in dettes), Decimal("0"))
 
-    creances = db.query(Dette).filter(Dette.id_client == id_client, Dette.type == "CREANCE").all()
+    creances = (
+        db.query(Dette)
+        .filter(Dette.id_client == id_client, Dette.type == "CREANCE", Dette.statut != "PERTE")
+        .all()
+    )
     total_creances = sum((c.montant_total - c.montant_rembourse for c in creances), Decimal("0"))
 
     return compte_principal.solde_total - total_dettes + total_creances

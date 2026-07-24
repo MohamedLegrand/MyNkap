@@ -29,12 +29,22 @@ class OperationFinanciere:
 # volontairement absent : son impact n'est jamais fixe par type, c'est
 # toujours l'inverse exact de la transaction qu'elle annule (voir
 # Transaction.calculer_impact ci-dessous).
+#
+# DETTE_RECUE / CREANCE_ACCORDEE : ajoutés pour le module Dettes. Absents du
+# cahier des charges initial, mais indispensables — la transaction d'origine
+# d'une dette/créance crédite ou débite le compte sans être un REVENU/une
+# DEPENSE (elle ne doit jamais fausser les rapports de revenus/dépenses ni
+# le suivi budgétaire). Le patrimoine net reste stable au moment de la
+# création car Dette.get_impact_patrimoine_net() compense exactement ce
+# mouvement de trésorerie par le passif/actif correspondant.
 IMPACT_PAR_TYPE = {
     "DEPENSE": -1,
     "REVENU": 1,
     "DEPOT_INITIAL": 1,
     "REMBOURSEMENT_DETTE": -1,
     "ENCAISSEMENT_CREANCE": 1,
+    "DETTE_RECUE": 1,
+    "CREANCE_ACCORDEE": -1,
 }
 
 
@@ -53,14 +63,30 @@ class Transaction(OperationFinanciere, Base):
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
     id_compte = Column(Integer, ForeignKey("comptes_financiers.id_compte"), nullable=False, index=True)
     # Nullable : les écritures système (DEPOT_INITIAL, ANNULATION,
-    # REMBOURSEMENT_DETTE, ENCAISSEMENT_CREANCE) n'ont pas de catégorie de
-    # dépense/revenu — seules DEPENSE/REVENU en ont une pour le suivi budget.
+    # REMBOURSEMENT_DETTE, ENCAISSEMENT_CREANCE, DETTE_RECUE,
+    # CREANCE_ACCORDEE) n'ont pas de catégorie de dépense/revenu — seules
+    # DEPENSE/REVENU en ont une pour le suivi budget.
     id_categorie = Column(Integer, ForeignKey("categories.id_categorie"), nullable=True, index=True)
-    # DEPENSE, REVENU, DEPOT_INITIAL, ANNULATION, REMBOURSEMENT_DETTE, ENCAISSEMENT_CREANCE
+    # DEPENSE, REVENU, DEPOT_INITIAL, ANNULATION, REMBOURSEMENT_DETTE,
+    # ENCAISSEMENT_CREANCE, DETTE_RECUE, CREANCE_ACCORDEE
     type = Column(String, nullable=False)
     est_recurrente = Column(Boolean, default=False)
     est_suspecte = Column(Boolean, default=False)
     id_transaction_annulee = Column(Integer, ForeignKey("transactions.id_transaction"), nullable=True)
+    # Renseigné sur la transaction d'origine (DETTE_RECUE/CREANCE_ACCORDEE)
+    # et sur chaque transaction de remboursement (REMBOURSEMENT_DETTE/
+    # ENCAISSEMENT_CREANCE) : seul moyen de savoir quelles transactions
+    # appartiennent à quelle dette, pour dériver Dette.montant_rembourse.
+    # use_alter=True : dettes.id_transaction_origine référence déjà
+    # transactions, donc les deux tables se référencent mutuellement.
+    # Sans ça, SQLAlchemy ne peut pas déterminer un ordre de
+    # création/suppression des tables (cycle non résolu).
+    id_dette = Column(
+        Integer,
+        ForeignKey("dettes.id_dette", use_alter=True, name="fk_transactions_id_dette"),
+        nullable=True,
+        index=True,
+    )
 
     client = relationship("Client", back_populates="transactions")
     compte = relationship("CompteFinancier", foreign_keys=[id_compte])
@@ -68,6 +94,7 @@ class Transaction(OperationFinanciere, Base):
     transaction_annulee = relationship(
         "Transaction", remote_side=[id_transaction], foreign_keys=[id_transaction_annulee]
     )
+    dette = relationship("Dette", foreign_keys=[id_dette], back_populates="transactions_liees")
 
     def calculer_impact(self) -> Decimal:
         """
