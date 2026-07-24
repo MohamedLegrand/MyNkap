@@ -29,7 +29,6 @@ class Client(Utilisateur):
     __tablename__ = "clients"
 
     id_client = Column(Integer, ForeignKey("utilisateurs.id_utilisateur"), primary_key=True)
-    username = Column(String, unique=True, index=True, nullable=False)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
     phone = Column(String, nullable=False)

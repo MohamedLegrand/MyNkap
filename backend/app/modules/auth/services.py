@@ -21,7 +21,6 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
     db_client = Client(
         email=client_in.email,
         mot_de_passe=mot_de_passe_hache,
-        username=client_in.username,
         first_name=client_in.first_name,
         last_name=client_in.last_name,
         phone=client_in.phone,

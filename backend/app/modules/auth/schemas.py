@@ -20,7 +20,6 @@ class ProfileUpdate(BaseModel):
 # --- Schémas pour l'inscription ---
 class UserRegister(BaseModel):
     email: EmailStr
-    username: str = Field(..., min_length=3, max_length=50)
     mot_de_passe: str = Field(..., min_length=6)
     first_name: str
     last_name: str
@@ -44,7 +43,6 @@ class TokenRefreshRequest(BaseModel):
 class ClientOut(BaseModel):
     id_client: int
     email: EmailStr
-    username: str
     first_name: str
     last_name: str
     phone: str

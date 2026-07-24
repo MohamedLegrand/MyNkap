@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import {
   Sun, Moon, Compass, ArrowRight, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
-  HelpCircle, Mail, Loader2, User, AtSign, Phone,
+  HelpCircle, Mail, Loader2, User, Phone,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
@@ -666,7 +666,6 @@ const RegisterPage = () => {
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -689,7 +688,6 @@ const RegisterPage = () => {
         method: 'POST',
         body: JSON.stringify({
           email,
-          username,
           mot_de_passe: motDePasse,
           first_name: firstName,
           last_name: lastName,
@@ -745,22 +743,6 @@ const RegisterPage = () => {
               placeholder="Legrand"
             />
           </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor="username" className="text-sm font-medium">Nom d'utilisateur</label>
-          <IconInput
-            icon={AtSign}
-            id="username"
-            type="text"
-            required
-            minLength={3}
-            maxLength={50}
-            autoComplete="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="mohamedlegrand"
-          />
         </div>
 
         <div className="space-y-1.5">

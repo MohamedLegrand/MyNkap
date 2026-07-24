@@ -1,7 +1,6 @@
 def _register_payload(**overrides):
     payload = {
         "email": "jean.dupont@example.com",
-        "username": "jeandupont",
         "mot_de_passe": "motdepasse123",
         "first_name": "Jean",
         "last_name": "Dupont",
@@ -23,7 +22,7 @@ def test_register_creates_client_with_default_profile(client):
 
 def test_register_rejects_duplicate_email(client):
     client.post("/api/v1/auth/register", json=_register_payload())
-    response = client.post("/api/v1/auth/register", json=_register_payload(username="autre"))
+    response = client.post("/api/v1/auth/register", json=_register_payload())
 
     assert response.status_code == 400
 
