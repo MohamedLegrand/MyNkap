@@ -38,12 +38,14 @@ def creer_compte(
 @router.get("", response_model=List[CompteFinancierOut])
 def lister_comptes(
     include_inactifs: bool = False,
+    include_epargne_dediees: bool = False,
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_active_client),
 ):
     """Liste les comptes financiers du client authentifié. Par défaut, ne
-    renvoie que les comptes actifs."""
-    return service.lister_comptes(db, client.id_client, include_inactifs)
+    renvoie que les comptes actifs, et exclut les comptes épargne dédiés à
+    un objectif (consultables via /epargne)."""
+    return service.lister_comptes(db, client.id_client, include_inactifs, include_epargne_dediees)
 
 
 @router.get("/principal", response_model=ComptePrincipalOut)

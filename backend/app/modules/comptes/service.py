@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.modules.comptes.models import CompteFinancier, ComptePrincipal
 from app.modules.comptes.schemas import CompteFinancierCreate, CompteFinancierUpdate
 from app.modules.dettes.models import Dette
+from app.modules.epargne.models import ObjectifEpargne
 from app.modules.transactions.models import Transaction
 
 
@@ -32,10 +33,22 @@ def obtenir_compte_du_client(
     return query.first()
 
 
-def lister_comptes(db: Session, id_client: int, include_inactifs: bool = False) -> List[CompteFinancier]:
+def lister_comptes(
+    db: Session, id_client: int, include_inactifs: bool = False, include_epargne_dediees: bool = False
+) -> List[CompteFinancier]:
+    """
+    Liste les comptes financiers du client. Par défaut, exclut les comptes
+    épargne dédiés à un ObjectifEpargne : ils sont "invisibles" en tant que
+    compte générique, on ne les consulte qu'à travers l'objectif lui-même
+    (montant_actuel). `include_epargne_dediees=True` les fait réapparaître
+    si besoin (ex : usage administratif).
+    """
     query = db.query(CompteFinancier).filter(CompteFinancier.id_client == id_client)
     if not include_inactifs:
         query = query.filter(CompteFinancier.est_actif.is_(True))
+    if not include_epargne_dediees:
+        comptes_dedies = db.query(ObjectifEpargne.id_compte_epargne)
+        query = query.filter(CompteFinancier.id_compte.notin_(comptes_dedies.scalar_subquery()))
     return query.order_by(CompteFinancier.date_creation.desc()).all()
 
 
