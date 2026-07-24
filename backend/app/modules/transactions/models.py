@@ -31,7 +31,10 @@ class Transaction(OperationFinanciere, Base):
     id_transaction = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
     id_compte = Column(Integer, ForeignKey("comptes_financiers.id_compte"), nullable=False, index=True)
-    id_categorie = Column(Integer, ForeignKey("categories.id_categorie"), nullable=False, index=True)
+    # Nullable : les écritures système (DEPOT_INITIAL, ANNULATION,
+    # REMBOURSEMENT_DETTE, ENCAISSEMENT_CREANCE) n'ont pas de catégorie de
+    # dépense/revenu — seules DEPENSE/REVENU en ont une pour le suivi budget.
+    id_categorie = Column(Integer, ForeignKey("categories.id_categorie"), nullable=True, index=True)
     # DEPENSE, REVENU, DEPOT_INITIAL, ANNULATION, REMBOURSEMENT_DETTE, ENCAISSEMENT_CREANCE
     type = Column(String, nullable=False)
     est_recurrente = Column(Boolean, default=False)

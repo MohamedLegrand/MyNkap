@@ -7,7 +7,9 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.exceptions import MyNkapException
 from app.core.limiter import limiter
+from app.core import models_registry  # noqa: F401 (enregistre toutes les tables/relations)
 from app.modules.auth.router import router as auth_router
+from app.modules.comptes.router import router as comptes_router
 
 # Le schéma de la base de données est géré par Alembic (voir backend/alembic/).
 # Lancer `alembic upgrade head` avant de démarrer l'API.
@@ -35,6 +37,7 @@ def mynkap_exception_handler(_request: Request, exc: MyNkapException):
 
 # Enregistrement des points d'accès (routes)
 app.include_router(auth_router, prefix=settings.API_V1_STR)
+app.include_router(comptes_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def read_root():

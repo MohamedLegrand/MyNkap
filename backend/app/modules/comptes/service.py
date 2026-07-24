@@ -1,0 +1,162 @@
+from typing import List, Optional
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.modules.comptes.models import CompteFinancier, ComptePrincipal
+from app.modules.comptes.schemas import CompteFinancierCreate, CompteFinancierUpdate
+from app.modules.dettes.models import Dette
+from app.modules.transactions.models import Transaction
+
+
+def obtenir_compte_du_client(db: Session, id_compte: int, id_client: int) -> Optional[CompteFinancier]:
+    """
+    Récupère un compte en vérifiant qu'il appartient bien au client courant.
+    Ne fait volontairement pas la distinction 404/403 : on ne révèle jamais
+    l'existence d'un compte qui n'appartient pas au client.
+    """
+    return (
+        db.query(CompteFinancier)
+        .filter(CompteFinancier.id_compte == id_compte, CompteFinancier.id_client == id_client)
+        .first()
+    )
+
+
+def lister_comptes(db: Session, id_client: int, include_inactifs: bool = False) -> List[CompteFinancier]:
+    query = db.query(CompteFinancier).filter(CompteFinancier.id_client == id_client)
+    if not include_inactifs:
+        query = query.filter(CompteFinancier.est_actif.is_(True))
+    return query.order_by(CompteFinancier.date_creation.desc()).all()
+
+
+def crediter_compte(compte: CompteFinancier, montant: float) -> None:
+    """
+    Augmente le solde d'un compte. Ne doit jamais être appelé seul : doit
+    toujours s'accompagner de la création d'une Transaction tracée dans le
+    même appelant (voir creer_compte pour le cas DEPOT_INITIAL).
+    """
+    compte.solde += montant
+
+
+def debiter_compte(compte: CompteFinancier, montant: float) -> None:
+    """Diminue le solde d'un compte. Même remarque que crediter_compte."""
+    compte.solde -= montant
+
+
+def creer_compte(db: Session, id_client: int, payload: CompteFinancierCreate) -> CompteFinancier:
+    """
+    Crée un compte financier pour le client. Si un solde initial est fourni,
+    une Transaction DEPOT_INITIAL est créée dans la même transaction SQL
+    que le compte, pour que l'origine du montant reste toujours traçable
+    (principe du solde initial traçable, 6.4).
+
+    TODO(module Plan/Abonnement) : vérifier ici que le client n'a pas
+    atteint la limite max_comptes de son plan avant de créer le compte
+    (403 + message d'upgrade si atteinte) — actuellement non appliqué,
+    décision actée avec l'utilisateur.
+    """
+    nouveau_compte = CompteFinancier(
+        id_client=id_client,
+        nom=payload.nom,
+        type=payload.type,
+        devise=payload.devise,
+        solde=0,
+        est_actif=True,
+    )
+    db.add(nouveau_compte)
+    db.flush()  # pour obtenir id_compte avant la Transaction associée
+
+    if payload.solde_initial > 0:
+        crediter_compte(nouveau_compte, payload.solde_initial)
+        depot_initial = Transaction(
+            id_client=id_client,
+            id_compte=nouveau_compte.id_compte,
+            id_categorie=None,
+            montant=payload.solde_initial,
+            description="Dépôt initial à la création du compte",
+            type="DEPOT_INITIAL",
+        )
+        db.add(depot_initial)
+
+    db.commit()
+    db.refresh(nouveau_compte)
+
+    synchroniser_compte_principal(db, id_client)
+    return nouveau_compte
+
+
+def modifier_compte(db: Session, compte: CompteFinancier, payload: CompteFinancierUpdate) -> CompteFinancier:
+    """Modifie le nom et/ou le type d'un compte. Le solde n'est jamais
+    modifiable via cette fonction (voir CompteFinancierUpdate)."""
+    donnees = payload.model_dump(exclude_unset=True)
+    for champ, valeur in donnees.items():
+        setattr(compte, champ, valeur)
+
+    db.commit()
+    db.refresh(compte)
+    return compte
+
+
+def desactiver_compte(db: Session, compte: CompteFinancier) -> CompteFinancier:
+    """Désactivation logique (soft delete) — jamais de suppression réelle,
+    conformément au principe d'immuabilité du cahier des charges."""
+    compte.est_actif = False
+    db.commit()
+    db.refresh(compte)
+    synchroniser_compte_principal(db, compte.id_client)
+    return compte
+
+
+def reactiver_compte(db: Session, compte: CompteFinancier) -> CompteFinancier:
+    compte.est_actif = True
+    db.commit()
+    db.refresh(compte)
+    synchroniser_compte_principal(db, compte.id_client)
+    return compte
+
+
+def get_or_create_compte_principal(db: Session, id_client: int) -> ComptePrincipal:
+    compte_principal = db.query(ComptePrincipal).filter(ComptePrincipal.id_client == id_client).first()
+    if compte_principal is None:
+        compte_principal = ComptePrincipal(id_client=id_client, solde_total=0)
+        db.add(compte_principal)
+        db.commit()
+        db.refresh(compte_principal)
+    return compte_principal
+
+
+def synchroniser_compte_principal(db: Session, id_client: int) -> ComptePrincipal:
+    """
+    Recalcule solde_total en sommant les comptes actifs du client
+    (principe du compte principal agrégateur, 6.6). Le ComptePrincipal
+    n'est jamais crédité/débité directement — il ne fait que refléter
+    l'état des comptes financiers au moment de l'appel.
+    """
+    compte_principal = get_or_create_compte_principal(db, id_client)
+
+    total = (
+        db.query(func.coalesce(func.sum(CompteFinancier.solde), 0))
+        .filter(CompteFinancier.id_client == id_client, CompteFinancier.est_actif.is_(True))
+        .scalar()
+    )
+    compte_principal.solde_total = float(total or 0)
+    db.commit()
+    db.refresh(compte_principal)
+    return compte_principal
+
+
+def calculer_patrimoine_net(db: Session, id_client: int) -> float:
+    """
+    Patrimoine net = solde_total - dettes restantes + créances restantes
+    (principe 6.9). Interroge directement la table Dette : le module
+    Dettes complet (validations, endpoints) n'est pas encore construit,
+    mais la donnée existe déjà et le calcul est correct dès maintenant.
+    """
+    compte_principal = synchroniser_compte_principal(db, id_client)
+
+    dettes = db.query(Dette).filter(Dette.id_client == id_client, Dette.type == "DETTE").all()
+    total_dettes = sum(d.montant_total - d.montant_rembourse for d in dettes)
+
+    creances = db.query(Dette).filter(Dette.id_client == id_client, Dette.type == "CREANCE").all()
+    total_creances = sum(c.montant_total - c.montant_rembourse for c in creances)
+
+    return compte_principal.solde_total - total_dettes + total_creances
