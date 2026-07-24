@@ -32,10 +32,11 @@ const useDarkMode = () => {
 const ThemeToggle = ({ theme, toggleTheme }: { theme: string; toggleTheme: () => void }) => (
   <button
     onClick={toggleTheme}
-    className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-foreground border border-gray-200 dark:border-gray-700 transition-colors duration-150"
+    aria-label={theme === 'light' ? 'Activer le mode sombre' : 'Activer le mode clair'}
+    className="p-2 rounded-xl bg-muted hover:bg-accent text-foreground border border-border transition-colors duration-150"
     title="Changer de thème"
   >
-    {theme === 'light' ? <Moon className="h-5 w-5 text-gray-700" /> : <Sun className="h-5 w-5 text-yellow-400" />}
+    {theme === 'light' ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-yellow-400" />}
   </button>
 );
 
@@ -44,7 +45,7 @@ const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
       {/* 1. Header (Navigation) */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -58,10 +59,10 @@ const LandingPage = () => {
 
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center gap-8">
+            <a href="#ia" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Intelligence Artificielle</a>
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
-            <a href="#jarvis" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">IA JARVIS</a>
-            <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Tarifs</a>
             <a href="#about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Comptabilité</a>
+            <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Tarifs</a>
           </nav>
 
           {/* CTA & Theme toggle */}
@@ -81,8 +82,10 @@ const LandingPage = () => {
           {/* Mobile Menu Toggle */}
           <div className="flex items-center gap-4 md:hidden">
             <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-            <button 
+            <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+              aria-expanded={mobileMenuOpen}
               className="p-2 text-muted-foreground hover:text-foreground"
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -93,10 +96,10 @@ const LandingPage = () => {
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-border bg-background px-4 pt-4 pb-6 space-y-3 transition-colors duration-200">
+            <a href="#ia" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Intelligence Artificielle</a>
             <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Fonctionnalités</a>
-            <a href="#jarvis" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">IA JARVIS</a>
-            <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Tarifs</a>
             <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Comptabilité</a>
+            <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Tarifs</a>
             <div className="pt-4 border-t border-border flex flex-col gap-3">
               <a href="/login" className="text-center py-2.5 font-semibold text-sm hover:text-primary transition-colors">
                 Connexion
@@ -121,21 +124,21 @@ const LandingPage = () => {
               Contrôlez Votre <span className="text-primary">Budget</span> Et Vos <span className="text-secondary">Finances</span> Facilement
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              MyNkap est l'application intelligente conçue spécifiquement pour le marché d'Afrique Centrale. Centralisez vos comptes Orange Money, MTN MoMo, bancaires et cash au même endroit avec l'aide de notre conseiller IA **JARVIS**.
+              MyNkap est l'application intelligente conçue spécifiquement pour le marché d'Afrique Centrale. Centralisez vos comptes Orange Money, MTN MoMo, bancaires et cash au même endroit avec l'aide de notre assistant financier propulsé par l'intelligence artificielle.
             </p>
             <div className="flex flex-wrap justify-center gap-4 pt-2">
-              <a 
-                href="/login" 
+              <a
+                href="/login"
                 className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-3.5 px-8 rounded-xl transition-all shadow-md flex items-center gap-2 group"
               >
                 <span>Essayer Gratuitement</span>
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </a>
-              <a 
-                href="/dashboard" 
+              <a
+                href="#ia"
                 className="bg-card hover:bg-muted text-foreground border border-border font-bold py-3.5 px-8 rounded-xl transition-all shadow-sm"
               >
-                Accéder au Dashboard
+                Découvrir l'IA
               </a>
             </div>
           </div>
@@ -146,47 +149,47 @@ const LandingPage = () => {
       <section className="py-12 bg-muted transition-colors duration-200 border-y border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-8">
-            Conçu pour la sécurité et la conformité financière locale
+            Conçu pour la sécurité et la fiabilité financière au quotidien
           </p>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div className="space-y-1">
               <div className="text-3xl font-extrabold text-primary flex items-center justify-center gap-1">
-                <Users className="h-6 w-6 text-primary/80" />
-                <span>500k+</span>
+                <Globe className="h-6 w-6 text-primary/80" />
+                <span>XAF</span>
               </div>
-              <p className="text-xs text-muted-foreground">Utilisateurs attendus</p>
+              <p className="text-xs text-muted-foreground">Devise native Afrique Centrale</p>
             </div>
             <div className="space-y-1">
               <div className="text-3xl font-extrabold text-secondary flex items-center justify-center gap-1">
-                <Globe className="h-6 w-6 text-secondary/80" />
-                <span>CEMAC</span>
+                <Users className="h-6 w-6 text-secondary/80" />
+                <span>Mobile Money</span>
               </div>
-              <p className="text-xs text-muted-foreground">Afrique Centrale & XAF</p>
+              <p className="text-xs text-muted-foreground">Orange Money & MTN MoMo intégrés</p>
             </div>
             <div className="space-y-1">
               <div className="text-3xl font-extrabold text-primary flex items-center justify-center gap-1">
                 <Database className="h-6 w-6 text-primary/80" />
-                <span>ACID</span>
+                <span>0 écart</span>
               </div>
-              <p className="text-xs text-muted-foreground">Transactions SQL Intègres</p>
+              <p className="text-xs text-muted-foreground">Aucune incohérence de solde tolérée</p>
             </div>
             <div className="space-y-1">
               <div className="text-3xl font-extrabold text-secondary flex items-center justify-center gap-1">
                 <Lock className="h-6 w-6 text-secondary/80" />
-                <span>99.9%</span>
+                <span>Chiffré</span>
               </div>
-              <p className="text-xs text-muted-foreground">Chiffré de bout en bout</p>
+              <p className="text-xs text-muted-foreground">Données protégées de bout en bout</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 4. Feature Section 1: JARVIS AI */}
-      <section id="jarvis" className="py-20 md:py-28 bg-background transition-colors duration-200">
+      {/* 4. Feature Section 1: AI Assistant */}
+      <section id="ia" className="py-20 md:py-28 bg-background transition-colors duration-200 scroll-mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
+
             {/* Left Column (Interactive AI Conversation Box) */}
             <div className="lg:col-span-5 flex justify-center order-last lg:order-first">
               <div className="w-full max-w-sm bg-card rounded-2xl shadow-xl border border-border p-6 space-y-4 text-left">
@@ -195,7 +198,7 @@ const LandingPage = () => {
                     <Sparkles className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm">Conseiller JARVIS IA</h4>
+                    <h4 className="font-bold text-sm">Assistant Financier IA</h4>
                     <span className="text-xs text-green-500 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
                       En ligne
@@ -212,23 +215,23 @@ const LandingPage = () => {
                     <span className="text-[10px] text-muted-foreground mt-1">Vous, 14:58</span>
                   </div>
 
-                  {/* JARVIS Bubble */}
+                  {/* AI Bubble */}
                   <div className="flex flex-col items-start">
                     <div className="bg-muted p-3 rounded-2xl rounded-tl-none max-w-[85%] border border-border leading-relaxed">
                       "En analysant vos revenus (800 000 XAF) et vos dépenses fixes actuelles (300 000 XAF), oui vous le pouvez. Cependant, cela réduira votre objectif d'épargne 'Terrain Douala' de 12% ce mois-ci. Je vous recommande d'attendre le 5 du mois prochain."
                     </div>
-                    <span className="text-[10px] text-muted-foreground mt-1">JARVIS, 14:59</span>
+                    <span className="text-[10px] text-muted-foreground mt-1">Assistant IA, 14:59</span>
                   </div>
                 </div>
-                
+
                 <div className="border-t border-border pt-3">
                   <div className="flex gap-2 bg-muted p-2 rounded-xl border border-border">
-                    <input 
-                      disabled 
-                      placeholder="Posez une question financière à JARVIS..." 
+                    <input
+                      disabled
+                      placeholder="Posez une question financière à l'IA..."
                       className="bg-transparent border-none text-xs flex-1 outline-none text-muted-foreground"
                     />
-                    <button className="bg-primary text-primary-foreground p-1.5 rounded-lg">
+                    <button className="bg-primary text-primary-foreground p-1.5 rounded-lg" aria-label="Envoyer">
                       <MessageSquare className="w-4 h-4" />
                     </button>
                   </div>
@@ -239,10 +242,10 @@ const LandingPage = () => {
             {/* Right Column (Content) */}
             <div className="lg:col-span-7 space-y-6 text-left">
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                Prenez des décisions éclairées grâce à l'IA <span className="text-primary">JARVIS</span>
+                Prenez des décisions éclairées grâce à l'<span className="text-primary">Intelligence Artificielle</span>
               </h2>
               <p className="text-base text-muted-foreground leading-relaxed">
-                JARVIS n'est pas un simple chatbot. Il est directement connecté à vos flux financiers enregistrés. Il apprend de vos habitudes de consommation pour vous proposer des conseils d'épargne personnalisés, anticiper vos découverts et automatiser la saisie par commande vocale.
+                Notre assistant IA n'est pas un simple chatbot. Il est directement connecté à vos flux financiers enregistrés. Il apprend de vos habitudes de consommation pour vous proposer des conseils d'épargne personnalisés, anticiper vos découverts et automatiser la saisie par commande vocale.
               </p>
               
               <ul className="space-y-3.5">
@@ -267,7 +270,7 @@ const LandingPage = () => {
       </section>
 
       {/* 5. Feature Section 2: Cards and Accounts */}
-      <section id="features" className="py-20 md:py-28 bg-muted transition-colors duration-200 border-t border-border">
+      <section id="features" className="py-20 md:py-28 bg-muted transition-colors duration-200 border-t border-border scroll-mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-6">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -292,7 +295,7 @@ const LandingPage = () => {
       </section>
 
       {/* 6. Feature Section 3: Accounting Rigor (About Section) */}
-      <section id="about" className="py-20 md:py-28 bg-background transition-colors duration-200">
+      <section id="about" className="py-20 md:py-28 bg-background transition-colors duration-200 scroll-mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
           <div className="max-w-2xl mx-auto space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -338,7 +341,7 @@ const LandingPage = () => {
       </section>
 
       {/* 7. Pricing Section */}
-      <section id="pricing" className="py-20 md:py-28 bg-muted transition-colors duration-200 border-t border-border">
+      <section id="pricing" className="py-20 md:py-28 bg-muted transition-colors duration-200 border-t border-border scroll-mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
           <div className="max-w-2xl mx-auto space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -360,7 +363,7 @@ const LandingPage = () => {
                 <ul className="space-y-3 text-xs">
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Max 3 comptes financiers</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> 100 transactions / mois</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès JARVIS limité (10 requêtes/mois)</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès IA limité (10 requêtes/mois)</li>
                   <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Prédiction financière indisponible</li>
                   <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Rapports PDF/Excel indisponibles</li>
                 </ul>
@@ -383,7 +386,7 @@ const LandingPage = () => {
                 <ul className="space-y-3 text-xs">
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Max 10 comptes financiers</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> 1 000 transactions / mois</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès JARVIS complet</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès IA complet</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Prédictions budgétaires IA</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Rapports financiers PDF/Excel</li>
                 </ul>
@@ -403,7 +406,7 @@ const LandingPage = () => {
                 <ul className="space-y-3 text-xs">
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Comptes financiers illimités</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Transactions illimitées</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès JARVIS prioritaire</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès IA prioritaire</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Gestion complète des dettes et prêts</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Support client dédié 24h/7</li>
                 </ul>
@@ -457,7 +460,7 @@ const LandingPage = () => {
               <h4 className="text-sm font-bold text-foreground">Produit</h4>
               <ul className="space-y-2 text-xs">
                 <li><a href="#features" className="hover:text-foreground transition-colors">Fonctionnalités</a></li>
-                <li><a href="#jarvis" className="hover:text-foreground transition-colors">L'IA JARVIS</a></li>
+                <li><a href="#ia" className="hover:text-foreground transition-colors">Intelligence Artificielle</a></li>
                 <li><a href="#pricing" className="hover:text-foreground transition-colors">Tarifs & Offres</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Mises à jour</a></li>
               </ul>
