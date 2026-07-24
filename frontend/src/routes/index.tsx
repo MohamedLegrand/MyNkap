@@ -71,8 +71,8 @@ const LandingPage = () => {
             <a href="/login" className="text-sm font-semibold hover:text-primary transition-colors">
               Connexion
             </a>
-            <a 
-              href="/login" 
+            <a
+              href="/register"
               className="bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 px-5 rounded-xl transition-all shadow-sm"
             >
               S'inscrire
@@ -104,7 +104,7 @@ const LandingPage = () => {
               <a href="/login" className="text-center py-2.5 font-semibold text-sm hover:text-primary transition-colors">
                 Connexion
               </a>
-              <a href="/login" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-sm">
+              <a href="/register" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-sm">
                 S'inscrire
               </a>
             </div>
@@ -128,7 +128,7 @@ const LandingPage = () => {
             </p>
             <div className="flex flex-wrap justify-center gap-4 pt-2">
               <a
-                href="/login"
+                href="/register"
                 className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-3.5 px-8 rounded-xl transition-all shadow-md flex items-center gap-2 group"
               >
                 <span>Essayer Gratuitement</span>
@@ -368,7 +368,7 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Rapports PDF/Excel indisponibles</li>
                 </ul>
               </div>
-              <a href="/login" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
+              <a href="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
                 Commencer
               </a>
             </div>
@@ -391,7 +391,7 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Rapports financiers PDF/Excel</li>
                 </ul>
               </div>
-              <a href="/login" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
+              <a href="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
                 Choisir Pro
               </a>
             </div>
@@ -411,7 +411,7 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Support client dédié 24h/7</li>
                 </ul>
               </div>
-              <a href="/login" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
+              <a href="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
                 Choisir Business
               </a>
             </div>
@@ -524,8 +524,52 @@ const LandingPage = () => {
   );
 };
 
-const LoginPage = () => {
+// Mise en page partagée par les pages Connexion et Inscription
+const AuthLayout = ({
+  title,
+  subtitle,
+  maxWidthClassName = 'max-w-md',
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  maxWidthClassName?: string;
+  children: React.ReactNode;
+}) => {
   const { theme, toggleTheme } = useDarkMode();
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background text-foreground transition-colors duration-200">
+      <div className="absolute top-6 right-6">
+        <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+      </div>
+
+      <div className={`w-full ${maxWidthClassName}`}>
+        <a href="/" className="flex flex-col items-center gap-3 mb-8">
+          <img src="/logo.jpg" alt="MyNkap" className="h-16 w-16 rounded-2xl object-cover shadow-md border border-border" />
+          <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            MyNkap
+          </span>
+        </a>
+
+        <div className="bg-card p-8 rounded-2xl shadow-lg border border-border">
+          <h2 className="text-2xl font-bold mb-2 text-center">{title}</h2>
+          <p className="text-muted-foreground text-center mb-6 text-sm">{subtitle}</p>
+          {children}
+        </div>
+
+        <a href="/" className="block text-center text-sm text-muted-foreground hover:text-foreground font-medium mt-6">
+          ← Retour à l'accueil
+        </a>
+      </div>
+    </div>
+  );
+};
+
+const inputClassName =
+  'w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+const LoginPage = () => {
   const navigate = useNavigate();
   const setSession = useAuthStore((state) => state.setSession);
 
@@ -553,27 +597,188 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-background text-foreground transition-colors duration-200">
-      <div className="absolute top-6 right-6">
-        <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-      </div>
+    <AuthLayout title="Se connecter à MyNkap" subtitle="Accédez à votre tableau de bord financier">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+          <input
+            id="email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClassName}
+            placeholder="vous@exemple.com"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
+          <input
+            id="mot_de_passe"
+            type="password"
+            required
+            minLength={6}
+            autoComplete="current-password"
+            value={motDePasse}
+            onChange={(e) => setMotDePasse(e.target.value)}
+            className={inputClassName}
+            placeholder="••••••••"
+          />
+        </div>
 
-      <div className="w-full max-w-md bg-card p-8 rounded-2xl shadow-lg border border-border">
-        <h2 className="text-2xl font-bold mb-2 text-center">Se connecter à MyNkap</h2>
-        <p className="text-muted-foreground text-center mb-6 text-sm">Accédez à votre tableau de bord financier</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-sm text-destructive text-center">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+        >
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
+        </button>
+
+        <p className="text-center text-sm text-muted-foreground pt-1">
+          Pas encore de compte ?{' '}
+          <a href="/register" className="text-secondary hover:underline font-medium">Créer un compte</a>
+        </p>
+      </form>
+    </AuthLayout>
+  );
+};
+
+const RegisterPage = () => {
+  const navigate = useNavigate();
+  const setSession = useAuthStore((state) => state.setSession);
+
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [motDePasse, setMotDePasse] = useState('');
+  const [confirmMotDePasse, setConfirmMotDePasse] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+
+    if (motDePasse !== confirmMotDePasse) {
+      setError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await api.request('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          username,
+          mot_de_passe: motDePasse,
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+        }),
+      });
+
+      // Connexion automatique juste après l'inscription
+      const tokens = await api.request<TokenResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, mot_de_passe: motDePasse }),
+      });
+      setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      title="Créer votre compte MyNkap"
+      subtitle="Commencez à maîtriser vos finances en quelques secondes"
+      maxWidthClassName="max-w-lg"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+            <label htmlFor="first_name" className="text-sm font-medium">Prénom</label>
             <input
-              id="email"
-              type="email"
+              id="first_name"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-              placeholder="vous@exemple.com"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className={inputClassName}
+              placeholder="Jean"
             />
           </div>
+          <div className="space-y-1.5">
+            <label htmlFor="last_name" className="text-sm font-medium">Nom</label>
+            <input
+              id="last_name"
+              type="text"
+              required
+              autoComplete="family-name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className={inputClassName}
+              placeholder="Dupont"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="username" className="text-sm font-medium">Nom d'utilisateur</label>
+          <input
+            id="username"
+            type="text"
+            required
+            minLength={3}
+            maxLength={50}
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className={inputClassName}
+            placeholder="jeandupont"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+          <input
+            id="email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClassName}
+            placeholder="vous@exemple.com"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="phone" className="text-sm font-medium">Téléphone</label>
+          <input
+            id="phone"
+            type="tel"
+            required
+            autoComplete="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className={inputClassName}
+            placeholder="+237 6XX XXX XXX"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
             <input
@@ -581,31 +786,46 @@ const LoginPage = () => {
               type="password"
               required
               minLength={6}
+              autoComplete="new-password"
               value={motDePasse}
               onChange={(e) => setMotDePasse(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className={inputClassName}
               placeholder="••••••••"
             />
           </div>
+          <div className="space-y-1.5">
+            <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">Confirmer</label>
+            <input
+              id="confirm_mot_de_passe"
+              type="password"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              value={confirmMotDePasse}
+              onChange={(e) => setConfirmMotDePasse(e.target.value)}
+              className={inputClassName}
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
 
-          {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
-          )}
+        {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
-          </button>
-          <a href="/" className="block text-center text-sm text-secondary hover:underline font-medium">
-            Retour à l'accueil
-          </a>
-        </form>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+        >
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isSubmitting ? 'Création du compte...' : 'Créer mon compte'}
+        </button>
+
+        <p className="text-center text-sm text-muted-foreground pt-1">
+          Déjà un compte ?{' '}
+          <a href="/login" className="text-secondary hover:underline font-medium">Se connecter</a>
+        </p>
+      </form>
+    </AuthLayout>
   );
 };
 
@@ -670,6 +890,7 @@ export const AppRoutes: React.FC = () => {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route
           path="/dashboard"
           element={
