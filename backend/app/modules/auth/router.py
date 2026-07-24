@@ -1,11 +1,12 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.core.security import create_access_token
-from app.modules.auth.dependencies import get_current_user, get_current_active_client
+from app.modules.auth.dependencies import get_current_active_client
 from app.modules.auth.models import Utilisateur
 from app.modules.auth.schemas import (
     UserRegister,
@@ -13,7 +14,6 @@ from app.modules.auth.schemas import (
     TokenResponse,
     TokenRefreshRequest,
     ClientOut,
-    AdminOut,
     ProfileOut,
     ProfileUpdate,
     ForgotPasswordRequest,
@@ -24,7 +24,8 @@ from app.modules.auth import services
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
 @router.post("/register", response_model=ClientOut, status_code=status.HTTP_201_CREATED)
-def register(client_in: UserRegister, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, client_in: UserRegister, db: Session = Depends(get_db)):
     """
     Inscription d'un nouveau client et initialisation de son profil financier.
     """
@@ -41,7 +42,8 @@ def register(client_in: UserRegister, db: Session = Depends(get_db)):
     return nouveau_client
 
 @router.post("/login", response_model=TokenResponse)
-def login(login_in: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
     """
     Connexion d'un utilisateur (Client ou Administrateur) et génération des jetons.
     """
@@ -142,7 +144,8 @@ def update_profile(
     return profile
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
-def forgot_password(forgot_in: ForgotPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def forgot_password(request: Request, forgot_in: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """
     Demander un lien de récupération de mot de passe.
     """

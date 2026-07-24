@@ -15,9 +15,18 @@ class Settings(BaseSettings):
         return self.DATABASE_URL
 
     # Sécurité
-    SECRET_KEY: str = "remplacer-par-une-cle-secrete-tres-securisee"
+    # Pas de valeur par défaut : doit être fournie via .env (voir .env.example).
+    # Génération : python -c "import secrets; print(secrets.token_urlsafe(64))"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 11520 # 8 jours
+
+    # CORS : origines autorisées à appeler l'API (séparées par des virgules dans .env)
+    CORS_ORIGINS: str = "http://localhost:5173"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     class Config:
         env_file = ".env"

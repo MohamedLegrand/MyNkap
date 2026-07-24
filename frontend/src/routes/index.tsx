@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { 
-  Sun, Moon, Compass, DollarSign, Wallet, ArrowRight, Check, 
-  MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Smartphone, Users, Globe,
-  HelpCircle, Mail
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import {
+  Sun, Moon, Compass, ArrowRight, Check,
+  MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
+  HelpCircle, Mail, Loader2
 } from 'lucide-react';
+import { api } from '../services/api';
+import { useAuthStore } from '../store';
+import type { TokenResponse } from '../types';
 
 // Hook personnalisé pour gérer le mode sombre/clair
 const useDarkMode = () => {
@@ -520,6 +523,32 @@ const LandingPage = () => {
 
 const LoginPage = () => {
   const { theme, toggleTheme } = useDarkMode();
+  const navigate = useNavigate();
+  const setSession = useAuthStore((state) => state.setSession);
+
+  const [email, setEmail] = useState('');
+  const [motDePasse, setMotDePasse] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const tokens = await api.request<TokenResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, mot_de_passe: motDePasse }),
+      });
+      setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-background text-foreground transition-colors duration-200">
       <div className="absolute top-6 right-6">
@@ -528,18 +557,50 @@ const LoginPage = () => {
 
       <div className="w-full max-w-md bg-card p-8 rounded-2xl shadow-lg border border-border">
         <h2 className="text-2xl font-bold mb-2 text-center">Se connecter à MyNkap</h2>
-        <p className="text-muted-foreground text-center mb-6 text-sm">Zone de développement</p>
-        <div className="space-y-4">
-          <button 
-            onClick={() => window.location.href = '/dashboard'}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md"
+        <p className="text-muted-foreground text-center mb-6 text-sm">Accédez à votre tableau de bord financier</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="vous@exemple.com"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
+            <input
+              id="mot_de_passe"
+              type="password"
+              required
+              minLength={6}
+              value={motDePasse}
+              onChange={(e) => setMotDePasse(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm text-destructive text-center">{error}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
           >
-            Simuler la connexion
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
           </button>
           <a href="/" className="block text-center text-sm text-secondary hover:underline font-medium">
             Retour à l'accueil
           </a>
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -547,6 +608,14 @@ const LoginPage = () => {
 
 const DashboardPage = () => {
   const { theme, toggleTheme } = useDarkMode();
+  const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200 p-8">
       <div className="max-w-7xl mx-auto">
@@ -559,9 +628,9 @@ const DashboardPage = () => {
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-            <a href="/" className="text-sm font-semibold text-secondary hover:underline">
+            <button onClick={handleLogout} className="text-sm font-semibold text-secondary hover:underline">
               Déconnexion
-            </a>
+            </button>
           </div>
         </div>
         
@@ -587,13 +656,25 @@ const DashboardPage = () => {
   );
 };
 
+const RequireAuth = ({ children }: { children: React.ReactElement }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
+
 export const AppRoutes: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <DashboardPage />
+            </RequireAuth>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

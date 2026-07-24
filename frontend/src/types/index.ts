@@ -9,6 +9,13 @@ export interface Client {
   phone: string;
 }
 
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
 export interface CompteFinancier {
   id_compte: number;
   id_client: number;
