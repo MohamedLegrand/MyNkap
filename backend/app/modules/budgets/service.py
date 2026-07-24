@@ -1,0 +1,269 @@
+from decimal import Decimal
+from typing import List, Optional, Tuple
+from fastapi import Request
+from sqlalchemy import extract, func, cast, Integer
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.modules.audit.service import enregistrer_action
+from app.modules.budgets.models import Budget, Categorie
+from app.modules.budgets.schemas import BudgetCreate, BudgetUpdate, CategorieCreate
+from app.modules.transactions.models import Transaction
+
+SEUIL_ALERTE_80 = 80.0
+SEUIL_ALERTE_100 = 100.0
+
+
+class CategorieIntrouvableError(Exception):
+    """La catégorie n'existe pas ou n'appartient pas au client."""
+
+
+class CategorieDejaExistanteError(Exception):
+    """Une catégorie avec ce nom et ce type existe déjà pour ce client."""
+
+
+class CategorieTypeInvalideError(Exception):
+    """Un budget ne peut être créé que sur une catégorie de type DEPENSE."""
+
+
+class BudgetIntrouvableError(Exception):
+    """Le budget n'existe pas ou n'appartient pas au client."""
+
+
+class BudgetDejaExistantError(Exception):
+    """Un budget existe déjà pour cette catégorie, ce mois et cette année."""
+
+
+# --- Services pour les Catégories ---
+
+def creer_categorie(db: Session, id_client: int, schema: CategorieCreate) -> Categorie:
+    """Crée une nouvelle catégorie personnalisée pour le client."""
+    existant = db.query(Categorie).filter(
+        Categorie.id_client == id_client,
+        Categorie.nom == schema.nom,
+        Categorie.type == schema.type,
+    ).first()
+    if existant:
+        raise CategorieDejaExistanteError()
+
+    db_categorie = Categorie(
+        id_client=id_client,
+        nom=schema.nom,
+        type=schema.type,
+        icone=schema.icone,
+        couleur=schema.couleur,
+    )
+    db.add(db_categorie)
+    db.commit()
+    db.refresh(db_categorie)
+    return db_categorie
+
+
+def obtenir_categories(db: Session, id_client: int) -> List[Categorie]:
+    return db.query(Categorie).filter(Categorie.id_client == id_client).all()
+
+
+# --- Services pour les Budgets ---
+
+def creer_budget(db: Session, id_client: int, schema: BudgetCreate) -> Budget:
+    """
+    Crée un budget mensuel pour une catégorie donnée.
+    Garde-fous :
+    - La catégorie doit être de type DEPENSE
+    - Unicité (id_client, id_categorie, mois, annee) — vérifiée en amont
+      pour un message d'erreur clair, ET imposée par une contrainte UNIQUE
+      en base (voir modèle) qui rattrape une éventuelle course entre deux
+      requêtes concurrentes.
+    """
+    categorie = db.query(Categorie).filter(
+        Categorie.id_categorie == schema.id_categorie,
+        Categorie.id_client == id_client,
+    ).first()
+    if not categorie:
+        raise CategorieIntrouvableError()
+
+    if categorie.type != "DEPENSE":
+        raise CategorieTypeInvalideError()
+
+    budget_existant = db.query(Budget).filter(
+        Budget.id_client == id_client,
+        Budget.id_categorie == schema.id_categorie,
+        Budget.mois == schema.mois,
+        Budget.annee == schema.annee,
+    ).first()
+    if budget_existant:
+        raise BudgetDejaExistantError()
+
+    db_budget = Budget(
+        id_client=id_client,
+        id_categorie=schema.id_categorie,
+        montant_limite=schema.montant_limite,
+        mois=schema.mois,
+        annee=schema.annee,
+    )
+    db.add(db_budget)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise BudgetDejaExistantError()
+    db.refresh(db_budget)
+
+    return db_budget
+
+
+def calculer_valeurs_budget(db: Session, budget: Budget) -> dict:
+    """
+    Calcule dynamiquement (sans cache) le montant dépensé, restant, le
+    pourcentage utilisé et si le budget est dépassé.
+
+    Exclut les DEPENSE qui ont depuis été annulées (Transaction de type
+    ANNULATION dont id_transaction_annulee pointe vers elles) — une
+    dépense corrigée par le client ne doit plus compter dans son budget,
+    exactement comme elle ne compte plus dans le solde de son compte.
+    """
+    depenses_annulees = (
+        db.query(Transaction.id_transaction_annulee)
+        .filter(Transaction.type == "ANNULATION", Transaction.id_transaction_annulee.isnot(None))
+    ).scalar_subquery()
+
+    montant_depense = db.query(func.sum(Transaction.montant)).filter(
+        Transaction.id_client == budget.id_client,
+        Transaction.id_categorie == budget.id_categorie,
+        Transaction.type == "DEPENSE",
+        cast(extract("month", Transaction.date), Integer) == budget.mois,
+        cast(extract("year", Transaction.date), Integer) == budget.annee,
+        Transaction.id_transaction.notin_(depenses_annulees),
+    ).scalar() or Decimal("0.00")
+
+    montant_depense = Decimal(str(montant_depense))
+    montant_restant = budget.montant_limite - montant_depense
+
+    if budget.montant_limite > 0:
+        pourcentage_utilise = float(montant_depense / budget.montant_limite * 100)
+    else:
+        pourcentage_utilise = 0.0
+
+    est_depasse = pourcentage_utilise >= SEUIL_ALERTE_100
+
+    return {
+        "montant_depense": montant_depense,
+        "montant_restant": montant_restant,
+        "pourcentage_utilise": pourcentage_utilise,
+        "est_depasse": est_depasse,
+    }
+
+
+def verifier_alertes(db: Session, budget: Budget, pourcentage_utilise: float, request: Optional[Request] = None) -> None:
+    """
+    Compare passivement les dépenses actuelles aux seuils d'alerte en dur
+    (80% et 100%). Si un seuil est franchi pour la première fois, pose le
+    flag en base et le trace dans l'AuditLog (pas de notification push
+    réelle : le module Notifications n'existe pas encore).
+    """
+    if budget.montant_limite <= 0:
+        return
+
+    if pourcentage_utilise >= SEUIL_ALERTE_100 and not budget.alerte_100:
+        budget.alerte_100 = True
+        budget.alerte_80 = True  # au cas où on saute directement de <80% à >100%
+        db.commit()
+
+        enregistrer_action(
+            db,
+            id_utilisateur=budget.id_client,
+            action="ALERTE_BUDGET_100",
+            ressource="Budget",
+            id_ressource=budget.id_budget,
+            donnees_avant={"alerte_100": False},
+            donnees_apres={"alerte_100": True, "alerte_80": True},
+            request=request,
+        )
+    elif pourcentage_utilise >= SEUIL_ALERTE_80 and not budget.alerte_80:
+        budget.alerte_80 = True
+        db.commit()
+
+        enregistrer_action(
+            db,
+            id_utilisateur=budget.id_client,
+            action="ALERTE_BUDGET_80",
+            ressource="Budget",
+            id_ressource=budget.id_budget,
+            donnees_avant={"alerte_80": False},
+            donnees_apres={"alerte_80": True},
+            request=request,
+        )
+
+
+def _obtenir_avec_valeurs(db: Session, budget: Budget, request: Optional[Request] = None) -> Tuple[Budget, dict]:
+    valeurs = calculer_valeurs_budget(db, budget)
+    verifier_alertes(db, budget, valeurs["pourcentage_utilise"], request)
+    return budget, valeurs
+
+
+def obtenir_budget_du_client(db: Session, id_budget: int, id_client: int) -> Optional[Budget]:
+    return db.query(Budget).filter(Budget.id_budget == id_budget, Budget.id_client == id_client).first()
+
+
+def obtenir_budget(db: Session, id_budget: int, id_client: int, request: Optional[Request] = None) -> Tuple[Budget, dict]:
+    """Récupère un budget, calcule ses valeurs et vérifie les alertes."""
+    budget = obtenir_budget_du_client(db, id_budget, id_client)
+    if budget is None:
+        raise BudgetIntrouvableError()
+    return _obtenir_avec_valeurs(db, budget, request)
+
+
+def lister_budgets(
+    db: Session, id_client: int, include_inactifs: bool = False, request: Optional[Request] = None
+) -> List[Tuple[Budget, dict]]:
+    """Liste les budgets du client, avec leurs valeurs calculées. Par défaut,
+    ne renvoie que les budgets actifs (voir désactiver_budget)."""
+    query = db.query(Budget).filter(Budget.id_client == id_client)
+    if not include_inactifs:
+        query = query.filter(Budget.est_actif.is_(True))
+    budgets = query.order_by(Budget.annee.desc(), Budget.mois.desc()).all()
+    return [_obtenir_avec_valeurs(db, b, request) for b in budgets]
+
+
+def modifier_budget(db: Session, id_budget: int, id_client: int, schema: BudgetUpdate) -> Tuple[Budget, dict]:
+    """
+    Modifie la limite d'un budget. Réinitialise les flags d'alerte : sans
+    ça, un client qui relève sa limite après un dépassement ne serait plus
+    jamais renotifié, les flags restant bloqués à True pour toujours sous
+    la nouvelle limite.
+    """
+    budget = obtenir_budget_du_client(db, id_budget, id_client)
+    if budget is None:
+        raise BudgetIntrouvableError()
+
+    budget.montant_limite = schema.montant_limite
+    budget.alerte_80 = False
+    budget.alerte_100 = False
+    db.commit()
+    db.refresh(budget)
+
+    return _obtenir_avec_valeurs(db, budget)
+
+
+def desactiver_budget(db: Session, id_budget: int, id_client: int) -> Budget:
+    """Désactivation logique — jamais de suppression réelle, même principe
+    que CompteFinancier (l'AuditLog garde une référence valide)."""
+    budget = obtenir_budget_du_client(db, id_budget, id_client)
+    if budget is None:
+        raise BudgetIntrouvableError()
+
+    budget.est_actif = False
+    db.commit()
+    db.refresh(budget)
+    return budget
+
+
+def reactiver_budget(db: Session, id_budget: int, id_client: int) -> Tuple[Budget, dict]:
+    budget = obtenir_budget_du_client(db, id_budget, id_client)
+    if budget is None:
+        raise BudgetIntrouvableError()
+
+    budget.est_actif = True
+    db.commit()
+    db.refresh(budget)
+    return _obtenir_avec_valeurs(db, budget)

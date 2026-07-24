@@ -1,0 +1,341 @@
+from decimal import Decimal
+import pytest
+from app.modules.budgets.models import Budget, Categorie
+from app.modules.audit.models import AuditLog
+
+def _register_and_login(client, email="budgets.test@example.com", mot_de_passe="motdepasse123"):
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": email,
+            "mot_de_passe": mot_de_passe,
+            "first_name": "Budget",
+            "last_name": "Test",
+            "phone": "+237600000000",
+        },
+    )
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "mot_de_passe": mot_de_passe},
+    )
+    access_token = login_response.json()["access_token"]
+    return {"Authorization": f"Bearer {access_token}"}
+
+def _creer_compte(client, headers, solde_initial=100000, nom="Compte principal"):
+    return client.post(
+        "/api/v1/comptes",
+        json={"nom": nom, "type": "ESPECES", "solde_initial": solde_initial},
+        headers=headers,
+    ).json()
+
+def test_crud_categorie(client):
+    headers = _register_and_login(client, "cat.test@example.com")
+    
+    # 1. Création de catégorie
+    response = client.post(
+        "/api/v1/categories",
+        json={"nom": "Alimentation", "type": "DEPENSE", "icone": "utensils", "couleur": "red"},
+        headers=headers
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["nom"] == "Alimentation"
+    assert data["type"] == "DEPENSE"
+    
+    # Doublon impossible
+    response_dup = client.post(
+        "/api/v1/categories",
+        json={"nom": "Alimentation", "type": "DEPENSE"},
+        headers=headers
+    )
+    assert response_dup.status_code == 400
+
+    # 2. Lister les catégories
+    response_list = client.get("/api/v1/categories", headers=headers)
+    assert response_list.status_code == 200
+    assert len(response_list.json()) == 1
+
+def test_creation_budget_contraintes(client, db_session):
+    headers = _register_and_login(client, "budget.constraint@example.com")
+    
+    # Création des catégories
+    cat_depense = client.post(
+        "/api/v1/categories",
+        json={"nom": "Loisirs", "type": "DEPENSE"},
+        headers=headers
+    ).json()
+    
+    cat_revenu = client.post(
+        "/api/v1/categories",
+        json={"nom": "Investissements", "type": "REVENU"},
+        headers=headers
+    ).json()
+
+    # 1. Budget sur catégorie de REVENU interdit
+    response_rev = client.post(
+        "/api/v1/budgets",
+        json={
+            "id_categorie": cat_revenu["id_categorie"],
+            "montant_limite": 50000,
+            "mois": 7,
+            "annee": 2026
+        },
+        headers=headers
+    )
+    assert response_rev.status_code == 400
+    assert "DEPENSE" in response_rev.json()["detail"]
+
+    # 2. Budget valide sur catégorie de DEPENSE
+    response_ok = client.post(
+        "/api/v1/budgets",
+        json={
+            "id_categorie": cat_depense["id_categorie"],
+            "montant_limite": 30000,
+            "mois": 7,
+            "annee": 2026
+        },
+        headers=headers
+    )
+    assert response_ok.status_code == 201
+    budget_data = response_ok.json()
+    assert budget_data["montant_limite"] == "30000.00"
+    assert budget_data["mois"] == 7
+    assert budget_data["annee"] == 2026
+
+    # 3. Doublon pour le même mois/annee/categorie interdit (triplet unique)
+    response_dup = client.post(
+        "/api/v1/budgets",
+        json={
+            "id_categorie": cat_depense["id_categorie"],
+            "montant_limite": 40000,
+            "mois": 7,
+            "annee": 2026
+        },
+        headers=headers
+    )
+    assert response_dup.status_code == 400
+
+def test_calcul_dynamique_et_alertes(client, db_session):
+    headers = _register_and_login(client, "budget.alert@example.com")
+    compte = _creer_compte(client, headers, solde_initial=100000)
+    
+    cat_transport = client.post(
+        "/api/v1/categories",
+        json={"nom": "Transport", "type": "DEPENSE"},
+        headers=headers
+    ).json()
+
+    # 1. Créer un budget de 10 000 XAF pour Juillet 2026
+    budget = client.post(
+        "/api/v1/budgets",
+        json={
+            "id_categorie": cat_transport["id_categorie"],
+            "montant_limite": 10000,
+            "mois": 7,
+            "annee": 2026
+        },
+        headers=headers
+    ).json()
+
+    # Vérification initiale : dépenses = 0, alertes = False
+    assert budget["montant_depense"] == "0.00"
+    assert budget["montant_restant"] == "10000.00"
+    assert budget["pourcentage_utilise"] == 0.0
+    assert not budget["alerte_80"]
+    assert not budget["alerte_100"]
+
+    # 2. Créer une transaction DEPENSE de 5 000 XAF (50% d'utilisation) le 24 Juillet 2026
+    tx_res = client.post(
+        "/api/v1/transactions",
+        json={
+            "id_compte": compte["id_compte"],
+            "id_categorie": cat_transport["id_categorie"],
+            "montant": 5000,
+            "type": "DEPENSE",
+            "date": "2026-07-24",
+            "description": "Essence taxi"
+        },
+        headers=headers
+    )
+    assert tx_res.status_code == 201
+
+    # Lire le budget -> Dépenses = 5000 XAF, pas d'alertes
+    budget_read = client.get(f"/api/v1/budgets/{budget['id_budget']}", headers=headers).json()
+    assert budget_read["montant_depense"] == "5000.00"
+    assert budget_read["montant_restant"] == "5000.00"
+    assert budget_read["pourcentage_utilise"] == 50.0
+    assert not budget_read["alerte_80"]
+
+    # 3. Créer une deuxième dépense de 3 500 XAF (Porte le total à 8 500 XAF, soit 85% d'utilisation)
+    client.post(
+        "/api/v1/transactions",
+        json={
+            "id_compte": compte["id_compte"],
+            "id_categorie": cat_transport["id_categorie"],
+            "montant": 3500,
+            "type": "DEPENSE",
+            "date": "2026-07-24",
+            "description": "Taxi Douala"
+        },
+        headers=headers
+    )
+
+    # Lire le budget -> Doit déclencher l'alerte 80%
+    budget_read2 = client.get(f"/api/v1/budgets/{budget['id_budget']}", headers=headers).json()
+    assert budget_read2["montant_depense"] == "8500.00"
+    assert budget_read2["pourcentage_utilise"] == 85.0
+    assert budget_read2["alerte_80"]
+    assert not budget_read2["alerte_100"]
+
+    # Vérifier l'AuditLog pour ALERTE_BUDGET_80
+    logs_80 = db_session.query(AuditLog).filter(
+        AuditLog.action == "ALERTE_BUDGET_80",
+        AuditLog.id_ressource == budget["id_budget"]
+    ).all()
+    assert len(logs_80) == 1
+
+    # 4. Créer une troisième dépense de 2 000 XAF (Porte le total à 10 500 XAF, soit 105% d'utilisation)
+    client.post(
+        "/api/v1/transactions",
+        json={
+            "id_compte": compte["id_compte"],
+            "id_categorie": cat_transport["id_categorie"],
+            "montant": 2000,
+            "type": "DEPENSE",
+            "date": "2026-07-24",
+            "description": "Bus Yaoundé"
+        },
+        headers=headers
+    )
+
+    # Lire le budget -> Doit déclencher l'alerte 100% (dépassé)
+    budget_read3 = client.get(f"/api/v1/budgets/{budget['id_budget']}", headers=headers).json()
+    assert budget_read3["montant_depense"] == "10500.00"
+    assert budget_read3["pourcentage_utilise"] == 105.0
+    assert budget_read3["alerte_100"]
+    assert budget_read3["est_depasse"]
+
+    # Vérifier l'AuditLog pour ALERTE_BUDGET_100
+    logs_100 = db_session.query(AuditLog).filter(
+        AuditLog.action == "ALERTE_BUDGET_100",
+        AuditLog.id_ressource == budget["id_budget"]
+    ).all()
+    assert len(logs_100) == 1
+
+
+def test_annuler_une_depense_reduit_le_montant_depense_du_budget(client):
+    # Une dépense annulée ne doit plus compter dans le budget, exactement
+    # comme elle ne compte plus dans le solde du compte.
+    headers = _register_and_login(client, "budget.annulation@example.com")
+    compte = _creer_compte(client, headers, solde_initial=100000)
+
+    categorie = client.post(
+        "/api/v1/categories", json={"nom": "Divers", "type": "DEPENSE"}, headers=headers
+    ).json()
+    budget = client.post(
+        "/api/v1/budgets",
+        json={"id_categorie": categorie["id_categorie"], "montant_limite": 10000, "mois": 7, "annee": 2026},
+        headers=headers,
+    ).json()
+
+    depense = client.post(
+        "/api/v1/transactions",
+        json={
+            "id_compte": compte["id_compte"],
+            "id_categorie": categorie["id_categorie"],
+            "montant": 5000,
+            "type": "DEPENSE",
+            "date": "2026-07-24",
+        },
+        headers=headers,
+    ).json()
+
+    avant = client.get(f"/api/v1/budgets/{budget['id_budget']}", headers=headers).json()
+    assert avant["montant_depense"] == "5000.00"
+
+    annulation = client.post(f"/api/v1/transactions/{depense['id_transaction']}/annuler", headers=headers)
+    assert annulation.status_code == 201
+
+    apres = client.get(f"/api/v1/budgets/{budget['id_budget']}", headers=headers).json()
+    assert apres["montant_depense"] == "0.00"
+    assert apres["montant_restant"] == "10000.00"
+
+
+def test_budget_introuvable_renvoie_404_pas_400(client):
+    headers = _register_and_login(client, "budget.404@example.com")
+
+    obtenir = client.get("/api/v1/budgets/999999", headers=headers)
+    assert obtenir.status_code == 404
+
+    modifier = client.put("/api/v1/budgets/999999", json={"montant_limite": 1000}, headers=headers)
+    assert modifier.status_code == 404
+
+    supprimer = client.delete("/api/v1/budgets/999999", headers=headers)
+    assert supprimer.status_code == 404
+
+
+def test_desactiver_budget_est_une_desactivation_logique(client):
+    headers = _register_and_login(client, "budget.softdelete@example.com")
+    categorie = client.post(
+        "/api/v1/categories", json={"nom": "Santé", "type": "DEPENSE"}, headers=headers
+    ).json()
+    budget = client.post(
+        "/api/v1/budgets",
+        json={"id_categorie": categorie["id_categorie"], "montant_limite": 5000, "mois": 8, "annee": 2026},
+        headers=headers,
+    ).json()
+
+    desactivation = client.delete(f"/api/v1/budgets/{budget['id_budget']}", headers=headers)
+    assert desactivation.status_code == 204
+
+    # Toujours consultable directement par ID (jamais supprimé réellement)
+    toujours_la = client.get(f"/api/v1/budgets/{budget['id_budget']}", headers=headers)
+    assert toujours_la.status_code == 200
+    assert toujours_la.json()["est_actif"] is False
+
+    # Absent de la liste par défaut, présent avec include_inactifs
+    liste_defaut = client.get("/api/v1/budgets", headers=headers).json()
+    assert len(liste_defaut) == 0
+    liste_complete = client.get("/api/v1/budgets?include_inactifs=true", headers=headers).json()
+    assert len(liste_complete) == 1
+
+    reactivation = client.post(f"/api/v1/budgets/{budget['id_budget']}/reactiver", headers=headers)
+    assert reactivation.status_code == 200
+    assert reactivation.json()["est_actif"] is True
+
+
+def test_modifier_montant_limite_reinitialise_les_flags_dalerte(client):
+    headers = _register_and_login(client, "budget.resetflags@example.com")
+    compte = _creer_compte(client, headers, solde_initial=100000)
+    categorie = client.post(
+        "/api/v1/categories", json={"nom": "Restaurant", "type": "DEPENSE"}, headers=headers
+    ).json()
+    budget = client.post(
+        "/api/v1/budgets",
+        json={"id_categorie": categorie["id_categorie"], "montant_limite": 1000, "mois": 7, "annee": 2026},
+        headers=headers,
+    ).json()
+
+    # Dépasse immédiatement 100%
+    client.post(
+        "/api/v1/transactions",
+        json={
+            "id_compte": compte["id_compte"],
+            "id_categorie": categorie["id_categorie"],
+            "montant": 1500,
+            "type": "DEPENSE",
+            "date": "2026-07-24",
+        },
+        headers=headers,
+    )
+    apres_depense = client.get(f"/api/v1/budgets/{budget['id_budget']}", headers=headers).json()
+    assert apres_depense["alerte_100"] is True
+
+    # Le client relève sa limite très au-dessus de ce qui est dépensé
+    modifie = client.put(
+        f"/api/v1/budgets/{budget['id_budget']}", json={"montant_limite": 100000}, headers=headers
+    )
+    assert modifie.status_code == 200
+    assert modifie.json()["alerte_100"] is False
+    assert modifie.json()["alerte_80"] is False
+    assert modifie.json()["pourcentage_utilise"] == 1.5

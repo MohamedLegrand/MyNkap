@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -30,6 +30,15 @@ class Budget(Base):
     de consommation (voir principe de traçabilité et fonctionnalité 6).
     """
     __tablename__ = "budgets"
+    __table_args__ = (
+        # Un seul budget par catégorie et par mois — garde-fou applicatif
+        # ET base de données (la vérification applicative seule est
+        # vulnérable à une race condition entre deux requêtes concurrentes).
+        UniqueConstraint(
+            "id_client", "id_categorie", "mois", "annee",
+            name="uq_budgets_client_categorie_mois_annee",
+        ),
+    )
 
     id_budget = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
@@ -39,6 +48,10 @@ class Budget(Base):
     annee = Column(Integer, nullable=False)
     alerte_80 = Column(Boolean, default=False)
     alerte_100 = Column(Boolean, default=False)
+    # Désactivation logique — jamais de suppression réelle, même principe
+    # que CompteFinancier (l'historique des alertes en AuditLog resterait
+    # sinon orphelin d'un budget réellement supprimé).
+    est_actif = Column(Boolean, default=True, nullable=False)
     date_creation = Column(DateTime, default=datetime.utcnow)
     date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
