@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sun, Moon, Compass, ArrowRight, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
@@ -654,7 +654,12 @@ const LoginPage = () => {
           />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
+            <a href="/forgot-password" className="text-xs text-secondary hover:underline font-medium">
+              Mot de passe oublié ?
+            </a>
+          </div>
           <PasswordInput
             id="mot_de_passe"
             required
@@ -846,6 +851,177 @@ const RegisterPage = () => {
   );
 };
 
+const ForgotPasswordPage = () => {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await api.request('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      setIsSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      title="Mot de passe oublié"
+      subtitle="Indiquez votre e-mail pour recevoir un lien de réinitialisation"
+    >
+      {isSubmitted ? (
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+            <Check className="h-6 w-6" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Si un compte existe pour <span className="font-medium text-foreground">{email}</span>, un e-mail de
+            réinitialisation vient de lui être envoyé.
+          </p>
+          <a href="/login" className="block text-sm text-secondary hover:underline font-medium">
+            Retour à la connexion
+          </a>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+            <IconInput
+              icon={Mail}
+              id="email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="vous@gmail.com"
+            />
+          </div>
+
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+          >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? 'Envoi en cours...' : 'Envoyer le lien de réinitialisation'}
+          </button>
+
+          <p className="text-center text-sm text-muted-foreground pt-1">
+            <a href="/login" className="text-secondary hover:underline font-medium">Retour à la connexion</a>
+          </p>
+        </form>
+      )}
+    </AuthLayout>
+  );
+};
+
+const ResetPasswordPage = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token') ?? '';
+
+  const [nouveauMotDePasse, setNouveauMotDePasse] = useState('');
+  const [confirmMotDePasse, setConfirmMotDePasse] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+
+    if (nouveauMotDePasse !== confirmMotDePasse) {
+      setError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await api.request('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, nouveau_mot_de_passe: nouveauMotDePasse }),
+      });
+      setIsSuccess(true);
+      setTimeout(() => navigate('/login'), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <AuthLayout title="Réinitialiser le mot de passe" subtitle="Choisissez un nouveau mot de passe">
+      {!token ? (
+        <p className="text-sm text-destructive text-center">
+          Ce lien de réinitialisation est invalide. Merci de refaire une demande depuis la page{' '}
+          <a href="/forgot-password" className="text-secondary hover:underline font-medium">mot de passe oublié</a>.
+        </p>
+      ) : isSuccess ? (
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+            <Check className="h-6 w-6" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Mot de passe modifié avec succès. Redirection vers la connexion...
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="nouveau_mot_de_passe" className="text-sm font-medium">Nouveau mot de passe</label>
+            <PasswordInput
+              id="nouveau_mot_de_passe"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              value={nouveauMotDePasse}
+              onChange={(e) => setNouveauMotDePasse(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">Confirmer</label>
+            <PasswordInput
+              id="confirm_mot_de_passe"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              value={confirmMotDePasse}
+              onChange={(e) => setConfirmMotDePasse(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+          >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? 'Modification en cours...' : 'Réinitialiser le mot de passe'}
+          </button>
+        </form>
+      )}
+    </AuthLayout>
+  );
+};
+
 const DashboardPage = () => {
   const { theme, toggleTheme } = useDarkMode();
   const navigate = useNavigate();
@@ -908,6 +1084,8 @@ export const AppRoutes: React.FC = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
           path="/dashboard"
           element={
