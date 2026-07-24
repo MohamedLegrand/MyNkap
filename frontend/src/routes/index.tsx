@@ -638,17 +638,17 @@ const DashboardPage = () => {
           {/* Solde principal (Vert forêt) */}
           <div className="bg-card p-6 rounded-2xl shadow-md border-l-8 border-primary border border-y-border border-r-border">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Compte Principal</h3>
-            <p className="text-3xl font-extrabold text-primary">0 XAF</p>
+            <p className="text-3xl font-extrabold text-primary tabular-nums">0 XAF</p>
           </div>
           {/* Revenus (Bleu) */}
           <div className="bg-card p-6 rounded-2xl shadow-md border-l-8 border-secondary border border-y-border border-r-border">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Revenus du mois</h3>
-            <p className="text-3xl font-extrabold text-secondary">0 XAF</p>
+            <p className="text-3xl font-extrabold text-secondary tabular-nums">0 XAF</p>
           </div>
           {/* Dépenses (Rouge déstructif) */}
           <div className="bg-card p-6 rounded-2xl shadow-md border-l-8 border-destructive border border-y-border border-r-border">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Dépenses du mois</h3>
-            <p className="text-3xl font-extrabold text-destructive">0 XAF</p>
+            <p className="text-3xl font-extrabold text-destructive tabular-nums">0 XAF</p>
           </div>
         </div>
       </div>
