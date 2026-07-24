@@ -20,6 +20,19 @@ class OperationFinanciere:
     date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+# Signe de l'impact patrimonial par type de Transaction. ANNULATION est
+# volontairement absent : son impact n'est jamais fixe par type, c'est
+# toujours l'inverse exact de la transaction qu'elle annule (voir
+# Transaction.calculer_impact ci-dessous).
+IMPACT_PAR_TYPE = {
+    "DEPENSE": -1,
+    "REVENU": 1,
+    "DEPOT_INITIAL": 1,
+    "REMBOURSEMENT_DETTE": -1,
+    "ENCAISSEMENT_CREANCE": 1,
+}
+
+
 class Transaction(OperationFinanciere, Base):
     """
     Dépense ou revenu enregistré par le client. Jamais supprimée : toute
@@ -44,6 +57,25 @@ class Transaction(OperationFinanciere, Base):
     client = relationship("Client", back_populates="transactions")
     compte = relationship("CompteFinancier", foreign_keys=[id_compte])
     categorie = relationship("Categorie", back_populates="transactions")
+    transaction_annulee = relationship(
+        "Transaction", remote_side=[id_transaction], foreign_keys=[id_transaction_annulee]
+    )
+
+    def calculer_impact(self) -> float:
+        """
+        Impact signé sur le solde du compte. Pour ANNULATION, c'est
+        toujours l'inverse exact de la transaction annulée — ce qui
+        garantit que annuler() restaure exactement le solde d'origine,
+        quel que soit le type de la transaction annulée.
+        """
+        if self.type == "ANNULATION":
+            if self.transaction_annulee is None:
+                return 0.0
+            return -self.transaction_annulee.calculer_impact()
+        signe = IMPACT_PAR_TYPE.get(self.type)
+        if signe is None:
+            raise ValueError(f"Type de transaction inconnu : {self.type}")
+        return signe * self.montant
 
 
 class Transfert(OperationFinanciere, Base):
@@ -61,6 +93,11 @@ class Transfert(OperationFinanciere, Base):
     client = relationship("Client", back_populates="transferts")
     compte_source = relationship("CompteFinancier", foreign_keys=[id_compte_source])
     compte_destination = relationship("CompteFinancier", foreign_keys=[id_compte_destination])
+
+    def calculer_impact(self) -> float:
+        """Toujours neutre : un transfert déplace de l'argent entre deux
+        comptes du même client, il ne change pas le patrimoine total."""
+        return 0.0
 
 
 class TransactionRecurrente(Base):

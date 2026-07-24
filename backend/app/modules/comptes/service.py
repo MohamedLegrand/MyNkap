@@ -114,6 +114,22 @@ def reactiver_compte(db: Session, compte: CompteFinancier) -> CompteFinancier:
     return compte
 
 
+def reconcilier_compte(db: Session, compte: CompteFinancier) -> CompteFinancier:
+    """
+    Recalcule le solde depuis la somme des impacts de toutes les
+    transactions du compte, plutôt que de faire confiance à la valeur
+    actuellement stockée — utile après un doute sur une incohérence.
+    Rendu possible par le module Transactions (chaque Transaction sait
+    calculer son propre impact signé via calculer_impact()).
+    """
+    transactions = db.query(Transaction).filter(Transaction.id_compte == compte.id_compte).all()
+    compte.solde = sum(t.calculer_impact() for t in transactions)
+    db.commit()
+    db.refresh(compte)
+    synchroniser_compte_principal(db, compte.id_client)
+    return compte
+
+
 def get_or_create_compte_principal(db: Session, id_client: int) -> ComptePrincipal:
     compte_principal = db.query(ComptePrincipal).filter(ComptePrincipal.id_client == id_client).first()
     if compte_principal is None:

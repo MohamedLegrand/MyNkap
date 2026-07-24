@@ -113,11 +113,7 @@ def reconcilier_compte(
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_active_client),
 ):
-    """Recalcule le solde depuis l'historique réel des transactions.
-    Indisponible tant que le module Transactions (règles métier complètes :
-    signes par type, annulations, etc.) n'est pas implémenté."""
-    _get_compte_ou_404(db, id_compte, client.id_client)
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Réconciliation indisponible tant que le module Transactions n'est pas implémenté",
-    )
+    """Recalcule le solde depuis la somme des impacts de toutes les
+    transactions réelles du compte (module Transactions)."""
+    compte = _get_compte_ou_404(db, id_compte, client.id_client)
+    return service.reconcilier_compte(db, compte)

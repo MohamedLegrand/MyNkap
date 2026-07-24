@@ -40,3 +40,8 @@ class CompteFinancier(Base):
     date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     client = relationship("Client", back_populates="comptes_financiers")
+
+    def est_suffisant(self, montant: float) -> bool:
+        """Vrai si le solde actuel couvre le montant demandé (vérifié avant
+        toute dépense)."""
+        return self.solde >= montant

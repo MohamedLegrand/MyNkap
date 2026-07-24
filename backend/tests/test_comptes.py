@@ -143,11 +143,15 @@ def test_compte_principal_agrege_les_soldes_actifs_uniquement(client):
     assert principal_apres["solde_total"] == 5000
 
 
-def test_reconcilier_renvoie_501_tant_que_transactions_nest_pas_complet(client):
+def test_reconcilier_un_compte_sans_transaction_donne_un_solde_nul(client):
+    # Cas simple ici ; le cas avec historique reel (recalcul depuis les
+    # transactions) est couvert dans tests/test_transactions.py, qui depend
+    # du module Transactions.
     headers = _register_and_login(client)
     compte = client.post(
         "/api/v1/comptes", json={"nom": "Compte", "type": "ESPECES"}, headers=headers
     ).json()
 
     response = client.post(f"/api/v1/comptes/{compte['id_compte']}/reconcilier", headers=headers)
-    assert response.status_code == 501
+    assert response.status_code == 200
+    assert response.json()["solde"] == 0
