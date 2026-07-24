@@ -5,6 +5,7 @@ from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
 from app.core.database import Base, get_db
+from app.core import models_registry  # noqa: F401 (enregistre toutes les tables)
 from app.main import app, limiter
 
 engine = create_engine(

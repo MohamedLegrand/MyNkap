@@ -7,8 +7,7 @@ from alembic import context
 
 from app.core.config import settings
 from app.core.database import Base
-from app.modules.auth import models as auth_models  # noqa: F401 (enregistre les tables)
-from app.modules.audit import models as audit_models  # noqa: F401 (enregistre les tables)
+from app.core import models_registry  # noqa: F401 (enregistre toutes les tables)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

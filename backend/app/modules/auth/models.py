@@ -39,9 +39,30 @@ class Client(Utilisateur):
 
     # Relation 1-à-1 avec le profil utilisateur
     profile = relationship("Profile", back_populates="client", uselist=False, cascade="all, delete-orphan")
-    
+
     # Relation 1-à-N avec les Refresh Tokens de session
     refresh_tokens = relationship("RefreshToken", back_populates="client", cascade="all, delete-orphan")
+
+    # Relations 1-à-1
+    compte_principal = relationship("ComptePrincipal", back_populates="client", uselist=False, cascade="all, delete-orphan")
+    abonnement = relationship("Abonnement", back_populates="client", uselist=False, cascade="all, delete-orphan")
+
+    # Relations 1-à-N (composition : supprimées avec le client, principe 6.2 du cahier des charges)
+    comptes_financiers = relationship("CompteFinancier", back_populates="client", cascade="all, delete-orphan")
+    categories = relationship("Categorie", back_populates="client", cascade="all, delete-orphan")
+    budgets = relationship("Budget", back_populates="client", cascade="all, delete-orphan")
+    transactions = relationship("Transaction", back_populates="client", cascade="all, delete-orphan", foreign_keys="Transaction.id_client")
+    transferts = relationship("Transfert", back_populates="client", cascade="all, delete-orphan")
+    transactions_recurrentes = relationship("TransactionRecurrente", back_populates="client", cascade="all, delete-orphan")
+    templates_transaction = relationship("TemplateTransaction", back_populates="client", cascade="all, delete-orphan")
+    objectifs_epargne = relationship("ObjectifEpargne", back_populates="client", cascade="all, delete-orphan")
+    dettes = relationship("Dette", back_populates="client", cascade="all, delete-orphan")
+    rapports = relationship("Rapport", back_populates="client", cascade="all, delete-orphan")
+    conversations = relationship("Conversation", back_populates="client", cascade="all, delete-orphan")
+    actions_ia = relationship("ActionIA", back_populates="client", cascade="all, delete-orphan")
+    analyses_financieres = relationship("AnalyseFinanciere", back_populates="client", cascade="all, delete-orphan")
+    predictions = relationship("Prediction", back_populates="client", cascade="all, delete-orphan")
+    webhook_events = relationship("WebhookEvent", back_populates="client", cascade="all, delete-orphan")
 
     __mapper_args__ = {
         "polymorphic_identity": "client",
