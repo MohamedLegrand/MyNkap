@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
@@ -11,7 +12,7 @@ class CompteFinancierCreate(BaseModel):
     devise: str = Field(default="XAF", min_length=3, max_length=3)
     # Génère une Transaction DEPOT_INITIAL si > 0 (principe du solde initial
     # traçable, 6.4) — jamais écrit directement sans origine.
-    solde_initial: float = Field(default=0, ge=0)
+    solde_initial: Decimal = Field(default=Decimal("0"), ge=0)
 
 
 class CompteFinancierUpdate(BaseModel):
@@ -25,7 +26,7 @@ class CompteFinancierOut(BaseModel):
     id_compte: int
     nom: str
     type: str
-    solde: float
+    solde: Decimal
     devise: str
     est_actif: bool
     date_creation: datetime
@@ -37,9 +38,9 @@ class CompteFinancierOut(BaseModel):
 
 class ComptePrincipalOut(BaseModel):
     id_compte_principal: int
-    solde_total: float
+    solde_total: Decimal
     devise: str
-    patrimoine_net: float
+    patrimoine_net: Decimal
     date_mise_a_jour: datetime
 
     class Config:

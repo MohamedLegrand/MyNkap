@@ -69,12 +69,19 @@ def annuler_transaction(
     modifiée ni supprimée (principe d'immuabilité)."""
     try:
         return service.annuler_transaction(db, client.id_client, id_transaction)
-    except service.CompteIntrouvableError:
+    except service.TransactionIntrouvableError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction introuvable")
+    except service.CompteIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable")
     except service.TransactionDejaAnnuleeError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cette transaction est déjà annulée, ou est elle-même une annulation",
+        )
+    except service.SoldeInsuffisantError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cette annulation ferait passer le solde du compte sous zéro",
         )
 
 

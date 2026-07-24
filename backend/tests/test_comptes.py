@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from app.modules.transactions.models import Transaction
 
 
@@ -31,7 +33,7 @@ def test_creer_compte_sans_solde_initial(client):
 
     assert response.status_code == 201
     body = response.json()
-    assert body["solde"] == 0
+    assert Decimal(body["solde"]) == 0
     assert body["est_actif"] is True
     assert body["devise"] == "XAF"
 
@@ -47,7 +49,7 @@ def test_creer_compte_avec_solde_initial_genere_une_transaction_depot_initial(cl
 
     assert response.status_code == 201
     body = response.json()
-    assert body["solde"] == 50000
+    assert Decimal(body["solde"]) == 50000
 
     depots = (
         db_session.query(Transaction)
@@ -105,7 +107,7 @@ def test_modifier_compte_ignore_toute_tentative_de_changer_le_solde(client):
     assert response.status_code == 200
     body = response.json()
     assert body["nom"] == "Nouveau nom"
-    assert body["solde"] == 1000  # inchangé malgré la tentative
+    assert Decimal(body["solde"]) == 1000  # inchangé malgré la tentative
 
 
 def test_desactiver_puis_reactiver_compte(client):
@@ -134,13 +136,13 @@ def test_compte_principal_agrege_les_soldes_actifs_uniquement(client):
     )
 
     principal = client.get("/api/v1/comptes/principal", headers=headers).json()
-    assert principal["solde_total"] == 15000
-    assert principal["patrimoine_net"] == 15000
+    assert Decimal(principal["solde_total"]) == 15000
+    assert Decimal(principal["patrimoine_net"]) == 15000
 
     client.delete(f"/api/v1/comptes/{compte_1['id_compte']}", headers=headers)
 
     principal_apres = client.get("/api/v1/comptes/principal", headers=headers).json()
-    assert principal_apres["solde_total"] == 5000
+    assert Decimal(principal_apres["solde_total"]) == 5000
 
 
 def test_reconcilier_un_compte_sans_transaction_donne_un_solde_nul(client):
@@ -154,4 +156,4 @@ def test_reconcilier_un_compte_sans_transaction_donne_un_solde_nul(client):
 
     response = client.post(f"/api/v1/comptes/{compte['id_compte']}/reconcilier", headers=headers)
     assert response.status_code == 200
-    assert response.json()["solde"] == 0
+    assert Decimal(response.json()["solde"]) == 0

@@ -1,4 +1,10 @@
+from decimal import Decimal
+
 from app.modules.transactions.models import Transaction
+
+
+def _solde(client, headers, id_compte):
+    return Decimal(client.get(f"/api/v1/comptes/{id_compte}", headers=headers).json()["solde"])
 
 
 def _register_and_login(client, email="transactions.test@example.com", mot_de_passe="motdepasse123"):
@@ -53,8 +59,7 @@ def test_creer_depense_debite_le_compte(client, db_session):
     assert response.status_code == 201
     assert response.json()["type"] == "DEPENSE"
 
-    solde = client.get(f"/api/v1/comptes/{compte['id_compte']}", headers=headers).json()["solde"]
-    assert solde == 7000
+    assert _solde(client, headers, compte["id_compte"]) == 7000
 
 
 def test_depense_refusee_si_solde_insuffisant(client, db_session):
@@ -70,8 +75,7 @@ def test_depense_refusee_si_solde_insuffisant(client, db_session):
     )
 
     assert response.status_code == 400
-    solde = client.get(f"/api/v1/comptes/{compte['id_compte']}", headers=headers).json()["solde"]
-    assert solde == 1000  # inchangé, la transaction n'a jamais été créée
+    assert _solde(client, headers, compte["id_compte"]) == 1000  # inchangé, la transaction n'a jamais été créée
 
 
 def test_revenu_credite_le_compte(client, db_session):
@@ -87,8 +91,7 @@ def test_revenu_credite_le_compte(client, db_session):
     )
 
     assert response.status_code == 201
-    solde = client.get(f"/api/v1/comptes/{compte['id_compte']}", headers=headers).json()["solde"]
-    assert solde == 200000
+    assert _solde(client, headers, compte["id_compte"]) == 200000
 
 
 def test_annuler_transaction_restaure_le_solde_et_ne_modifie_pas_loriginale(client, db_session):
@@ -103,16 +106,14 @@ def test_annuler_transaction_restaure_le_solde_et_ne_modifie_pas_loriginale(clie
         headers=headers,
     ).json()
 
-    solde_apres_depense = client.get(f"/api/v1/comptes/{compte['id_compte']}", headers=headers).json()["solde"]
-    assert solde_apres_depense == 7000
+    assert _solde(client, headers, compte["id_compte"]) == 7000
 
     annulation = client.post(f"/api/v1/transactions/{depense['id_transaction']}/annuler", headers=headers)
     assert annulation.status_code == 201
     assert annulation.json()["type"] == "ANNULATION"
     assert annulation.json()["id_transaction_annulee"] == depense["id_transaction"]
 
-    solde_apres_annulation = client.get(f"/api/v1/comptes/{compte['id_compte']}", headers=headers).json()["solde"]
-    assert solde_apres_annulation == 10000  # restauré
+    assert _solde(client, headers, compte["id_compte"]) == 10000  # restauré
 
     originale = db_session.query(Transaction).filter(Transaction.id_transaction == depense["id_transaction"]).first()
     assert originale.type == "DEPENSE"  # jamais modifiée
@@ -207,14 +208,12 @@ def test_transfert_atomique_entre_deux_comptes(client):
 
     assert response.status_code == 201
 
-    solde_source = client.get(f"/api/v1/comptes/{source['id_compte']}", headers=headers).json()["solde"]
-    solde_destination = client.get(f"/api/v1/comptes/{destination['id_compte']}", headers=headers).json()["solde"]
-    assert solde_source == 6000
-    assert solde_destination == 4000
+    assert _solde(client, headers, source["id_compte"]) == 6000
+    assert _solde(client, headers, destination["id_compte"]) == 4000
 
     # Neutre sur le patrimoine net
     principal = client.get("/api/v1/comptes/principal", headers=headers).json()
-    assert principal["solde_total"] == 10000
+    assert Decimal(principal["solde_total"]) == 10000
 
 
 def test_transfert_refuse_si_solde_source_insuffisant(client):
@@ -229,8 +228,7 @@ def test_transfert_refuse_si_solde_source_insuffisant(client):
     )
 
     assert response.status_code == 400
-    solde_destination = client.get(f"/api/v1/comptes/{destination['id_compte']}", headers=headers).json()["solde"]
-    assert solde_destination == 0  # rien n'a été crédité
+    assert _solde(client, headers, destination["id_compte"]) == 0  # rien n'a été crédité
 
 
 def test_reconcilier_recalcule_le_solde_depuis_lhistorique(client, db_session):
@@ -255,4 +253,4 @@ def test_reconcilier_recalcule_le_solde_depuis_lhistorique(client, db_session):
 
     response = client.post(f"/api/v1/comptes/{compte['id_compte']}/reconcilier", headers=headers)
     assert response.status_code == 200
-    assert response.json()["solde"] == 7000
+    assert Decimal(response.json()["solde"]) == 7000

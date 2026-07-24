@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -19,8 +19,8 @@ class Dette(Base):
     id_compte = Column(Integer, ForeignKey("comptes_financiers.id_compte"), nullable=False)
     nom = Column(String, nullable=False)
     type = Column(String, nullable=False)  # DETTE, CREANCE
-    montant_total = Column(Float, nullable=False)
-    montant_rembourse = Column(Float, default=0, nullable=False)
+    montant_total = Column(Numeric(14, 2), nullable=False)
+    montant_rembourse = Column(Numeric(14, 2), default=0, nullable=False)
     personne_impliquee = Column(String, nullable=True)
     date_echeance = Column(Date, nullable=True)
     # EN_COURS, PARTIELLEMENT_REMBOURSE, SOLDE, EN_RETARD

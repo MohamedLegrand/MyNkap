@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Numeric, Date, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -35,7 +35,7 @@ class Prediction(Base):
     type = Column(String, nullable=False)  # DEPENSES_FUTURES, RISQUE_BUDGETAIRE, CAPACITE_EPARGNE
     periode_debut = Column(Date, nullable=False)
     periode_fin = Column(Date, nullable=False)
-    montant_predit = Column(Float, nullable=True)
+    montant_predit = Column(Numeric(14, 2), nullable=True)
     niveau_confiance = Column(Float, nullable=True)
     recommandations = Column(String, nullable=True)
     date_generation = Column(DateTime, default=datetime.utcnow)

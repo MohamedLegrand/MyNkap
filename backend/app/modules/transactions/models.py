@@ -1,5 +1,6 @@
 from datetime import date as date_type, datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, Date, DateTime, ForeignKey
+from decimal import Decimal
+from sqlalchemy import CheckConstraint, Column, Integer, String, Numeric, Boolean, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -12,8 +13,12 @@ class OperationFinanciere:
     d'interroger Transaction et Transfert polymorphiquement ensemble, donc
     un héritage de table jointe (comme pour Utilisateur) serait une
     complexité inutile ici.
+
+    `montant` est en Numeric (pas Float) : l'argent ne doit jamais être
+    sujet aux imprécisions d'arrondi IEEE-754, y compris lors des sommes
+    répétées (reconciliation, détection de suspicion).
     """
-    montant = Column(Float, nullable=False)
+    montant = Column(Numeric(14, 2), nullable=False)
     description = Column(String, nullable=True)
     date = Column(Date, nullable=False, default=date_type.today)
     date_creation = Column(DateTime, default=datetime.utcnow)
@@ -40,6 +45,9 @@ class Transaction(OperationFinanciere, Base):
     (principe d'immuabilité, 6.2).
     """
     __tablename__ = "transactions"
+    __table_args__ = (
+        CheckConstraint("montant > 0", name="ck_transactions_montant_positif"),
+    )
 
     id_transaction = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
@@ -61,7 +69,7 @@ class Transaction(OperationFinanciere, Base):
         "Transaction", remote_side=[id_transaction], foreign_keys=[id_transaction_annulee]
     )
 
-    def calculer_impact(self) -> float:
+    def calculer_impact(self) -> Decimal:
         """
         Impact signé sur le solde du compte. Pour ANNULATION, c'est
         toujours l'inverse exact de la transaction annulée — ce qui
@@ -70,7 +78,7 @@ class Transaction(OperationFinanciere, Base):
         """
         if self.type == "ANNULATION":
             if self.transaction_annulee is None:
-                return 0.0
+                return Decimal("0")
             return -self.transaction_annulee.calculer_impact()
         signe = IMPACT_PAR_TYPE.get(self.type)
         if signe is None:
@@ -84,6 +92,9 @@ class Transfert(OperationFinanciere, Base):
     patrimoine net (ni dépense ni revenu, principe 6.5).
     """
     __tablename__ = "transferts"
+    __table_args__ = (
+        CheckConstraint("montant > 0", name="ck_transferts_montant_positif"),
+    )
 
     id_transfert = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
@@ -94,10 +105,10 @@ class Transfert(OperationFinanciere, Base):
     compte_source = relationship("CompteFinancier", foreign_keys=[id_compte_source])
     compte_destination = relationship("CompteFinancier", foreign_keys=[id_compte_destination])
 
-    def calculer_impact(self) -> float:
+    def calculer_impact(self) -> Decimal:
         """Toujours neutre : un transfert déplace de l'argent entre deux
         comptes du même client, il ne change pas le patrimoine total."""
-        return 0.0
+        return Decimal("0")
 
 
 class TransactionRecurrente(Base):
@@ -111,7 +122,7 @@ class TransactionRecurrente(Base):
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
     id_compte = Column(Integer, ForeignKey("comptes_financiers.id_compte"), nullable=False)
     id_categorie = Column(Integer, ForeignKey("categories.id_categorie"), nullable=False)
-    montant = Column(Float, nullable=False)
+    montant = Column(Numeric(14, 2), nullable=False)
     type = Column(String, nullable=False)  # DEPENSE, REVENU
     description = Column(String, nullable=True)
     frequence = Column(String, nullable=False)  # HEBDOMADAIRE, MENSUELLE, TRIMESTRIELLE, ANNUELLE
@@ -135,7 +146,7 @@ class TemplateTransaction(Base):
     id_compte = Column(Integer, ForeignKey("comptes_financiers.id_compte"), nullable=False)
     id_categorie = Column(Integer, ForeignKey("categories.id_categorie"), nullable=False)
     nom = Column(String, nullable=False)
-    montant = Column(Float, nullable=False)
+    montant = Column(Numeric(14, 2), nullable=False)
     type = Column(String, nullable=False)  # DEPENSE, REVENU
     description = Column(String, nullable=True)
     nombre_utilisations = Column(Integer, default=0)

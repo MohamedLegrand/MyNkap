@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
@@ -12,7 +13,7 @@ TypeTransactionCreable = Literal["DEPENSE", "REVENU"]
 class TransactionCreate(BaseModel):
     id_compte: int
     id_categorie: int
-    montant: float = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0)
     type: TypeTransactionCreable
     description: Optional[str] = None
     date: Optional[date] = None
@@ -22,7 +23,7 @@ class TransactionOut(BaseModel):
     id_transaction: int
     id_compte: int
     id_categorie: Optional[int]
-    montant: float
+    montant: Decimal
     type: str
     description: Optional[str]
     date: date
@@ -38,7 +39,7 @@ class TransactionOut(BaseModel):
 class TransfertCreate(BaseModel):
     id_compte_source: int
     id_compte_destination: int
-    montant: float = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0)
     description: Optional[str] = None
 
 
@@ -46,7 +47,7 @@ class TransfertOut(BaseModel):
     id_transfert: int
     id_compte_source: int
     id_compte_destination: int
-    montant: float
+    montant: Decimal
     description: Optional[str]
     date: date
     date_creation: datetime

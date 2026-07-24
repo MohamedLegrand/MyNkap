@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -34,7 +34,7 @@ class Budget(Base):
     id_budget = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
     id_categorie = Column(Integer, ForeignKey("categories.id_categorie"), nullable=False)
-    montant_limite = Column(Float, nullable=False)
+    montant_limite = Column(Numeric(14, 2), nullable=False)
     mois = Column(Integer, nullable=False)
     annee = Column(Integer, nullable=False)
     alerte_80 = Column(Boolean, default=False)

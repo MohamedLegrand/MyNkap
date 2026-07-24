@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -16,7 +16,7 @@ class ObjectifEpargne(Base):
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
     id_compte_epargne = Column(Integer, ForeignKey("comptes_financiers.id_compte"), unique=True, nullable=False)
     nom = Column(String, nullable=False)
-    montant_cible = Column(Float, nullable=False)
+    montant_cible = Column(Numeric(14, 2), nullable=False)
     date_echeance = Column(Date, nullable=True)
     statut = Column(String, default="EN_COURS", nullable=False)  # EN_COURS, ATTEINT, ABANDONNE
     date_creation = Column(DateTime, default=datetime.utcnow)

@@ -1,4 +1,5 @@
 from datetime import date as date_type, timedelta
+from decimal import Decimal
 from typing import List, Optional
 from fastapi import Request
 from sqlalchemy.orm import Session
@@ -16,12 +17,16 @@ class CompteIntrouvableError(Exception):
     """Le compte n'existe pas, n'appartient pas au client, ou est désactivé."""
 
 
+class TransactionIntrouvableError(Exception):
+    """La transaction n'existe pas ou n'appartient pas au client."""
+
+
 class CategorieIntrouvableError(Exception):
     """La catégorie n'existe pas ou n'appartient pas au client."""
 
 
 class SoldeInsuffisantError(Exception):
-    """Le compte n'a pas les fonds nécessaires pour cette dépense/ce transfert."""
+    """Le compte n'a pas les fonds nécessaires pour cette dépense/ce transfert/cette annulation."""
 
 
 class TransactionDejaAnnuleeError(Exception):
@@ -32,14 +37,20 @@ class TransfertInvalideError(Exception):
     """Le compte source et destination sont identiques."""
 
 
-def _obtenir_compte_actif(db: Session, id_compte: int, id_client: int) -> CompteFinancier:
-    compte = comptes_service.obtenir_compte_du_client(db, id_compte, id_client)
+def _obtenir_compte_actif(db: Session, id_compte: int, id_client: int, for_update: bool = False) -> CompteFinancier:
+    """
+    `for_update=True` doit être utilisé partout où ce compte va être
+    débité/crédité dans la foulée, pour empêcher deux opérations
+    concurrentes de partir du même solde de départ (voir
+    comptes.service.obtenir_compte_du_client).
+    """
+    compte = comptes_service.obtenir_compte_du_client(db, id_compte, id_client, for_update=for_update)
     if compte is None or not compte.est_actif:
         raise CompteIntrouvableError()
     return compte
 
 
-def _appliquer_impact(compte: CompteFinancier, impact: float) -> None:
+def _appliquer_impact(compte: CompteFinancier, impact: Decimal) -> None:
     if impact >= 0:
         crediter_compte(compte, impact)
     else:
@@ -67,9 +78,10 @@ def enregistrer_transaction(db: Session, id_client: int, payload: TransactionCre
     """
     Enregistre une dépense ou un revenu. Le compte est débité/crédité dans
     la même transaction SQL que l'insertion de la ligne Transaction —
-    jamais l'un sans l'autre (principe d'atomicité, 6.3).
+    jamais l'un sans l'autre (principe d'atomicité, 6.3). Le compte est
+    verrouillé (FOR UPDATE) pour toute la durée de l'opération.
     """
-    compte = _obtenir_compte_actif(db, payload.id_compte, id_client)
+    compte = _obtenir_compte_actif(db, payload.id_compte, id_client, for_update=True)
 
     categorie = (
         db.query(Categorie)
@@ -109,11 +121,13 @@ def annuler_transaction(db: Session, id_client: int, id_transaction: int) -> Tra
     """
     Annule une transaction en créant une nouvelle transaction inverse de
     type ANNULATION — l'originale n'est jamais modifiée ni supprimée
-    (principe d'immuabilité, 6.2).
+    (principe d'immuabilité, 6.2). Refuse l'annulation si elle ferait
+    passer le solde du compte sous zéro (ex : annuler un DEPOT_INITIAL
+    après avoir dépensé une partie de cet argent).
     """
     originale = obtenir_transaction_du_client(db, id_transaction, id_client)
     if originale is None:
-        raise CompteIntrouvableError()  # réutilisé : traité comme "ressource introuvable"
+        raise TransactionIntrouvableError()
 
     if originale.type == "ANNULATION":
         raise TransactionDejaAnnuleeError()
@@ -126,7 +140,16 @@ def annuler_transaction(db: Session, id_client: int, id_transaction: int) -> Tra
     if deja_annulee is not None:
         raise TransactionDejaAnnuleeError()
 
-    compte = db.query(CompteFinancier).filter(CompteFinancier.id_compte == originale.id_compte).first()
+    compte = comptes_service.obtenir_compte_du_client(db, originale.id_compte, id_client, for_update=True)
+    if compte is None:
+        raise CompteIntrouvableError()
+
+    # Calculé à partir de l'originale, avant toute insertion : si le
+    # découvert est refusé, aucune ligne ANNULATION ne doit exister, même
+    # temporairement (pas de flush() à annuler après coup).
+    impact = -originale.calculer_impact()
+    if compte.solde + impact < 0:
+        raise SoldeInsuffisantError()
 
     annulation = Transaction(
         id_client=id_client,
@@ -139,9 +162,8 @@ def annuler_transaction(db: Session, id_client: int, id_transaction: int) -> Tra
         id_transaction_annulee=originale.id_transaction,
     )
     db.add(annulation)
-    db.flush()
 
-    _appliquer_impact(compte, annulation.calculer_impact())
+    _appliquer_impact(compte, impact)
 
     db.commit()
     db.refresh(annulation)
@@ -184,7 +206,7 @@ def detecter_transaction_suspecte(db: Session, transaction: Transaction) -> Tran
         .all()
     )
     if len(precedentes) >= NB_MIN_HISTORIQUE_POUR_MOYENNE:
-        moyenne = sum(t.montant for t in precedentes) / len(precedentes)
+        moyenne = sum((t.montant for t in precedentes), Decimal("0")) / len(precedentes)
         if moyenne > 0 and transaction.montant > SEUIL_MONTANT_INHABITUEL * moyenne:
             return marquer_comme_suspecte(db, transaction)
 
@@ -276,12 +298,23 @@ def executer_transfert(db: Session, id_client: int, payload: TransfertCreate) ->
     Débite la source et crédite la destination dans la même transaction
     SQL : soit les deux opérations réussissent, soit aucune n'est appliquée
     (rollback automatique en cas d'erreur avant le commit).
+
+    Les deux comptes sont verrouillés (FOR UPDATE) dans un ordre constant
+    basé sur id_compte (le plus petit d'abord), et non dans l'ordre
+    source->destination : un virement A->B et un virement concurrent B->A
+    verrouilleraient sinon les deux comptes en sens inverse l'un de
+    l'autre, un cas classique de deadlock.
     """
     if payload.id_compte_source == payload.id_compte_destination:
         raise TransfertInvalideError()
 
-    source = _obtenir_compte_actif(db, payload.id_compte_source, id_client)
-    destination = _obtenir_compte_actif(db, payload.id_compte_destination, id_client)
+    id_premier, id_second = sorted((payload.id_compte_source, payload.id_compte_destination))
+    comptes_verrouilles = {
+        id_premier: _obtenir_compte_actif(db, id_premier, id_client, for_update=True),
+        id_second: _obtenir_compte_actif(db, id_second, id_client, for_update=True),
+    }
+    source = comptes_verrouilles[payload.id_compte_source]
+    destination = comptes_verrouilles[payload.id_compte_destination]
 
     if not source.est_suffisant(payload.montant):
         raise SoldeInsuffisantError()

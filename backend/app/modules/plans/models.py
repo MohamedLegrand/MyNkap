@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -13,7 +13,7 @@ class Plan(Base):
 
     id_plan = Column(Integer, primary_key=True, index=True)
     nom = Column(String, unique=True, nullable=False)  # FREE, PRO, BUSINESS
-    prix = Column(Float, nullable=False, default=0)
+    prix = Column(Numeric(14, 2), nullable=False, default=0)
     devise = Column(String, default="XAF", nullable=False)
     max_comptes = Column(Integer, nullable=False)
     max_transactions = Column(Integer, nullable=False)
