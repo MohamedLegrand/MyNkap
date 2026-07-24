@@ -3,8 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import {
   Sun, Moon, Compass, ArrowRight, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
-  HelpCircle, Mail, Loader2
+  HelpCircle, Mail, Loader2, User, AtSign, Phone,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type { TokenResponse } from '../types';
@@ -567,7 +568,19 @@ const AuthLayout = ({
 };
 
 const inputClassName =
-  'w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
+  'w-full pl-11 pr-4 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+// Champ de formulaire avec icône, pour un rendu plus professionnel sur les pages d'authentification
+const IconInput = ({
+  icon: Icon,
+  className,
+  ...props
+}: { icon: LucideIcon } & React.InputHTMLAttributes<HTMLInputElement>) => (
+  <div className="relative">
+    <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+    <input {...props} className={className ?? inputClassName} />
+  </div>
+);
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -601,20 +614,21 @@ const LoginPage = () => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
           <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
-          <input
+          <IconInput
+            icon={Mail}
             id="email"
             type="email"
             required
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={inputClassName}
-            placeholder="vous@exemple.com"
+            placeholder="vous@gmail.com"
           />
         </div>
         <div className="space-y-1.5">
           <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
-          <input
+          <IconInput
+            icon={Lock}
             id="mot_de_passe"
             type="password"
             required
@@ -622,7 +636,6 @@ const LoginPage = () => {
             autoComplete="current-password"
             value={motDePasse}
             onChange={(e) => setMotDePasse(e.target.value)}
-            className={inputClassName}
             placeholder="••••••••"
           />
         </div>
@@ -708,35 +721,36 @@ const RegisterPage = () => {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label htmlFor="first_name" className="text-sm font-medium">Prénom</label>
-            <input
+            <IconInput
+              icon={User}
               id="first_name"
               type="text"
               required
               autoComplete="given-name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className={inputClassName}
-              placeholder="Jean"
+              placeholder="Mohamed"
             />
           </div>
           <div className="space-y-1.5">
             <label htmlFor="last_name" className="text-sm font-medium">Nom</label>
-            <input
+            <IconInput
+              icon={User}
               id="last_name"
               type="text"
               required
               autoComplete="family-name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className={inputClassName}
-              placeholder="Dupont"
+              placeholder="Legrand"
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <label htmlFor="username" className="text-sm font-medium">Nom d'utilisateur</label>
-          <input
+          <IconInput
+            icon={AtSign}
             id="username"
             type="text"
             required
@@ -745,35 +759,34 @@ const RegisterPage = () => {
             autoComplete="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className={inputClassName}
-            placeholder="jeandupont"
+            placeholder="mohamedlegrand"
           />
         </div>
 
         <div className="space-y-1.5">
           <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
-          <input
+          <IconInput
+            icon={Mail}
             id="email"
             type="email"
             required
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={inputClassName}
-            placeholder="vous@exemple.com"
+            placeholder="vous@gmail.com"
           />
         </div>
 
         <div className="space-y-1.5">
           <label htmlFor="phone" className="text-sm font-medium">Téléphone</label>
-          <input
+          <IconInput
+            icon={Phone}
             id="phone"
             type="tel"
             required
             autoComplete="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className={inputClassName}
             placeholder="+237 6XX XXX XXX"
           />
         </div>
@@ -781,7 +794,8 @@ const RegisterPage = () => {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
-            <input
+            <IconInput
+              icon={Lock}
               id="mot_de_passe"
               type="password"
               required
@@ -789,13 +803,13 @@ const RegisterPage = () => {
               autoComplete="new-password"
               value={motDePasse}
               onChange={(e) => setMotDePasse(e.target.value)}
-              className={inputClassName}
               placeholder="••••••••"
             />
           </div>
           <div className="space-y-1.5">
             <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">Confirmer</label>
-            <input
+            <IconInput
+              icon={Lock}
               id="confirm_mot_de_passe"
               type="password"
               required
@@ -803,7 +817,6 @@ const RegisterPage = () => {
               autoComplete="new-password"
               value={confirmMotDePasse}
               onChange={(e) => setConfirmMotDePasse(e.target.value)}
-              className={inputClassName}
               placeholder="••••••••"
             />
           </div>
