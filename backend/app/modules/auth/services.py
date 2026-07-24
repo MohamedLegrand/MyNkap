@@ -82,16 +82,17 @@ def valider_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
     ).first()
     return db_token
 
-def revoquer_refresh_token(db: Session, token: str) -> bool:
+def revoquer_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
     """
-    Révoque un jeton de rafraîchissement en base de données.
+    Révoque un jeton de rafraîchissement en base de données et le retourne
+    (ou None si le jeton n'existe pas).
     """
     db_token = db.query(RefreshToken).filter(RefreshToken.token == token).first()
     if db_token:
         db_token.est_revoque = True
         db.commit()
-        return True
-    return False
+        return db_token
+    return None
 
 # --- Services de récupération de mot de passe ---
 
@@ -117,23 +118,24 @@ def generer_forgot_password_token(db: Session, email: str) -> Optional[str]:
     
     return reset_token
 
-def reinitialiser_mot_de_passe(db: Session, reset_in: ResetPasswordRequest) -> bool:
+def reinitialiser_mot_de_passe(db: Session, reset_in: ResetPasswordRequest) -> Optional[Client]:
     """
-    Valide le jeton de récupération et applique le nouveau mot de passe.
+    Valide le jeton de récupération, applique le nouveau mot de passe et
+    retourne le client concerné (ou None si le jeton est invalide/expiré).
     """
     client = db.query(Client).filter(
         Client.reset_password_token == reset_in.token,
         Client.reset_password_expires > datetime.utcnow()
     ).first()
-    
+
     if not client:
-        return False
-    
+        return None
+
     # Mise à jour du mot de passe
     client.mot_de_passe = get_password_hash(reset_in.nouveau_mot_de_passe)
     # Nettoyage du token
     client.reset_password_token = None
     client.reset_password_expires = None
-    
+
     db.commit()
-    return True
+    return client

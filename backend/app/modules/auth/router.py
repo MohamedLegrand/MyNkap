@@ -20,6 +20,7 @@ from app.modules.auth.schemas import (
     ResetPasswordRequest,
 )
 from app.modules.auth import services
+from app.modules.audit.service import enregistrer_action
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
@@ -39,6 +40,17 @@ def register(request: Request, client_in: UserRegister, db: Session = Depends(ge
     
     # Créer le client
     nouveau_client = services.creer_client(db, client_in)
+
+    enregistrer_action(
+        db,
+        id_utilisateur=nouveau_client.id_client,
+        action="CREER",
+        ressource="Client",
+        id_ressource=nouveau_client.id_client,
+        donnees_apres={"email": nouveau_client.email},
+        request=request,
+    )
+
     return nouveau_client
 
 @router.post("/login", response_model=TokenResponse)
@@ -62,6 +74,15 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
     
     # Génération du Refresh Token en BDD
     refresh_token_db = services.creer_refresh_token(db, utilisateur.id_utilisateur)
+
+    enregistrer_action(
+        db,
+        id_utilisateur=utilisateur.id_utilisateur,
+        action="CONNEXION",
+        ressource="Utilisateur",
+        id_ressource=utilisateur.id_utilisateur,
+        request=request,
+    )
 
     return {
         "access_token": access_token,
@@ -96,16 +117,26 @@ def refresh_token(refresh_in: TokenRefreshRequest, db: Session = Depends(get_db)
     }
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-def logout(refresh_in: TokenRefreshRequest, db: Session = Depends(get_db)):
+def logout(request: Request, refresh_in: TokenRefreshRequest, db: Session = Depends(get_db)):
     """
     Déconnexion en révoquant le jeton de rafraîchissement.
     """
-    revoque = services.revoquer_refresh_token(db, refresh_in.refresh_token)
-    if not revoque:
+    db_token = services.revoquer_refresh_token(db, refresh_in.refresh_token)
+    if not db_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Impossible de révoquer le jeton fourni."
         )
+
+    enregistrer_action(
+        db,
+        id_utilisateur=db_token.id_client,
+        action="DECONNEXION",
+        ressource="Utilisateur",
+        id_ressource=db_token.id_client,
+        request=request,
+    )
+
     return {"message": "Déconnexion réussie."}
 
 @router.get("/me", response_model=ClientOut)
@@ -156,14 +187,24 @@ def forgot_password(request: Request, forgot_in: ForgotPasswordRequest, db: Sess
     }
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
-def reset_password(reset_in: ResetPasswordRequest, db: Session = Depends(get_db)):
+def reset_password(request: Request, reset_in: ResetPasswordRequest, db: Session = Depends(get_db)):
     """
     Valider le jeton et définir le nouveau mot de passe.
     """
-    succes = services.reinitialiser_mot_de_passe(db, reset_in)
-    if not succes:
+    client = services.reinitialiser_mot_de_passe(db, reset_in)
+    if not client:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Jeton de réinitialisation invalide ou expiré."
         )
+
+    enregistrer_action(
+        db,
+        id_utilisateur=client.id_client,
+        action="RESET_PASSWORD",
+        ressource="Client",
+        id_ressource=client.id_client,
+        request=request,
+    )
+
     return {"message": "Mot de passe modifié avec succès."}
