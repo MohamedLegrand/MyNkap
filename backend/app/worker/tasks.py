@@ -1,6 +1,7 @@
 from app.core.database import SessionLocal
 from app.modules.analyse.service import generer_snapshots_mensuels_tous_clients
 from app.modules.plans.service import verifier_paiements_en_attente
+from app.modules.rapports.service import generer_rapport
 from app.modules.transactions.service import verifier_et_executer_recurrences
 from app.worker.celery_app import celery_app
 
@@ -44,5 +45,19 @@ def verifier_paiements_abonnement() -> int:
     db = SessionLocal()
     try:
         return verifier_paiements_en_attente(db)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.tasks.generer_rapport_tache")
+def generer_rapport_tache(id_rapport: int) -> None:
+    """
+    Dispatchée à la demande (pas périodique) depuis POST /rapports — voir
+    rapports.router. Toute la logique de rendu vit dans rapports.service
+    pour rester testable sans Celery/Redis démarrés.
+    """
+    db = SessionLocal()
+    try:
+        generer_rapport(db, id_rapport)
     finally:
         db.close()

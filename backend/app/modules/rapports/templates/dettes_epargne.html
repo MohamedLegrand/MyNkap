@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Dettes en cours</h2>
+{% if dettes %}
+<table class="donnees">
+  <tr><th>Nom</th><th>Montant total</th><th>Remboursé</th><th>Restant</th><th>Échéance</th><th>Statut</th></tr>
+  {% for d in dettes %}
+  <tr>
+    <td>{{ d.nom }}</td>
+    <td class="montant">{{ d.montant_total }} XAF</td>
+    <td class="montant">{{ d.montant_rembourse }} XAF</td>
+    <td class="montant negatif">{{ d.montant_restant }} XAF</td>
+    <td>{{ d.echeance or "—" }}</td>
+    <td>{{ d.statut }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="vide">Aucune dette en cours.</p>
+{% endif %}
+
+<h2>Créances en cours</h2>
+{% if creances %}
+<table class="donnees">
+  <tr><th>Nom</th><th>Montant total</th><th>Encaissé</th><th>Restant</th><th>Échéance</th><th>Statut</th></tr>
+  {% for c in creances %}
+  <tr>
+    <td>{{ c.nom }}</td>
+    <td class="montant">{{ c.montant_total }} XAF</td>
+    <td class="montant">{{ c.montant_rembourse }} XAF</td>
+    <td class="montant positif">{{ c.montant_restant }} XAF</td>
+    <td>{{ c.echeance or "—" }}</td>
+    <td>{{ c.statut }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="vide">Aucune créance en cours.</p>
+{% endif %}
+
+<h2>Objectifs d'épargne</h2>
+{% if objectifs %}
+<table class="donnees">
+  <tr><th>Objectif</th><th>Cible</th><th>Actuel</th><th>Progression</th><th>Statut</th></tr>
+  {% for o in objectifs %}
+  <tr>
+    <td>{{ o.nom }}</td>
+    <td class="montant">{{ o.montant_cible }} XAF</td>
+    <td class="montant positif">{{ o.montant_actuel }} XAF</td>
+    <td class="montant">{{ o.pourcentage }}%</td>
+    <td>{{ o.statut }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="vide">Aucun objectif d'épargne en cours.</p>
+{% endif %}
+
+{% endblock %}

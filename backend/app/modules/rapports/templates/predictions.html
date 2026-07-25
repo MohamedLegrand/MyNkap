@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Dépenses futures estimées</h2>
+<table class="donnees">
+  <tr><th>Montant prédit</th><th>Niveau de confiance</th></tr>
+  <tr>
+    <td class="montant">{{ depenses_futures.montant }} XAF</td>
+    <td class="montant">{{ depenses_futures.confiance }}%</td>
+  </tr>
+</table>
+<div class="conseil">{{ depenses_futures.recommandation }}</div>
+
+<h2>Risque de dépassement budgétaire</h2>
+<div class="conseil">{{ risque_budgetaire.recommandation }}</div>
+
+<h2>Capacité d'épargne estimée</h2>
+<table class="donnees">
+  <tr><th>Montant estimé</th><th>Niveau de confiance</th></tr>
+  <tr>
+    <td class="montant positif">{{ capacite_epargne.montant }} XAF</td>
+    <td class="montant">{{ capacite_epargne.confiance }}%</td>
+  </tr>
+</table>
+<div class="conseil">{{ capacite_epargne.recommandation }}</div>
+
+{% endblock %}

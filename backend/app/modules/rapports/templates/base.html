@@ -1,0 +1,58 @@
+<html>
+<head>
+<style>
+  @page {
+    size: A4;
+    margin: 2cm 1.5cm 2.2cm 1.5cm;
+    @frame footer_frame {
+      -pdf-frame-content: footer_content;
+      bottom: 1cm;
+      margin-left: 1.5cm;
+      margin-right: 1.5cm;
+      height: 1cm;
+    }
+  }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1a1a1a; }
+  .entete table { width: 100%; border: none; }
+  .entete td { border: none; vertical-align: middle; padding: 0; }
+  .logo { width: 42px; }
+  .marque { color: #254E2A; font-size: 17pt; font-weight: bold; }
+  .entete-bas { border-bottom: 2px solid #254E2A; padding-bottom: 10px; margin-bottom: 18px; }
+  .titre-rapport { font-size: 14pt; font-weight: bold; margin-top: 14px; color: #1a1a1a; }
+  .periode { color: #555555; font-size: 9pt; margin-top: 2px; }
+  h2 { color: #254E2A; font-size: 12pt; border-bottom: 1px solid #cccccc; padding-bottom: 4px; margin-top: 22px; margin-bottom: 8px; }
+  table.donnees { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  table.donnees th { background-color: #254E2A; color: #ffffff; padding: 6px 8px; text-align: left; font-size: 9pt; }
+  table.donnees td { padding: 6px 8px; border-bottom: 1px solid #e0e0e0; font-size: 9pt; }
+  table.donnees tr.total td { font-weight: bold; border-top: 2px solid #254E2A; border-bottom: none; }
+  .montant { text-align: right; }
+  .positif { color: #1a7a1a; font-weight: bold; }
+  .negatif { color: #b02a2a; font-weight: bold; }
+  .neutre { color: #555555; }
+  .score-bloc { text-align: center; margin: 16px 0; }
+  .score-valeur { font-size: 30pt; color: #254E2A; font-weight: bold; }
+  .score-label { font-size: 9pt; color: #555555; }
+  .conseil { background-color: #eef4ee; border-left: 3px solid #254E2A; padding: 8px 10px; margin-top: 8px; font-size: 9.5pt; }
+  .vide { color: #888888; font-style: italic; font-size: 9pt; }
+  #footer_content { font-size: 8pt; color: #999999; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="entete-bas">
+    <div class="entete">
+      <table>
+        <tr>
+          <td style="width: 55px;"><img class="logo" src="{{ logo_path }}" /></td>
+          <td><div class="marque">MyNkap</div></td>
+        </tr>
+      </table>
+    </div>
+    <div class="titre-rapport">{{ titre }}</div>
+    <div class="periode">Période du {{ periode_debut }} au {{ periode_fin }} — généré le {{ date_generation }}</div>
+  </div>
+
+  {% block content %}{% endblock %}
+
+  <div id="footer_content">MyNkap — Rapport généré automatiquement — page <pdf:pagenumber /></div>
+</body>
+</html>

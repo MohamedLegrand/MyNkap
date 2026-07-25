@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Résumé de la période</h2>
+<table class="donnees">
+  <tr><th>Total dépenses</th><th>Total revenus</th><th>Solde net</th></tr>
+  <tr>
+    <td class="montant negatif">{{ total_depenses }} XAF</td>
+    <td class="montant positif">{{ total_revenus }} XAF</td>
+    <td class="montant {{ 'positif' if solde_net_positif else 'negatif' }}">{{ solde_net }} XAF</td>
+  </tr>
+</table>
+
+<h2>Détail des transactions ({{ transactions|length }})</h2>
+{% if transactions %}
+<table class="donnees">
+  <tr><th>Date</th><th>Catégorie</th><th>Type</th><th>Description</th><th style="text-align:right;">Montant</th></tr>
+  {% for t in transactions %}
+  <tr>
+    <td>{{ t.date }}</td>
+    <td>{{ t.categorie }}</td>
+    <td>{{ t.type }}</td>
+    <td>{{ t.description or "—" }}</td>
+    <td class="montant {{ 'positif' if t.type == 'REVENU' else 'negatif' }}">{{ t.montant }} XAF</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="vide">Aucune transaction enregistrée sur cette période.</p>
+{% endif %}
+
+{% endblock %}

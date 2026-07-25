@@ -17,6 +17,7 @@ from app.modules.epargne.router import router as epargne_router
 from app.modules.jarvis.router import router as jarvis_router
 from app.modules.analyse.router import router as analyse_router
 from app.modules.plans.router import router as plans_router
+from app.modules.rapports.router import router as rapports_router
 
 
 # Le schéma de la base de données est géré par Alembic (voir backend/alembic/).
@@ -53,6 +54,7 @@ app.include_router(epargne_router, prefix=settings.API_V1_STR)
 app.include_router(jarvis_router, prefix=settings.API_V1_STR)
 app.include_router(analyse_router, prefix=settings.API_V1_STR)
 app.include_router(plans_router, prefix=settings.API_V1_STR)
+app.include_router(rapports_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

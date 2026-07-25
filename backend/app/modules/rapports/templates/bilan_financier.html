@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="score-bloc">
+  <div class="score-valeur">{{ score_financier }}/100</div>
+  <div class="score-label">Score financier</div>
+</div>
+
+<h2>Habitudes de dépenses ({{ total_depenses }} XAF au total)</h2>
+{% if repartition %}
+<table class="donnees">
+  <tr><th>Catégorie</th><th>Montant</th><th>% du total</th></tr>
+  {% for r in repartition %}
+  <tr>
+    <td>{{ r.categorie }}</td>
+    <td class="montant">{{ r.montant }} XAF</td>
+    <td class="montant">{{ r.pourcentage }}%</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="vide">Aucune dépense sur cette période.</p>
+{% endif %}
+
+<h2>Tendances vs moyenne des 3 derniers mois</h2>
+{% if tendances %}
+<table class="donnees">
+  <tr><th>Catégorie</th><th>Cette période</th><th>Moyenne 3 mois</th><th>Variation</th></tr>
+  {% for t in tendances %}
+  <tr>
+    <td>{{ t.categorie }}</td>
+    <td class="montant">{{ t.montant_periode }} XAF</td>
+    <td class="montant">{{ t.moyenne }} XAF</td>
+    <td class="montant {{ 'negatif' if t.hausse else 'positif' }}">{{ t.variation }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="vide">Pas assez d'historique pour calculer une tendance.</p>
+{% endif %}
+
+<h2>Comparaison avec la période précédente</h2>
+<table class="donnees">
+  <tr><th></th><th>Période actuelle</th><th>Période précédente</th></tr>
+  <tr><td>Dépenses</td><td class="montant">{{ comparaison.depenses_actuelles }} XAF</td><td class="montant">{{ comparaison.depenses_precedentes }} XAF</td></tr>
+  <tr><td>Revenus</td><td class="montant">{{ comparaison.revenus_actuelles }} XAF</td><td class="montant">{{ comparaison.revenus_precedentes }} XAF</td></tr>
+</table>
+
+<h2>Comportement</h2>
+<table class="donnees">
+  <tr><th>Transactions suspectes</th><th>Budgets dépassés</th><th>Budgets actifs</th></tr>
+  <tr>
+    <td class="montant">{{ comportement.transactions_suspectes }}</td>
+    <td class="montant">{{ comportement.budgets_depasses }}</td>
+    <td class="montant">{{ comportement.nombre_budgets_actifs }}</td>
+  </tr>
+</table>
+
+{% endblock %}

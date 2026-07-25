@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     HRPAY_SECRET_KEY: str | None = None
     HRPAY_WEBHOOK_SECRET: str | None = None
 
+    # Dossier de stockage des rapports PDF générés (module Rapports).
+    # Chemin local pour l'instant — un stockage cloud (S3/Supabase) sera
+    # nécessaire en production, sans changer l'API du module.
+    RAPPORTS_DOSSIER: str = "rapports_generes"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

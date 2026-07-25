@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Suivi des budgets</h2>
+{% if budgets %}
+<table class="donnees">
+  <tr><th>Catégorie</th><th>Limite</th><th>Dépensé</th><th>Restant</th><th>% utilisé</th><th>Statut</th></tr>
+  {% for b in budgets %}
+  <tr>
+    <td>{{ b.categorie }}</td>
+    <td class="montant">{{ b.limite }} XAF</td>
+    <td class="montant">{{ b.depense }} XAF</td>
+    <td class="montant {{ 'negatif' if b.restant_negatif else 'neutre' }}">{{ b.restant }} XAF</td>
+    <td class="montant">{{ b.pourcentage }}%</td>
+    <td class="{{ 'negatif' if b.depasse else 'positif' }}">{{ "Dépassé" if b.depasse else "OK" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="vide">Aucun budget actif pour cette période.</p>
+{% endif %}
+
+{% endblock %}
