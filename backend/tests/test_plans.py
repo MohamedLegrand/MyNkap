@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta
+from decimal import Decimal
+
+import hrpay
 
 from app.modules.plans import service as plans_service
-from app.modules.plans.models import Abonnement
+from app.modules.plans.models import Abonnement, PaiementAbonnement
 
 
 def _register_and_login(client, email="plans.test@example.com", mot_de_passe="motdepasse123"):
@@ -58,107 +61,219 @@ def test_client_gratuit_est_bloque_sur_les_fonctionnalites_payantes(client):
     assert client.get("/api/v1/categories", headers=headers).status_code == 200
 
 
-def test_changer_plan_vers_essentiel_debloque_dettes_et_epargne(client):
-    headers = _register_and_login(client, "plans.essentiel@example.com")
+def test_changer_plan_naccepte_que_gratuit(client):
+    headers = _register_and_login(client, "plans.changerplan@example.com")
 
-    changement = client.post(
-        "/api/v1/abonnement/changer-plan",
-        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL"},
+    retour = client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "GRATUIT"}, headers=headers)
+    assert retour.status_code == 200
+    assert retour.json()["plan"]["nom"] == "GRATUIT"
+
+    # Un plan payant n'est plus acceptable via cet endpoint (voir
+    # /abonnement/paiements) — rejeté dès la validation Pydantic.
+    refuse = client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "PREMIUM"}, headers=headers)
+    assert refuse.status_code == 422
+
+
+# --- Paiement Mobile Money (HR-Skills Pay), toujours mocké dans les tests ---
+
+def test_initier_paiement_cree_un_paiement_pending(client, monkeypatch):
+    headers = _register_and_login(client, "plans.paiement@example.com")
+
+    appels = {}
+
+    def fausse_reference(phone_number, operator, montant, devise, id_paiement):
+        appels["phone_number"] = phone_number
+        appels["operator"] = operator
+        appels["montant"] = montant
+        return "ref_test_123"
+
+    monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", fausse_reference)
+
+    reponse = client.post(
+        "/api/v1/abonnement/paiements",
+        json={
+            "nom_plan": "ESSENTIEL",
+            "cycle_facturation": "MENSUEL",
+            "phone_number": "237655500393",
+            "operator": "orange",
+        },
         headers=headers,
     )
-    assert changement.status_code == 200
-    body = changement.json()
-    assert body["plan"]["nom"] == "ESSENTIEL"
-    assert body["cycle_facturation"] == "MENSUEL"
-    assert body["date_fin"] is not None
+    assert reponse.status_code == 201
+    body = reponse.json()
+    assert body["statut"] == "PENDING"
+    assert body["reference_hrpay"] == "ref_test_123"
+    assert body["plan_demande"]["nom"] == "ESSENTIEL"
+    assert Decimal(body["montant"]) == Decimal("1000")
+    assert appels["phone_number"] == "237655500393"
+    assert appels["operator"] == "orange"
 
-    assert client.get("/api/v1/dettes", headers=headers).status_code == 200
-    assert client.get("/api/v1/epargne", headers=headers).status_code == 200
-    assert client.get("/api/v1/transactions-recurrentes", headers=headers).status_code == 200
-    assert client.get("/api/v1/templates", headers=headers).status_code == 200
-    # Toujours bloqué : Analyse/JARVIS sont réservés au PREMIUM.
-    assert client.get("/api/v1/analyse/HABITUDES", headers=headers).status_code == 403
-    assert client.get("/api/v1/jarvis/conversations", headers=headers).status_code == 403
+    # Le plan n'a pas encore changé : le paiement n'est pas confirmé.
+    assert client.get("/api/v1/dettes", headers=headers).status_code == 403
 
 
-def test_changer_plan_payant_sans_cycle_est_refuse(client):
-    headers = _register_and_login(client, "plans.sanscycle@example.com")
-    reponse = client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "PREMIUM"}, headers=headers)
+def test_initier_paiement_sans_telephone_est_refuse(client, monkeypatch):
+    headers = _register_and_login(client, "plans.sanstelephone@example.com")
+    monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_test")
+
+    reponse = client.post(
+        "/api/v1/abonnement/paiements",
+        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL", "phone_number": "", "operator": "mtn"},
+        headers=headers,
+    )
     assert reponse.status_code == 400
 
 
-def test_changer_plan_inexistant_renvoie_404(client):
-    headers = _register_and_login(client, "plans.inexistant@example.com")
+def test_initier_paiement_echec_hrpay_ne_cree_rien(client, db_session, monkeypatch):
+    headers = _register_and_login(client, "plans.echechrpay@example.com")
+
+    def echec(*a, **k):
+        raise hrpay.HRPayError("panne réseau")
+
+    monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", echec)
+
     reponse = client.post(
-        "/api/v1/abonnement/changer-plan",
-        json={"nom_plan": "BUSINESS", "cycle_facturation": "MENSUEL"},
+        "/api/v1/abonnement/paiements",
+        json={
+            "nom_plan": "PREMIUM",
+            "cycle_facturation": "ANNUEL",
+            "phone_number": "237655500393",
+            "operator": "mtn",
+        },
         headers=headers,
     )
+    assert reponse.status_code == 503
+    assert db_session.query(PaiementAbonnement).count() == 0
+
+
+def test_verifier_paiements_en_attente_confirme_et_applique_le_plan(client, db_session, monkeypatch):
+    headers = _register_and_login(client, "plans.confirmation@example.com")
+    monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_success")
+
+    client.post(
+        "/api/v1/abonnement/paiements",
+        json={
+            "nom_plan": "ESSENTIEL",
+            "cycle_facturation": "MENSUEL",
+            "phone_number": "237655500393",
+            "operator": "orange",
+        },
+        headers=headers,
+    )
+
+    monkeypatch.setattr(plans_service, "_verifier_statut_hrpay", lambda reference: "SUCCESS")
+    nb_traites = plans_service.verifier_paiements_en_attente(db_session)
+    assert nb_traites == 1
+
+    paiement = db_session.query(PaiementAbonnement).first()
+    assert paiement.statut == "SUCCESS"
+    assert paiement.date_confirmation is not None
+
+    # Le plan est maintenant réellement changé.
+    abonnement = client.get("/api/v1/abonnement", headers=headers).json()
+    assert abonnement["plan"]["nom"] == "ESSENTIEL"
+    assert client.get("/api/v1/dettes", headers=headers).status_code == 200
+
+
+def test_verifier_paiements_en_attente_marque_failed_sans_changer_le_plan(client, db_session, monkeypatch):
+    headers = _register_and_login(client, "plans.echecconfirmation@example.com")
+    monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_failed")
+
+    client.post(
+        "/api/v1/abonnement/paiements",
+        json={
+            "nom_plan": "ESSENTIEL",
+            "cycle_facturation": "MENSUEL",
+            "phone_number": "237655500393",
+            "operator": "orange",
+        },
+        headers=headers,
+    )
+
+    monkeypatch.setattr(plans_service, "_verifier_statut_hrpay", lambda reference: "FAILED")
+    plans_service.verifier_paiements_en_attente(db_session)
+
+    paiement = db_session.query(PaiementAbonnement).first()
+    assert paiement.statut == "FAILED"
+
+    abonnement = client.get("/api/v1/abonnement", headers=headers).json()
+    assert abonnement["plan"]["nom"] == "GRATUIT"
+    assert client.get("/api/v1/dettes", headers=headers).status_code == 403
+
+
+def test_verifier_paiements_en_attente_ignore_ceux_toujours_pending(client, db_session, monkeypatch):
+    headers = _register_and_login(client, "plans.toujourspending@example.com")
+    monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_pending")
+
+    client.post(
+        "/api/v1/abonnement/paiements",
+        json={
+            "nom_plan": "ESSENTIEL",
+            "cycle_facturation": "MENSUEL",
+            "phone_number": "237655500393",
+            "operator": "orange",
+        },
+        headers=headers,
+    )
+
+    monkeypatch.setattr(plans_service, "_verifier_statut_hrpay", lambda reference: "PENDING")
+    nb_traites = plans_service.verifier_paiements_en_attente(db_session)
+    assert nb_traites == 0
+
+    paiement = db_session.query(PaiementAbonnement).first()
+    assert paiement.statut == "PENDING"
+
+
+def test_obtenir_paiement_dun_autre_client_renvoie_404(client, monkeypatch):
+    headers_a = _register_and_login(client, "plans.paiement.a@example.com")
+    headers_b = _register_and_login(client, "plans.paiement.b@example.com")
+    monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_prive")
+
+    paiement = client.post(
+        "/api/v1/abonnement/paiements",
+        json={
+            "nom_plan": "ESSENTIEL",
+            "cycle_facturation": "MENSUEL",
+            "phone_number": "237655500393",
+            "operator": "orange",
+        },
+        headers=headers_a,
+    ).json()
+
+    reponse = client.get(f"/api/v1/abonnement/paiements/{paiement['id_paiement']}", headers=headers_b)
     assert reponse.status_code == 404
 
 
-def test_retour_vers_gratuit_ne_necessite_aucun_cycle(client):
-    headers = _register_and_login(client, "plans.retourgratuit@example.com")
-    client.post(
-        "/api/v1/abonnement/changer-plan",
-        json={"nom_plan": "PREMIUM", "cycle_facturation": "ANNUEL"},
-        headers=headers,
-    )
-    retour = client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "GRATUIT"}, headers=headers)
-    assert retour.status_code == 200
-    body = retour.json()
-    assert body["plan"]["nom"] == "GRATUIT"
-    assert body["date_fin"] is None
-    assert body["cycle_facturation"] is None
+def test_abonnement_expire_revient_a_gratuit_meme_avec_renouvellement_auto(client, db_session):
+    """
+    Depuis l'intégration HR-Skills Pay, aucun renouvellement n'est simulé
+    — même avec renouvellement_auto=True, l'échéance dépassée fait
+    toujours revenir à GRATUIT (voir plans.service.obtenir_abonnement_actif).
+    """
+    headers = _register_and_login(client, "plans.expiration@example.com")
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    plans_service.changer_plan(db_session, id_client, "ESSENTIEL", "MENSUEL")
 
-    assert client.get("/api/v1/jarvis/conversations", headers=headers).status_code == 403
-
-
-def test_abonnement_expire_avec_renouvellement_auto_se_prolonge_tout_seul(client, db_session):
-    headers = _register_and_login(client, "plans.renouvellement@example.com")
-    client.post(
-        "/api/v1/abonnement/changer-plan",
-        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL"},
-        headers=headers,
-    )
-
-    # Simule une échéance déjà dépassée hier (sans attendre 30 jours réels).
     abonnement = db_session.query(Abonnement).first()
-    abonnement.date_fin = datetime.utcnow() - timedelta(days=1)
-    db_session.commit()
-
-    # Le simple fait de lire l'abonnement déclenche le recalcul (aucune
-    # tâche planifiée nécessaire, même principe que Budget/Épargne).
-    reponse = client.get("/api/v1/abonnement", headers=headers)
-    body = reponse.json()
-    assert body["plan"]["nom"] == "ESSENTIEL"  # toujours le même plan
-    assert body["date_fin"] > (datetime.utcnow() - timedelta(days=1)).isoformat()  # prolongé
-    # L'accès reste donc actif malgré l'échéance dépassée.
-    assert client.get("/api/v1/dettes", headers=headers).status_code == 200
-
-
-def test_annuler_renouvellement_revient_a_gratuit_apres_expiration(client, db_session):
-    headers = _register_and_login(client, "plans.annulation@example.com")
-    client.post(
-        "/api/v1/abonnement/changer-plan",
-        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL"},
-        headers=headers,
-    )
-
-    annulation = client.post("/api/v1/abonnement/annuler-renouvellement", headers=headers)
-    assert annulation.status_code == 200
-    assert annulation.json()["statut"] == "ANNULE"
-    # Toujours accessible jusqu'à la fin de la période déjà "payée".
-    assert client.get("/api/v1/dettes", headers=headers).status_code == 200
-
-    # Simule le passage de la date de fin.
-    abonnement = db_session.query(Abonnement).first()
+    assert abonnement.renouvellement_auto is True
     abonnement.date_fin = datetime.utcnow() - timedelta(days=1)
     db_session.commit()
 
     reponse = client.get("/api/v1/abonnement", headers=headers)
     assert reponse.json()["plan"]["nom"] == "GRATUIT"
     assert client.get("/api/v1/dettes", headers=headers).status_code == 403
+
+
+def test_annuler_renouvellement_garde_lacces_jusqua_la_date_fin(client, db_session):
+    headers = _register_and_login(client, "plans.annulation@example.com")
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    plans_service.changer_plan(db_session, id_client, "ESSENTIEL", "MENSUEL")
+
+    annulation = client.post("/api/v1/abonnement/annuler-renouvellement", headers=headers)
+    assert annulation.status_code == 200
+    assert annulation.json()["statut"] == "ANNULE"
+    # Toujours accessible jusqu'à la fin de la période déjà payée.
+    assert client.get("/api/v1/dettes", headers=headers).status_code == 200
 
 
 def test_creer_abonnement_gratuit_est_idempotent_via_get_or_create(client, db_session):

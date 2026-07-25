@@ -1,5 +1,6 @@
 from app.core.database import SessionLocal
 from app.modules.analyse.service import generer_snapshots_mensuels_tous_clients
+from app.modules.plans.service import verifier_paiements_en_attente
 from app.modules.transactions.service import verifier_et_executer_recurrences
 from app.worker.celery_app import celery_app
 
@@ -29,5 +30,19 @@ def generer_snapshots_mensuels() -> int:
     db = SessionLocal()
     try:
         return generer_snapshots_mensuels_tous_clients(db)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.tasks.verifier_paiements_abonnement")
+def verifier_paiements_abonnement() -> int:
+    """
+    Tâche planifiée toutes les ~20s (voir celery_app.beat_schedule) :
+    interroge HR-Skills Pay pour chaque paiement PENDING et finalise le
+    changement de plan dès que SUCCESS est confirmé — voir plans.service.
+    """
+    db = SessionLocal()
+    try:
+        return verifier_paiements_en_attente(db)
     finally:
         db.close()

@@ -1,6 +1,18 @@
 from decimal import Decimal
 
 import app.modules.jarvis.service as jarvis_service
+from app.modules.plans import service as plans_service
+from tests.conftest import TestingSessionLocal
+
+
+def _upgrader_plan(id_client, nom_plan):
+    """Passe directement par le service (jamais par HR-Skills Pay) — voir
+    test_dettes.py pour le détail du partage de connexion StaticPool."""
+    session = TestingSessionLocal()
+    try:
+        plans_service.changer_plan(session, id_client, nom_plan, "MENSUEL")
+    finally:
+        session.close()
 
 
 def _register_and_login(client, email="jarvis.test@example.com", mot_de_passe="motdepasse123"):
@@ -20,13 +32,11 @@ def _register_and_login(client, email="jarvis.test@example.com", mot_de_passe="m
     )
     access_token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
+
     # JARVIS est réservé au palier PREMIUM (voir module Plans/Abonnement)
     # — un client GRATUIT/ESSENTIEL recevrait 403 partout ici.
-    client.post(
-        "/api/v1/abonnement/changer-plan",
-        json={"nom_plan": "PREMIUM", "cycle_facturation": "MENSUEL"},
-        headers=headers,
-    )
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    _upgrader_plan(id_client, "PREMIUM")
     return headers
 
 

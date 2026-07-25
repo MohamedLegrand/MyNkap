@@ -52,3 +52,28 @@ class Abonnement(Base):
 
     client = relationship("Client", back_populates="abonnement")
     plan = relationship("Plan", back_populates="abonnements")
+
+
+class PaiementAbonnement(Base):
+    """
+    Paiement Mobile Money (HR-Skills Pay) demandé pour souscrire à un plan
+    payant. Dissocié de l'Abonnement lui-même car le paiement est
+    asynchrone : le client doit encore confirmer via USSD/push sur son
+    téléphone — le plan n'est réellement changé qu'une fois le statut
+    SUCCESS confirmé (voir service.verifier_paiements_en_attente).
+    """
+    __tablename__ = "paiements_abonnement"
+
+    id_paiement = Column(Integer, primary_key=True, index=True)
+    id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
+    id_plan_demande = Column(Integer, ForeignKey("plans.id_plan"), nullable=False)
+    cycle_facturation = Column(String, nullable=False)  # MENSUEL, ANNUEL
+    montant = Column(Numeric(14, 2), nullable=False)
+    devise = Column(String, default="XAF", nullable=False)
+    reference_hrpay = Column(String, unique=True, nullable=False, index=True)
+    statut = Column(String, default="PENDING", nullable=False)  # PENDING, SUCCESS, FAILED
+    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_confirmation = Column(DateTime, nullable=True)
+
+    client = relationship("Client")
+    plan_demande = relationship("Plan")

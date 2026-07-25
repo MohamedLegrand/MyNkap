@@ -1,5 +1,23 @@
 from decimal import Decimal
 
+from app.modules.plans import service as plans_service
+from tests.conftest import TestingSessionLocal
+
+
+def _upgrader_plan(id_client, nom_plan):
+    """
+    Passe directement par le service (jamais par HR-Skills Pay) pour
+    mettre le client de test sur le palier requis — la contrainte
+    StaticPool fait que cette session partage la même connexion SQLite
+    que celle utilisée par l'app, donc le changement est immédiatement
+    visible.
+    """
+    session = TestingSessionLocal()
+    try:
+        plans_service.changer_plan(session, id_client, nom_plan, "MENSUEL")
+    finally:
+        session.close()
+
 
 def _register_and_login(client, email="dettes.test@example.com", mot_de_passe="motdepasse123"):
     client.post(
@@ -18,13 +36,11 @@ def _register_and_login(client, email="dettes.test@example.com", mot_de_passe="m
     )
     access_token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
+
     # Dettes & Créances est réservé au palier ESSENTIEL et plus (voir
     # module Plans/Abonnement) — un client GRATUIT recevrait 403 partout ici.
-    client.post(
-        "/api/v1/abonnement/changer-plan",
-        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL"},
-        headers=headers,
-    )
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    _upgrader_plan(id_client, "ESSENTIEL")
     return headers
 
 

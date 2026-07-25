@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
 
+    # Paiement Mobile Money (module Plans/Abonnement) — optionnelles, même
+    # raison que ci-dessus.
+    HRPAY_PUBLIC_KEY: str | None = None
+    HRPAY_SECRET_KEY: str | None = None
+    HRPAY_WEBHOOK_SECRET: str | None = None
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

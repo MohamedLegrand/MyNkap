@@ -36,6 +36,28 @@ class AbonnementOut(BaseModel):
 
 
 class ChangerPlanRequest(BaseModel):
-    nom_plan: str
-    # Requis sauf pour revenir à GRATUIT (voir service.changer_plan).
-    cycle_facturation: Optional[Literal["MENSUEL", "ANNUEL"]] = None
+    # Uniquement pour revenir à GRATUIT (aucun paiement requis) — voir
+    # InitierPaiementRequest pour souscrire à un plan payant.
+    nom_plan: Literal["GRATUIT"]
+
+
+class InitierPaiementRequest(BaseModel):
+    nom_plan: Literal["ESSENTIEL", "PREMIUM"]
+    cycle_facturation: Literal["MENSUEL", "ANNUEL"]
+    phone_number: str
+    operator: str
+
+
+class PaiementAbonnementOut(BaseModel):
+    id_paiement: int
+    plan_demande: PlanOut
+    cycle_facturation: str
+    montant: Decimal
+    devise: str
+    reference_hrpay: str
+    statut: str
+    date_creation: datetime
+    date_confirmation: Optional[datetime]
+
+    class Config:
+        from_attributes = True

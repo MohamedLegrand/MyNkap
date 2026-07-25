@@ -26,5 +26,12 @@ celery_app.conf.beat_schedule = {
         # récurrences du même jour (00h05) pour partir de données à jour.
         "schedule": crontab(day_of_month=1, hour=1, minute=0),
     },
+    "verifier-paiements-abonnement": {
+        "task": "app.worker.tasks.verifier_paiements_abonnement",
+        # Cadence bien plus rapide que les autres tâches (secondes, pas
+        # jours) : un client attend la confirmation de son paiement en
+        # direct, contrairement aux snapshots mensuels/récurrences.
+        "schedule": 20.0,
+    },
 }
 celery_app.conf.timezone = "UTC"

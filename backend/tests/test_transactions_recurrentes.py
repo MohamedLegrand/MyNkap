@@ -2,8 +2,20 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from app.modules.audit.models import AuditLog
+from app.modules.plans import service as plans_service
 from app.modules.transactions.models import Transaction, TransactionRecurrente
 from app.modules.transactions.service import _avancer_date, verifier_et_executer_recurrences
+from tests.conftest import TestingSessionLocal
+
+
+def _upgrader_plan(id_client, nom_plan):
+    """Passe directement par le service (jamais par HR-Skills Pay) — voir
+    test_dettes.py pour le détail du partage de connexion StaticPool."""
+    session = TestingSessionLocal()
+    try:
+        plans_service.changer_plan(session, id_client, nom_plan, "MENSUEL")
+    finally:
+        session.close()
 
 
 def _register_and_login(client, email="recurrentes.test@example.com", mot_de_passe="motdepasse123"):
@@ -23,13 +35,11 @@ def _register_and_login(client, email="recurrentes.test@example.com", mot_de_pas
     )
     access_token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
+
     # Récurrentes/Templates sont réservés au palier ESSENTIEL et plus (voir
     # module Plans/Abonnement) — un client GRATUIT recevrait 403 partout ici.
-    client.post(
-        "/api/v1/abonnement/changer-plan",
-        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL"},
-        headers=headers,
-    )
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    _upgrader_plan(id_client, "ESSENTIEL")
     return headers
 
 

@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
+import hrpay
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.modules.audit.service import enregistrer_action
-from app.modules.plans.models import Abonnement, Plan
+from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
 
 DUREE_CYCLE = {"MENSUEL": timedelta(days=30), "ANNUEL": timedelta(days=365)}
 
@@ -14,6 +16,14 @@ class PlanIntrouvableError(Exception):
 
 class CycleFacturationRequisError(Exception):
     """Un cycle de facturation (MENSUEL/ANNUEL) est requis pour tout plan payant."""
+
+
+class TelephoneOperateurRequisError(Exception):
+    """phone_number et operator sont requis pour initier un paiement Mobile Money."""
+
+
+class ServicePaiementIndisponibleError(Exception):
+    """L'appel à HR-Skills Pay a échoué (réseau, clé invalide, quota...)."""
 
 
 def lister_plans(db: Session) -> List[Plan]:
@@ -46,10 +56,12 @@ def creer_abonnement_gratuit(db: Session, id_client: int) -> Abonnement:
 def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
     """
     Recalcule le statut à la lecture — jamais de tâche planifiée pour ça
-    (même principe que Budget/Épargne). Aucun vrai fournisseur de paiement
-    n'est encore branché : un renouvellement automatique "réussit"
-    toujours pour l'instant (voir changer_plan pour le contexte), en
-    attendant l'intégration réelle.
+    (même principe que Budget/Épargne). Depuis l'intégration HR-Skills Pay,
+    aucun renouvellement n'est simulé : simuler un "succès" sans avoir
+    réellement tenté de débiter le client serait mensonger. À l'échéance,
+    l'abonnement revient donc systématiquement à GRATUIT — le
+    renouvellement automatique réel (relancer un Cash-In au bon moment)
+    reste un chantier séparé, pas encore construit.
     """
     abonnement = db.query(Abonnement).filter(Abonnement.id_client == id_client).first()
     if abonnement is None:
@@ -61,15 +73,11 @@ def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
         return abonnement
 
     if abonnement.date_fin is not None and abonnement.date_fin <= datetime.utcnow():
-        if abonnement.renouvellement_auto:
-            duree = DUREE_CYCLE.get(abonnement.cycle_facturation, DUREE_CYCLE["MENSUEL"])
-            abonnement.date_fin = datetime.utcnow() + duree
-        else:
-            plan_gratuit = _obtenir_plan_gratuit(db)
-            abonnement.id_plan = plan_gratuit.id_plan
-            abonnement.statut = "ACTIF"
-            abonnement.date_fin = None
-            abonnement.cycle_facturation = None
+        plan_gratuit = _obtenir_plan_gratuit(db)
+        abonnement.id_plan = plan_gratuit.id_plan
+        abonnement.statut = "ACTIF"
+        abonnement.date_fin = None
+        abonnement.cycle_facturation = None
         db.commit()
         db.refresh(abonnement)
 
@@ -80,10 +88,11 @@ def changer_plan(
     db: Session, id_client: int, nom_plan: str, cycle_facturation: Optional[str] = None
 ) -> Abonnement:
     """
-    Change immédiatement de plan — simulé, sans paiement réel (le
-    fournisseur Mobile Money n'est pas encore choisi/intégré). Se greffera
-    plus tard sans redesign : ce point d'entrée reste le même, seule la
-    confirmation de paiement s'ajoutera avant l'appel.
+    Change immédiatement de plan en base. Pour GRATUIT, appelée
+    directement (aucun paiement requis pour revenir au plan gratuit). Pour
+    un plan payant, n'est appelée qu'une fois un paiement HR-Skills Pay
+    confirmé SUCCESS (voir verifier_paiements_en_attente) — jamais
+    directement depuis un endpoint pour un plan payant.
     """
     plan = db.query(Plan).filter(Plan.nom == nom_plan).first()
     if plan is None:
@@ -133,3 +142,118 @@ def annuler_renouvellement(db: Session, id_client: int) -> Abonnement:
     db.commit()
     db.refresh(abonnement)
     return abonnement
+
+
+# --- Paiement Mobile Money (HR-Skills Pay) ---
+
+def _client_hrpay() -> hrpay.HRPayClient:
+    return hrpay.HRPayClient(settings.HRPAY_PUBLIC_KEY, settings.HRPAY_SECRET_KEY)
+
+
+def _appeler_hrpay_cash_in(phone_number: str, operator: str, montant, devise: str, id_paiement: int) -> str:
+    """
+    Isolée dans sa propre fonction pour rester mockable en test (même
+    principe que jarvis._appeler_groq) — aucun test ne doit jamais
+    déclencher un vrai Cash-In. idempotency_key basé sur id_paiement :
+    un retry réseau sur la même requête ne débite jamais deux fois.
+    """
+    with _client_hrpay() as client:
+        tx = client.cash_in.mobile_money(
+            phone_number=phone_number,
+            operator=operator,
+            amount=int(montant),
+            currency=devise,
+            idempotency_key=f"abonnement-{id_paiement}",
+        )
+    return tx.reference
+
+
+def _verifier_statut_hrpay(reference: str) -> str:
+    """Isolée pour rester mockable en test — voir _appeler_hrpay_cash_in."""
+    with _client_hrpay() as client:
+        return client.transactions.status(reference).status.value
+
+
+def obtenir_paiement_du_client(db: Session, id_paiement: int, id_client: int) -> Optional[PaiementAbonnement]:
+    return (
+        db.query(PaiementAbonnement)
+        .filter(PaiementAbonnement.id_paiement == id_paiement, PaiementAbonnement.id_client == id_client)
+        .first()
+    )
+
+
+def initier_paiement_plan(
+    db: Session, id_client: int, nom_plan: str, cycle_facturation: str, phone_number: str, operator: str
+) -> PaiementAbonnement:
+    """
+    Démarre un paiement Mobile Money réel pour souscrire à un plan payant.
+    Le plan n'est PAS changé ici — seulement une fois que
+    verifier_paiements_en_attente() aura confirmé le SUCCESS (voir la
+    tâche Celery périodique, worker.tasks). N'est jamais appelée pour
+    GRATUIT (voir router : GRATUIT passe par changer_plan directement).
+    """
+    plan = db.query(Plan).filter(Plan.nom == nom_plan).first()
+    if plan is None:
+        raise PlanIntrouvableError()
+    if cycle_facturation not in DUREE_CYCLE:
+        raise CycleFacturationRequisError()
+    if not phone_number or not operator:
+        raise TelephoneOperateurRequisError()
+
+    montant = plan.prix_mensuel if cycle_facturation == "MENSUEL" else plan.prix_annuel
+
+    paiement = PaiementAbonnement(
+        id_client=id_client,
+        id_plan_demande=plan.id_plan,
+        cycle_facturation=cycle_facturation,
+        montant=montant,
+        devise=plan.devise,
+        reference_hrpay="",
+        statut="PENDING",
+    )
+    db.add(paiement)
+    db.flush()  # pour obtenir id_paiement avant l'appel externe (idempotency_key)
+
+    try:
+        reference = _appeler_hrpay_cash_in(phone_number, operator, montant, plan.devise, paiement.id_paiement)
+    except hrpay.HRPayError as erreur:
+        db.rollback()
+        raise ServicePaiementIndisponibleError(str(erreur))
+
+    paiement.reference_hrpay = reference
+    db.commit()
+    db.refresh(paiement)
+    return paiement
+
+
+def verifier_paiements_en_attente(db: Session) -> int:
+    """
+    Tâche planifiée (~toutes les 20s, voir worker.tasks) : interroge
+    HR-Skills Pay pour chaque paiement encore PENDING et finalise le
+    changement de plan dès que SUCCESS est confirmé. HR-Skills Pay fait
+    lui-même expirer une transaction non confirmée sous 10 min (FAILED
+    côté leur API) — inutile de dupliquer cette logique de timeout ici.
+    """
+    en_attente = db.query(PaiementAbonnement).filter(PaiementAbonnement.statut == "PENDING").all()
+    nb_traites = 0
+
+    for paiement in en_attente:
+        try:
+            statut = _verifier_statut_hrpay(paiement.reference_hrpay)
+        except hrpay.HRPayError:
+            continue  # on retentera au prochain passage
+
+        if statut == "SUCCESS":
+            changer_plan(db, paiement.id_client, paiement.plan_demande.nom, paiement.cycle_facturation)
+            paiement.statut = "SUCCESS"
+            paiement.date_confirmation = datetime.utcnow()
+            db.commit()
+            nb_traites += 1
+        elif statut in ("FAILED", "REFUNDED"):
+            paiement.statut = "FAILED"
+            db.commit()
+            nb_traites += 1
+        # PENDING ou HOLD (revue AML) : rien à faire, on retentera au
+        # prochain passage.
+
+    return nb_traites
