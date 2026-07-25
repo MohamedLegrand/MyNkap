@@ -9,6 +9,12 @@ from app.modules.transactions import service
 from app.modules.transactions.schemas import (
     TransactionCreate,
     TransactionOut,
+    TransactionRecurrenteCreate,
+    TransactionRecurrenteOut,
+    TransactionRecurrenteUpdate,
+    TemplateTransactionCreate,
+    TemplateTransactionOut,
+    TemplateTransactionUpdate,
     TransfertCreate,
     TransfertOut,
 )
@@ -150,3 +156,167 @@ def obtenir_transfert(
     if transfert is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transfert introuvable")
     return transfert
+
+
+# --- Transactions récurrentes ---
+
+def _gerer_erreurs_recurrence(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except service.TransactionRecurrenteIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Récurrence introuvable")
+    except service.CompteIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable")
+    except service.CategorieIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable")
+
+
+@router.post("/transactions-recurrentes", response_model=TransactionRecurrenteOut, status_code=status.HTTP_201_CREATED)
+def creer_transaction_recurrente(
+    payload: TransactionRecurrenteCreate,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Planifie une transaction qui s'exécutera automatiquement selon la
+    fréquence donnée, sans action du client (voir tâche Celery quotidienne)."""
+    return _gerer_erreurs_recurrence(service.creer_transaction_recurrente, db, client.id_client, payload)
+
+
+@router.get("/transactions-recurrentes", response_model=List[TransactionRecurrenteOut])
+def lister_transactions_recurrentes(
+    include_inactifs: bool = False,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    return service.lister_transactions_recurrentes(db, client.id_client, include_inactifs)
+
+
+@router.get("/transactions-recurrentes/{id_transaction_recurrente}", response_model=TransactionRecurrenteOut)
+def obtenir_transaction_recurrente(
+    id_transaction_recurrente: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    recurrence = service.obtenir_transaction_recurrente_du_client(db, id_transaction_recurrente, client.id_client)
+    if recurrence is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Récurrence introuvable")
+    return recurrence
+
+
+@router.put("/transactions-recurrentes/{id_transaction_recurrente}", response_model=TransactionRecurrenteOut)
+def modifier_transaction_recurrente(
+    id_transaction_recurrente: int,
+    payload: TransactionRecurrenteUpdate,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    return _gerer_erreurs_recurrence(
+        service.modifier_transaction_recurrente, db, id_transaction_recurrente, client.id_client, payload
+    )
+
+
+@router.delete("/transactions-recurrentes/{id_transaction_recurrente}", status_code=status.HTTP_204_NO_CONTENT)
+def desactiver_transaction_recurrente(
+    id_transaction_recurrente: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Désactivation logique — jamais de suppression réelle."""
+    _gerer_erreurs_recurrence(service.desactiver_transaction_recurrente, db, id_transaction_recurrente, client.id_client)
+
+
+@router.post("/transactions-recurrentes/{id_transaction_recurrente}/reactiver", response_model=TransactionRecurrenteOut)
+def reactiver_transaction_recurrente(
+    id_transaction_recurrente: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    return _gerer_erreurs_recurrence(service.reactiver_transaction_recurrente, db, id_transaction_recurrente, client.id_client)
+
+
+# --- Templates de transaction ---
+
+def _gerer_erreurs_template(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except service.TemplateIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template introuvable")
+    except service.CompteIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable")
+    except service.CategorieIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable")
+    except service.SoldeInsuffisantError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Solde insuffisant sur ce compte")
+
+
+@router.post("/templates", response_model=TemplateTransactionOut, status_code=status.HTTP_201_CREATED)
+def creer_template(
+    payload: TemplateTransactionCreate,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Mémorise des valeurs de transaction réutilisables en un tap. Ne crée
+    aucune Transaction : il faut appeler /rejouer pour ça."""
+    return _gerer_erreurs_template(service.creer_template, db, client.id_client, payload)
+
+
+@router.get("/templates", response_model=List[TemplateTransactionOut])
+def lister_templates(
+    include_inactifs: bool = False,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Triés par nombre d'utilisations décroissant : les plus utilisés en premier."""
+    return service.lister_templates(db, client.id_client, include_inactifs)
+
+
+@router.get("/templates/{id_template}", response_model=TemplateTransactionOut)
+def obtenir_template(
+    id_template: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    template = service.obtenir_template_du_client(db, id_template, client.id_client)
+    if template is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template introuvable")
+    return template
+
+
+@router.put("/templates/{id_template}", response_model=TemplateTransactionOut)
+def modifier_template(
+    id_template: int,
+    payload: TemplateTransactionUpdate,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    return _gerer_erreurs_template(service.modifier_template, db, id_template, client.id_client, payload)
+
+
+@router.delete("/templates/{id_template}", status_code=status.HTTP_204_NO_CONTENT)
+def desactiver_template(
+    id_template: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Désactivation logique — jamais de suppression réelle."""
+    _gerer_erreurs_template(service.desactiver_template, db, id_template, client.id_client)
+
+
+@router.post("/templates/{id_template}/reactiver", response_model=TemplateTransactionOut)
+def reactiver_template(
+    id_template: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    return _gerer_erreurs_template(service.reactiver_template, db, id_template, client.id_client)
+
+
+@router.post("/templates/{id_template}/rejouer", response_model=TransactionOut, status_code=status.HTTP_201_CREATED)
+def rejouer_template(
+    id_template: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Crée une nouvelle Transaction à partir des valeurs mémorisées par le
+    template (même débit/crédit atomique qu'une saisie manuelle)."""
+    return _gerer_erreurs_template(service.rejouer_template, db, client.id_client, id_template)

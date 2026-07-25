@@ -87,6 +87,21 @@ class Transaction(OperationFinanciere, Base):
         nullable=True,
         index=True,
     )
+    # Renseigné uniquement sur les Transaction créées automatiquement par le
+    # batch de transactions récurrentes (voir service.verifier_et_executer_
+    # recurrences) — permet de répondre précisément à "quelles transactions
+    # viennent de cette récurrence-là", pas juste un booléen est_recurrente.
+    # Pas de use_alter nécessaire : TransactionRecurrente ne référence
+    # jamais transactions, donc pas de dépendance circulaire ici.
+    id_transaction_recurrente = Column(
+        Integer,
+        ForeignKey(
+            "transactions_recurrentes.id_transaction_recurrente",
+            name="fk_transactions_id_transaction_recurrente",
+        ),
+        nullable=True,
+        index=True,
+    )
 
     client = relationship("Client", back_populates="transactions")
     compte = relationship("CompteFinancier", foreign_keys=[id_compte])
@@ -95,6 +110,7 @@ class Transaction(OperationFinanciere, Base):
         "Transaction", remote_side=[id_transaction], foreign_keys=[id_transaction_annulee]
     )
     dette = relationship("Dette", foreign_keys=[id_dette], back_populates="transactions_liees")
+    transaction_recurrente = relationship("TransactionRecurrente", foreign_keys=[id_transaction_recurrente])
 
     def calculer_impact(self) -> Decimal:
         """
@@ -154,6 +170,10 @@ class TransactionRecurrente(Base):
     description = Column(String, nullable=True)
     frequence = Column(String, nullable=False)  # HEBDOMADAIRE, MENSUELLE, TRIMESTRIELLE, ANNUELLE
     prochaine_execution = Column(Date, nullable=False)
+    # Optionnel : engagement à durée limitée (ex. remboursement sur 12
+    # mois). None = récurrence indéfinie (cas du loyer). Désactivée
+    # automatiquement dès que prochaine_execution la dépasse.
+    date_fin = Column(Date, nullable=True)
     est_active = Column(Boolean, default=True)
     date_creation = Column(DateTime, default=datetime.utcnow)
 
@@ -177,6 +197,10 @@ class TemplateTransaction(Base):
     type = Column(String, nullable=False)  # DEPENSE, REVENU
     description = Column(String, nullable=True)
     nombre_utilisations = Column(Integer, default=0)
+    # Désactivation logique — un template n'est pas un enregistrement
+    # financier, mais on garde le même principe que partout ailleurs dans
+    # le projet plutôt qu'une suppression réelle.
+    est_actif = Column(Boolean, default=True, nullable=False)
     date_creation = Column(DateTime, default=datetime.utcnow)
     date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

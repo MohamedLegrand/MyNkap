@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # CORS : origines autorisées à appeler l'API (séparées par des virgules dans .env)
     CORS_ORIGINS: str = "http://localhost:5173"
 
+    # Broker/backend Celery (tâches de fond : transactions récurrentes...)
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

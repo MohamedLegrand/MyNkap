@@ -1,3 +1,4 @@
+import calendar
 from datetime import date as date_type, timedelta
 from decimal import Decimal
 from typing import List, Optional
@@ -9,8 +10,15 @@ from app.modules.budgets.models import Categorie
 from app.modules.comptes import service as comptes_service
 from app.modules.comptes.models import CompteFinancier
 from app.modules.comptes.service import crediter_compte, debiter_compte, synchroniser_compte_principal
-from app.modules.transactions.models import Transaction, Transfert
-from app.modules.transactions.schemas import TransactionCreate, TransfertCreate
+from app.modules.transactions.models import Transaction, TransactionRecurrente, TemplateTransaction, Transfert
+from app.modules.transactions.schemas import (
+    TransactionCreate,
+    TransactionRecurrenteCreate,
+    TransactionRecurrenteUpdate,
+    TemplateTransactionCreate,
+    TemplateTransactionUpdate,
+    TransfertCreate,
+)
 
 
 class CompteIntrouvableError(Exception):
@@ -35,6 +43,14 @@ class TransactionDejaAnnuleeError(Exception):
 
 class TransfertInvalideError(Exception):
     """Le compte source et destination sont identiques."""
+
+
+class TransactionRecurrenteIntrouvableError(Exception):
+    """La récurrence n'existe pas ou n'appartient pas au client."""
+
+
+class TemplateIntrouvableError(Exception):
+    """Le template n'existe pas, n'appartient pas au client, ou est désactivé."""
 
 
 def _obtenir_compte_actif(db: Session, id_compte: int, id_client: int, for_update: bool = False) -> CompteFinancier:
@@ -338,3 +354,311 @@ def executer_transfert(db: Session, id_client: int, payload: TransfertCreate) ->
     # cohérence (date_mise_a_jour, et futur usage avec des dettes/créances).
     synchroniser_compte_principal(db, id_client)
     return transfert
+
+
+# --- Transactions récurrentes ---
+
+def _avancer_date(date_actuelle: date_type, frequence: str) -> date_type:
+    """
+    Avance à partir de la date stockée (jamais depuis "aujourd'hui") pour
+    préserver l'ancrage : un loyer programmé le 5 reste programmé le 5,
+    même si le job n'a tourné qu'après une panne de plusieurs jours.
+    Cale sur le dernier jour du mois cible quand le jour d'origine
+    n'existe pas partout (31, 30, 29 février).
+    """
+    if frequence == "HEBDOMADAIRE":
+        return date_actuelle + timedelta(days=7)
+
+    mois_a_ajouter = {"MENSUELLE": 1, "TRIMESTRIELLE": 3, "ANNUELLE": 12}[frequence]
+    mois_total = date_actuelle.month - 1 + mois_a_ajouter
+    annee = date_actuelle.year + mois_total // 12
+    mois = mois_total % 12 + 1
+    dernier_jour_du_mois = calendar.monthrange(annee, mois)[1]
+    jour = min(date_actuelle.day, dernier_jour_du_mois)
+    return date_type(annee, mois, jour)
+
+
+def creer_transaction_recurrente(
+    db: Session, id_client: int, payload: TransactionRecurrenteCreate
+) -> TransactionRecurrente:
+    compte = _obtenir_compte_actif(db, payload.id_compte, id_client)
+    categorie = (
+        db.query(Categorie)
+        .filter(Categorie.id_categorie == payload.id_categorie, Categorie.id_client == id_client)
+        .first()
+    )
+    if categorie is None or not categorie.est_actif:
+        raise CategorieIntrouvableError()
+
+    recurrence = TransactionRecurrente(
+        id_client=id_client,
+        id_compte=compte.id_compte,
+        id_categorie=categorie.id_categorie,
+        montant=payload.montant,
+        type=payload.type,
+        description=payload.description,
+        frequence=payload.frequence,
+        prochaine_execution=payload.prochaine_execution,
+        date_fin=payload.date_fin,
+    )
+    db.add(recurrence)
+    db.commit()
+    db.refresh(recurrence)
+    return recurrence
+
+
+def lister_transactions_recurrentes(
+    db: Session, id_client: int, include_inactifs: bool = False
+) -> List[TransactionRecurrente]:
+    query = db.query(TransactionRecurrente).filter(TransactionRecurrente.id_client == id_client)
+    if not include_inactifs:
+        query = query.filter(TransactionRecurrente.est_active.is_(True))
+    return query.order_by(TransactionRecurrente.prochaine_execution.asc()).all()
+
+
+def obtenir_transaction_recurrente_du_client(
+    db: Session, id_transaction_recurrente: int, id_client: int
+) -> Optional[TransactionRecurrente]:
+    return (
+        db.query(TransactionRecurrente)
+        .filter(
+            TransactionRecurrente.id_transaction_recurrente == id_transaction_recurrente,
+            TransactionRecurrente.id_client == id_client,
+        )
+        .first()
+    )
+
+
+def modifier_transaction_recurrente(
+    db: Session, id_transaction_recurrente: int, id_client: int, payload: TransactionRecurrenteUpdate
+) -> TransactionRecurrente:
+    recurrence = obtenir_transaction_recurrente_du_client(db, id_transaction_recurrente, id_client)
+    if recurrence is None:
+        raise TransactionRecurrenteIntrouvableError()
+
+    donnees = payload.model_dump(exclude_unset=True)
+    for champ, valeur in donnees.items():
+        setattr(recurrence, champ, valeur)
+
+    db.commit()
+    db.refresh(recurrence)
+    return recurrence
+
+
+def desactiver_transaction_recurrente(db: Session, id_transaction_recurrente: int, id_client: int) -> TransactionRecurrente:
+    recurrence = obtenir_transaction_recurrente_du_client(db, id_transaction_recurrente, id_client)
+    if recurrence is None:
+        raise TransactionRecurrenteIntrouvableError()
+
+    recurrence.est_active = False
+    db.commit()
+    db.refresh(recurrence)
+    return recurrence
+
+
+def reactiver_transaction_recurrente(db: Session, id_transaction_recurrente: int, id_client: int) -> TransactionRecurrente:
+    recurrence = obtenir_transaction_recurrente_du_client(db, id_transaction_recurrente, id_client)
+    if recurrence is None:
+        raise TransactionRecurrenteIntrouvableError()
+
+    recurrence.est_active = True
+    db.commit()
+    db.refresh(recurrence)
+    return recurrence
+
+
+def _executer_une_recurrence(db: Session, id_transaction_recurrente: int) -> Optional[TransactionRecurrente]:
+    """
+    Traite une seule récurrence, dans sa propre unité de travail : l'échec
+    (ou le succès) de l'une n'affecte jamais les autres récurrences du
+    batch. Le verrou FOR UPDATE protège la ré-entrance dans le même run
+    (ex. requête dupliquée) ; il ne protège pas une exécution vraiment
+    concurrente entre deux process, car enregistrer_transaction() committe
+    en interne et relâche donc ce verrou avant qu'on avance
+    prochaine_execution. Un déploiement Celery Beat standard n'a qu'un
+    seul scheduler actif à la fois, ce qui suffit ici.
+    """
+    recurrence = (
+        db.query(TransactionRecurrente)
+        .filter(TransactionRecurrente.id_transaction_recurrente == id_transaction_recurrente)
+        .with_for_update()
+        .first()
+    )
+    if recurrence is None or not recurrence.est_active or recurrence.prochaine_execution > date_type.today():
+        db.commit()
+        return recurrence
+
+    payload = TransactionCreate(
+        id_compte=recurrence.id_compte,
+        id_categorie=recurrence.id_categorie,
+        montant=recurrence.montant,
+        type=recurrence.type,
+        description=recurrence.description,
+    )
+    try:
+        transaction = enregistrer_transaction(db, recurrence.id_client, payload)
+    except (CompteIntrouvableError, CategorieIntrouvableError, SoldeInsuffisantError) as erreur:
+        # Ne jamais avancer prochaine_execution sur un échec : le prochain
+        # passage du batch (demain) retentera automatiquement, sans code
+        # de relance dédié.
+        db.rollback()
+        enregistrer_action(
+            db,
+            id_utilisateur=recurrence.id_client,
+            action="ECHEC_TRANSACTION_RECURRENTE",
+            ressource="TransactionRecurrente",
+            id_ressource=recurrence.id_transaction_recurrente,
+            donnees_apres={"erreur": type(erreur).__name__},
+        )
+        return recurrence
+
+    transaction.est_recurrente = True
+    transaction.id_transaction_recurrente = recurrence.id_transaction_recurrente
+
+    recurrence.prochaine_execution = _avancer_date(recurrence.prochaine_execution, recurrence.frequence)
+    if recurrence.date_fin is not None and recurrence.prochaine_execution > recurrence.date_fin:
+        recurrence.est_active = False
+
+    db.commit()
+    db.refresh(recurrence)
+    return recurrence
+
+
+def verifier_et_executer_recurrences(db: Session) -> List[TransactionRecurrente]:
+    """
+    Point d'entrée du batch quotidien (appelé par la tâche Celery
+    verifier_transactions_recurrentes). Fonction Python normale,
+    volontairement indépendante de Celery pour rester testable sans
+    worker ni Redis démarrés.
+    """
+    aujourdhui = date_type.today()
+    dues = (
+        db.query(TransactionRecurrente.id_transaction_recurrente)
+        .filter(TransactionRecurrente.est_active.is_(True), TransactionRecurrente.prochaine_execution <= aujourdhui)
+        .all()
+    )
+    return [_executer_une_recurrence(db, id_recurrence) for (id_recurrence,) in dues]
+
+
+# --- Templates de transaction ---
+
+def creer_template(db: Session, id_client: int, payload: TemplateTransactionCreate) -> TemplateTransaction:
+    compte = _obtenir_compte_actif(db, payload.id_compte, id_client)
+    categorie = (
+        db.query(Categorie)
+        .filter(Categorie.id_categorie == payload.id_categorie, Categorie.id_client == id_client)
+        .first()
+    )
+    if categorie is None or not categorie.est_actif:
+        raise CategorieIntrouvableError()
+
+    template = TemplateTransaction(
+        id_client=id_client,
+        id_compte=compte.id_compte,
+        id_categorie=categorie.id_categorie,
+        nom=payload.nom,
+        montant=payload.montant,
+        type=payload.type,
+        description=payload.description,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+def lister_templates(db: Session, id_client: int, include_inactifs: bool = False) -> List[TemplateTransaction]:
+    query = db.query(TemplateTransaction).filter(TemplateTransaction.id_client == id_client)
+    if not include_inactifs:
+        query = query.filter(TemplateTransaction.est_actif.is_(True))
+    # Les plus utilisés en premier, pour un accès rapide depuis l'app.
+    return query.order_by(TemplateTransaction.nombre_utilisations.desc()).all()
+
+
+def obtenir_template_du_client(db: Session, id_template: int, id_client: int) -> Optional[TemplateTransaction]:
+    return (
+        db.query(TemplateTransaction)
+        .filter(TemplateTransaction.id_template == id_template, TemplateTransaction.id_client == id_client)
+        .first()
+    )
+
+
+def modifier_template(
+    db: Session, id_template: int, id_client: int, payload: TemplateTransactionUpdate
+) -> TemplateTransaction:
+    """
+    Contrairement à TransactionRecurrenteUpdate, tout est modifiable : un
+    template n'est qu'un préréglage de saisie, pas un enregistrement
+    financier immuable.
+    """
+    template = obtenir_template_du_client(db, id_template, id_client)
+    if template is None:
+        raise TemplateIntrouvableError()
+
+    donnees = payload.model_dump(exclude_unset=True)
+
+    if "id_compte" in donnees:
+        compte = _obtenir_compte_actif(db, donnees["id_compte"], id_client)
+        donnees["id_compte"] = compte.id_compte
+
+    if "id_categorie" in donnees:
+        categorie = (
+            db.query(Categorie)
+            .filter(Categorie.id_categorie == donnees["id_categorie"], Categorie.id_client == id_client)
+            .first()
+        )
+        if categorie is None or not categorie.est_actif:
+            raise CategorieIntrouvableError()
+        donnees["id_categorie"] = categorie.id_categorie
+
+    for champ, valeur in donnees.items():
+        setattr(template, champ, valeur)
+
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+def desactiver_template(db: Session, id_template: int, id_client: int) -> TemplateTransaction:
+    template = obtenir_template_du_client(db, id_template, id_client)
+    if template is None:
+        raise TemplateIntrouvableError()
+
+    template.est_actif = False
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+def reactiver_template(db: Session, id_template: int, id_client: int) -> TemplateTransaction:
+    template = obtenir_template_du_client(db, id_template, id_client)
+    if template is None:
+        raise TemplateIntrouvableError()
+
+    template.est_actif = True
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+def rejouer_template(db: Session, id_client: int, id_template: int) -> Transaction:
+    """Crée une nouvelle Transaction à partir des valeurs mémorisées par le
+    template, via le module Transactions (mêmes contrôles compte/catégorie
+    actifs et solde suffisant que toute autre transaction)."""
+    template = obtenir_template_du_client(db, id_template, id_client)
+    if template is None or not template.est_actif:
+        raise TemplateIntrouvableError()
+
+    payload = TransactionCreate(
+        id_compte=template.id_compte,
+        id_categorie=template.id_categorie,
+        montant=template.montant,
+        type=template.type,
+        description=template.description,
+    )
+    transaction = enregistrer_transaction(db, id_client, payload)
+
+    template.nombre_utilisations += 1
+    db.commit()
+    db.refresh(template)
+    return transaction
