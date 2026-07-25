@@ -160,7 +160,10 @@ def _appeler_hrpay_cash_in(phone_number: str, operator: str, montant, devise: st
     with _client_hrpay() as client:
         tx = client.cash_in.mobile_money(
             phone_number=phone_number,
-            operator=operator,
+            # Le SDK exige l'opérateur en majuscules (ex. "MTN"), malgré
+            # la documentation qui suggère une string libre insensible à
+            # la casse — ce n'est pas le cas en pratique.
+            operator=operator.upper(),
             amount=int(montant),
             currency=devise,
             idempotency_key=f"abonnement-{id_paiement}",
@@ -169,9 +172,15 @@ def _appeler_hrpay_cash_in(phone_number: str, operator: str, montant, devise: st
 
 
 def _verifier_statut_hrpay(reference: str) -> str:
-    """Isolée pour rester mockable en test — voir _appeler_hrpay_cash_in."""
+    """
+    Isolée pour rester mockable en test — voir _appeler_hrpay_cash_in.
+    Le champ `status` de Transaction est une chaîne simple (pas un enum,
+    contrairement à ce que la doc laisse penser pour CashInResponse) —
+    .value géré en défensif seulement s'il s'agit bien d'un enum.
+    """
     with _client_hrpay() as client:
-        return client.transactions.status(reference).status.value
+        statut = client.transactions.status(reference).status
+        return statut.value if hasattr(statut, "value") else statut
 
 
 def obtenir_paiement_du_client(db: Session, id_paiement: int, id_client: int) -> Optional[PaiementAbonnement]:
