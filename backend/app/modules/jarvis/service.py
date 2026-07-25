@@ -1,7 +1,10 @@
+import base64
+import io
 import json
+import wave
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from uuid import UUID
 import httpx
 from sqlalchemy.orm import Session
@@ -15,6 +18,15 @@ from app.modules.jarvis.models import Conversation, Message
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_TRANSCRIPTION_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
+# whisper-large-v3 (pas la variante "turbo") : la précision prime sur la
+# latence ici — un montant mal transcrit ("15 000" entendu "50 000")
+# fausserait tout le raisonnement financier en aval.
+GROQ_WHISPER_MODEL = "whisper-large-v3"
+
+GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent"
+GEMINI_TTS_VOICE = "Kore"
+GEMINI_TTS_SAMPLE_RATE = 24000
 
 # Nombre de messages précédents (question + réponse confondues) envoyés
 # comme contexte à chaque nouvel appel — pas de résumé/compression, une
@@ -183,14 +195,14 @@ def _appeler_groq(system_prompt: str, historique: List[dict], question: str) -> 
         raise ServiceIAIndisponibleError(str(erreur))
 
 
-def poser_question(db: Session, id_client: int, id_conversation: UUID, contenu: str) -> Message:
+def poser_question(db: Session, id_client: int, id_conversation: UUID, contenu: str, canal: str = "TEXTE") -> Message:
     conversation = obtenir_conversation_du_client(db, id_conversation, id_client)
     if conversation is None:
         raise ConversationIntrouvableError()
 
     historique = _construire_historique(conversation)
 
-    question = Message(id_conversation=conversation.id_conversation, contenu=contenu, type="QUESTION")
+    question = Message(id_conversation=conversation.id_conversation, contenu=contenu, type="QUESTION", canal=canal)
     db.add(question)
 
     contexte_financier = _construire_contexte_financier(db, id_client)
@@ -210,6 +222,7 @@ def poser_question(db: Session, id_client: int, id_conversation: UUID, contenu: 
         id_conversation=conversation.id_conversation,
         contenu=donnees.get("contenu") or "",
         type="REPONSE",
+        canal=canal,
         necessite_clarification=bool(donnees.get("necessite_clarification", False)),
         options_suggerees=donnees.get("options_suggerees"),
         peut_se_permettre=donnees.get("peut_se_permettre"),
@@ -225,3 +238,87 @@ def poser_question(db: Session, id_client: int, id_conversation: UUID, contenu: 
     db.commit()
     db.refresh(reponse)
     return reponse
+
+
+def _pcm_vers_wav(pcm: bytes, sample_rate: int = GEMINI_TTS_SAMPLE_RATE) -> bytes:
+    """Gemini renvoie du PCM brut (mono, 16 bits) sans en-tête — on
+    l'enveloppe dans un conteneur WAV standard pour qu'il soit lisible par
+    n'importe quel lecteur audio côté client."""
+    tampon = io.BytesIO()
+    with wave.open(tampon, "wb") as fichier_wav:
+        fichier_wav.setnchannels(1)
+        fichier_wav.setsampwidth(2)
+        fichier_wav.setframerate(sample_rate)
+        fichier_wav.writeframes(pcm)
+    return tampon.getvalue()
+
+
+def _transcrire_audio(contenu_audio: bytes, nom_fichier: str, type_contenu: str) -> str:
+    """Voix du client -> texte, via Whisper hébergé sur Groq (même clé que
+    le chat)."""
+    try:
+        reponse = httpx.post(
+            GROQ_TRANSCRIPTION_URL,
+            headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
+            files={"file": (nom_fichier, contenu_audio, type_contenu)},
+            data={"model": GROQ_WHISPER_MODEL, "language": "fr"},
+            timeout=30.0,
+        )
+        reponse.raise_for_status()
+        texte = reponse.json()["text"]
+    except (httpx.HTTPError, KeyError) as erreur:
+        raise ServiceIAIndisponibleError(str(erreur))
+
+    if not texte or not texte.strip():
+        raise ServiceIAIndisponibleError("Transcription vide.")
+    return texte.strip()
+
+
+def _synthetiser_voix(texte: str) -> bytes:
+    """Réponse texte de JARVIS -> voix, via Gemini (réservé à cet usage,
+    jamais utilisé pour le raisonnement financier lui-même)."""
+    try:
+        reponse = httpx.post(
+            GEMINI_TTS_URL,
+            params={"key": settings.GEMINI_API_KEY},
+            json={
+                "contents": [{"parts": [{"text": texte}]}],
+                "generationConfig": {
+                    "responseModalities": ["AUDIO"],
+                    "speechConfig": {
+                        "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": GEMINI_TTS_VOICE}}
+                    },
+                },
+            },
+            timeout=30.0,
+        )
+        reponse.raise_for_status()
+        donnees = reponse.json()
+        audio_base64 = donnees["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+        pcm = base64.b64decode(audio_base64)
+    except (httpx.HTTPError, KeyError, IndexError) as erreur:
+        raise ServiceIAIndisponibleError(str(erreur))
+
+    return _pcm_vers_wav(pcm)
+
+
+def poser_question_vocale(
+    db: Session, id_client: int, id_conversation: UUID, contenu_audio: bytes, nom_fichier: str, type_contenu: str
+) -> Tuple[Message, Optional[bytes]]:
+    """
+    Voix -> texte -> même raisonnement financier que le chat écrit (aucune
+    logique dupliquée) -> texte -> voix. Si la transcription échoue, rien
+    n'est créé (on n'a même pas de question exploitable). Si seule la
+    synthèse vocale finale échoue, la réponse texte reste renvoyée avec
+    audio=None plutôt que de perdre un raisonnement déjà réussi et
+    persisté — mieux vaut une réponse affichée sans voix qu'aucune réponse.
+    """
+    texte_transcrit = _transcrire_audio(contenu_audio, nom_fichier, type_contenu)
+    message = poser_question(db, id_client, id_conversation, texte_transcrit, canal="VOCAL")
+
+    try:
+        audio_reponse = _synthetiser_voix(message.contenu)
+    except ServiceIAIndisponibleError:
+        return message, None
+
+    return message, audio_reponse

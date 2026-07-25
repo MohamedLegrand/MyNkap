@@ -5,6 +5,7 @@ pydantic==2.10.4
 pydantic-settings==2.7.1
 email-validator==2.2.0
 python-dotenv==1.0.1
+python-multipart==0.0.32
 
 # Base de données (PostgreSQL & ORM)
 sqlalchemy==2.0.36

@@ -167,3 +167,76 @@ def test_poser_question_sur_conversation_introuvable_renvoie_404(client, monkeyp
         headers=headers,
     )
     assert reponse.status_code == 404
+
+
+# --- Chat vocal ---
+
+def test_poser_question_vocale_transcrit_repond_et_synthetise(client, monkeypatch):
+    headers = _register_and_login(client, "jarvis.vocal@example.com")
+
+    monkeypatch.setattr(jarvis_service, "_transcrire_audio", lambda *a, **k: "Puis-je me permettre 5000 XAF ?")
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", lambda *a, **k: _reponse_groq())
+    monkeypatch.setattr(jarvis_service, "_synthetiser_voix", lambda texte: b"FAUX_AUDIO_WAV")
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages/vocal",
+        files={"audio": ("question.wav", b"contenu audio factice", "audio/wav")},
+        headers=headers,
+    )
+    assert reponse.status_code == 201
+    body = reponse.json()
+    assert body["type"] == "REPONSE"
+    assert body["canal"] == "VOCAL"
+    assert body["audio_base64"] is not None
+
+    import base64
+    assert base64.b64decode(body["audio_base64"]) == b"FAUX_AUDIO_WAV"
+
+    detail = client.get(f"/api/v1/jarvis/conversations/{conversation['id_conversation']}", headers=headers).json()
+    assert len(detail["messages"]) == 2
+    assert detail["messages"][0]["canal"] == "VOCAL"
+    assert detail["messages"][0]["contenu"] == "Puis-je me permettre 5000 XAF ?"
+
+
+def test_poser_question_vocale_echec_synthese_renvoie_texte_sans_audio(client, monkeypatch):
+    headers = _register_and_login(client, "jarvis.vocal.echecsynthese@example.com")
+
+    monkeypatch.setattr(jarvis_service, "_transcrire_audio", lambda *a, **k: "Une question")
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", lambda *a, **k: _reponse_groq())
+
+    def echec_synthese(texte):
+        raise jarvis_service.ServiceIAIndisponibleError("panne TTS")
+
+    monkeypatch.setattr(jarvis_service, "_synthetiser_voix", echec_synthese)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages/vocal",
+        files={"audio": ("question.wav", b"contenu audio factice", "audio/wav")},
+        headers=headers,
+    )
+    assert reponse.status_code == 201
+    body = reponse.json()
+    assert body["audio_base64"] is None
+    assert body["contenu"]  # la réponse texte reste bien présente
+
+
+def test_poser_question_vocale_echec_transcription_renvoie_503(client, monkeypatch):
+    headers = _register_and_login(client, "jarvis.vocal.echectranscription@example.com")
+
+    def echec_transcription(*a, **k):
+        raise jarvis_service.ServiceIAIndisponibleError("audio incompréhensible")
+
+    monkeypatch.setattr(jarvis_service, "_transcrire_audio", echec_transcription)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages/vocal",
+        files={"audio": ("question.wav", b"contenu audio factice", "audio/wav")},
+        headers=headers,
+    )
+    assert reponse.status_code == 503
+
+    detail = client.get(f"/api/v1/jarvis/conversations/{conversation['id_conversation']}", headers=headers).json()
+    assert len(detail["messages"]) == 0

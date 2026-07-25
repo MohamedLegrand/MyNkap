@@ -29,6 +29,13 @@ class MessageOut(BaseModel):
         from_attributes = True
 
 
+class MessageVocalOut(MessageOut):
+    # None si la transcription/le raisonnement ont réussi mais que la
+    # synthèse vocale finale a échoué (voir service.poser_question_vocale)
+    # — la réponse texte reste utilisable même sans audio.
+    audio_base64: Optional[str]
+
+
 class ConversationOut(BaseModel):
     id_conversation: UUID
     titre: Optional[str]

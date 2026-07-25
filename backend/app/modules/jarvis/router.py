@@ -1,6 +1,7 @@
+import base64
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -14,6 +15,7 @@ from app.modules.jarvis.schemas import (
     ConversationOut,
     MessageCreate,
     MessageOut,
+    MessageVocalOut,
 )
 
 router = APIRouter(prefix="/jarvis", tags=["JARVIS"])
@@ -83,3 +85,46 @@ def poser_question(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="JARVIS est momentanément indisponible, veuillez réessayer.",
         )
+
+
+@router.post(
+    "/conversations/{id_conversation}/messages/vocal",
+    response_model=MessageVocalOut,
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit("10/minute")
+def poser_question_vocale(
+    request: Request,
+    id_conversation: UUID,
+    audio: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """
+    Conversation orale de bout en bout : la voix du client est transcrite
+    (Whisper/Groq), passe par le même raisonnement financier que le chat
+    écrit, puis la réponse est synthétisée en voix (Gemini). Rate limit
+    plus strict qu'en texte : chaque appel déclenche trois requêtes vers
+    des fournisseurs externes (transcription, raisonnement, synthèse).
+    """
+    try:
+        message, audio_reponse = service.poser_question_vocale(
+            db,
+            client.id_client,
+            id_conversation,
+            audio.file.read(),
+            audio.filename or "audio.webm",
+            audio.content_type or "audio/webm",
+        )
+    except service.ConversationIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation introuvable")
+    except service.ServiceIAIndisponibleError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="JARVIS est momentanément indisponible, veuillez réessayer.",
+        )
+
+    return MessageVocalOut(
+        **MessageOut.model_validate(message).model_dump(),
+        audio_base64=base64.b64encode(audio_reponse).decode("ascii") if audio_reponse is not None else None,
+    )
