@@ -20,7 +20,15 @@ def _register_and_login(client, email="analyse.test@example.com", mot_de_passe="
         json={"email": email, "mot_de_passe": mot_de_passe},
     )
     access_token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {access_token}"}
+    headers = {"Authorization": f"Bearer {access_token}"}
+    # Analyse & Prédictions est réservé au palier PREMIUM (voir module
+    # Plans/Abonnement) — un client GRATUIT/ESSENTIEL recevrait 403 partout ici.
+    client.post(
+        "/api/v1/abonnement/changer-plan",
+        json={"nom_plan": "PREMIUM", "cycle_facturation": "MENSUEL"},
+        headers=headers,
+    )
+    return headers
 
 
 def _creer_compte(client, headers, solde_initial=1000000, nom="Compte principal"):

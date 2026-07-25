@@ -17,8 +17,13 @@ from app.modules.jarvis.schemas import (
     MessageOut,
     MessageVocalOut,
 )
+from app.modules.plans.dependencies import exiger_fonctionnalite
 
-router = APIRouter(prefix="/jarvis", tags=["JARVIS"])
+router = APIRouter(
+    prefix="/jarvis",
+    tags=["JARVIS"],
+    dependencies=[Depends(exiger_fonctionnalite("acces_jarvis"))],
+)
 
 
 @router.post("/conversations", response_model=ConversationOut, status_code=status.HTTP_201_CREATED)

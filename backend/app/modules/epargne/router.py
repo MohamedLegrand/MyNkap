@@ -14,8 +14,13 @@ from app.modules.epargne.schemas import (
     ObjectifEpargneOut,
     RetirerRequest,
 )
+from app.modules.plans.dependencies import exiger_fonctionnalite
 
-router = APIRouter(prefix="/epargne", tags=["Objectifs d'épargne"])
+router = APIRouter(
+    prefix="/epargne",
+    tags=["Objectifs d'épargne"],
+    dependencies=[Depends(exiger_fonctionnalite("acces_epargne"))],
+)
 
 
 def _to_out(objectif: ObjectifEpargne, valeurs: dict) -> ObjectifEpargneOut:

@@ -8,8 +8,13 @@ from app.modules.auth.dependencies import get_current_active_client
 from app.modules.auth.models import Client
 from app.modules.analyse import service
 from app.modules.analyse.schemas import AnalyseFinanciereOut, PredictionOut
+from app.modules.plans.dependencies import exiger_fonctionnalite
 
-router = APIRouter(prefix="/analyse", tags=["Analyse & Prédictions"])
+router = APIRouter(
+    prefix="/analyse",
+    tags=["Analyse & Prédictions"],
+    dependencies=[Depends(exiger_fonctionnalite("acces_analyse"))],
+)
 
 
 # --- Prédictions (routes littérales enregistrées avant le {type_analyse}

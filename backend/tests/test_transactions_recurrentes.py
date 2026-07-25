@@ -22,7 +22,15 @@ def _register_and_login(client, email="recurrentes.test@example.com", mot_de_pas
         json={"email": email, "mot_de_passe": mot_de_passe},
     )
     access_token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {access_token}"}
+    headers = {"Authorization": f"Bearer {access_token}"}
+    # Récurrentes/Templates sont réservés au palier ESSENTIEL et plus (voir
+    # module Plans/Abonnement) — un client GRATUIT recevrait 403 partout ici.
+    client.post(
+        "/api/v1/abonnement/changer-plan",
+        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL"},
+        headers=headers,
+    )
+    return headers
 
 
 def _creer_compte(client, headers, solde_initial=100000, nom="Compte principal"):

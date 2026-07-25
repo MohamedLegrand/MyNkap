@@ -6,20 +6,26 @@ from app.core.database import Base
 
 class Plan(Base):
     """
-    Plan tarifaire SaaS (FREE, PRO, BUSINESS) définissant les limites
-    d'usage et les accès fonctionnels associés.
+    Plan tarifaire SaaS (GRATUIT, ESSENTIEL, PREMIUM). Aucune limite de
+    quota (comptes/transactions illimités pour tous) — seule
+    différenciation : l'accès à des fonctionnalités.
     """
     __tablename__ = "plans"
 
     id_plan = Column(Integer, primary_key=True, index=True)
-    nom = Column(String, unique=True, nullable=False)  # FREE, PRO, BUSINESS
-    prix = Column(Numeric(14, 2), nullable=False, default=0)
+    nom = Column(String, unique=True, nullable=False)  # GRATUIT, ESSENTIEL, PREMIUM
+    prix_mensuel = Column(Numeric(14, 2), nullable=False, default=0)
+    prix_annuel = Column(Numeric(14, 2), nullable=False, default=0)
     devise = Column(String, default="XAF", nullable=False)
-    max_comptes = Column(Integer, nullable=False)
-    max_transactions = Column(Integer, nullable=False)
-    acces_jarvis = Column(Boolean, default=False)
-    acces_prediction = Column(Boolean, default=False)
-    acces_rapport = Column(Boolean, default=False)
+    acces_dettes = Column(Boolean, default=False, nullable=False)
+    acces_epargne = Column(Boolean, default=False, nullable=False)
+    acces_recurrentes = Column(Boolean, default=False, nullable=False)
+    acces_templates = Column(Boolean, default=False, nullable=False)
+    acces_analyse = Column(Boolean, default=False, nullable=False)
+    acces_jarvis = Column(Boolean, default=False, nullable=False)
+    # Réservé au futur module Rapports (pas encore construit) : aucune
+    # route ne vérifie ce flag pour l'instant.
+    acces_rapport = Column(Boolean, default=False, nullable=False)
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     abonnements = relationship("Abonnement", back_populates="plan")
@@ -37,6 +43,9 @@ class Abonnement(Base):
     id_plan = Column(Integer, ForeignKey("plans.id_plan"), nullable=False)
     date_debut = Column(DateTime, default=datetime.utcnow, nullable=False)
     date_fin = Column(DateTime, nullable=True)
+    # MENSUEL ou ANNUEL — None pour le plan GRATUIT (pas de cycle de
+    # facturation, jamais d'expiration).
+    cycle_facturation = Column(String, nullable=True)
     statut = Column(String, default="ESSAI", nullable=False)  # ESSAI, ACTIF, EXPIRE, ANNULE
     renouvellement_auto = Column(Boolean, default=True)
     date_creation = Column(DateTime, default=datetime.utcnow)

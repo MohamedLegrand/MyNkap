@@ -8,8 +8,13 @@ from app.modules.auth.models import Client
 from app.modules.dettes import service
 from app.modules.dettes.models import Dette
 from app.modules.dettes.schemas import DetteCreate, DetteOut, EncaisserRequest, RembourserRequest
+from app.modules.plans.dependencies import exiger_fonctionnalite
 
-router = APIRouter(prefix="/dettes", tags=["Dettes & Créances"])
+router = APIRouter(
+    prefix="/dettes",
+    tags=["Dettes & Créances"],
+    dependencies=[Depends(exiger_fonctionnalite("acces_dettes"))],
+)
 
 
 def _to_out(dette: Dette) -> DetteOut:

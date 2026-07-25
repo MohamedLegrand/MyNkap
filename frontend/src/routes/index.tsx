@@ -354,19 +354,20 @@ const LandingPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-            {/* Free Plan */}
+            {/* Plan Gratuit */}
             <div className="bg-card p-8 rounded-2xl border border-border shadow-sm flex flex-col justify-between text-left relative">
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">Plan FREE</h3>
-                <div className="text-3xl font-extrabold text-primary">Gratuit</div>
-                <p className="text-xs text-muted-foreground">Idéal pour démarrer et tester la saisie financière.</p>
+                <h3 className="text-xl font-bold">GRATUIT</h3>
+                <div className="text-3xl font-extrabold text-primary">0 XAF</div>
+                <p className="text-xs text-muted-foreground">Toute la gestion financière de base, sans limite.</p>
                 <hr className="border-border" />
                 <ul className="space-y-3 text-xs">
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Max 3 comptes financiers</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> 100 transactions / mois</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès IA limité (10 requêtes/mois)</li>
-                  <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Prédiction financière indisponible</li>
-                  <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Rapports PDF/Excel indisponibles</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Comptes financiers</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Transactions & Transferts</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Budgets</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Catégories</li>
+                  <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Dettes & Créances, Épargne indisponibles</li>
+                  <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Analyse, Prédictions et JARVIS indisponibles</li>
                 </ul>
               </div>
               <a href="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
@@ -374,46 +375,44 @@ const LandingPage = () => {
               </a>
             </div>
 
-            {/* Pro Plan */}
+            {/* Plan Essentiel */}
             <div className="bg-card p-8 rounded-2xl border-2 border-primary shadow-md flex flex-col justify-between text-left relative transform md:-translate-y-2">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full">
                 Recommandé
               </div>
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">Plan PRO</h3>
-                <div className="text-3xl font-extrabold text-primary">2 500 XAF <span className="text-xs font-normal text-muted-foreground">/ mois</span></div>
-                <p className="text-xs text-muted-foreground">Parfait pour optimiser sérieusement son budget.</p>
+                <h3 className="text-xl font-bold">ESSENTIEL</h3>
+                <div className="text-3xl font-extrabold text-primary">1 000 XAF <span className="text-xs font-normal text-muted-foreground">/ mois</span></div>
+                <p className="text-xs text-muted-foreground">10 000 XAF / an (2 mois offerts). Tout le Gratuit, plus :</p>
                 <hr className="border-border" />
                 <ul className="space-y-3 text-xs">
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Max 10 comptes financiers</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> 1 000 transactions / mois</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès IA complet</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Prédictions budgétaires IA</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Rapports financiers PDF/Excel</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Dettes & Créances</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Objectifs d'épargne</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Transactions récurrentes automatiques</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Templates de transaction</li>
                 </ul>
               </div>
               <a href="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
-                Choisir Pro
+                Choisir Essentiel
               </a>
             </div>
 
-            {/* Business Plan */}
+            {/* Plan Premium */}
             <div className="bg-card p-8 rounded-2xl border border-border shadow-sm flex flex-col justify-between text-left relative">
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">Plan BUSINESS</h3>
-                <div className="text-3xl font-extrabold text-primary">7 500 XAF <span className="text-xs font-normal text-muted-foreground">/ mois</span></div>
-                <p className="text-xs text-muted-foreground">Conçu pour les entrepreneurs et gestionnaires de tontines.</p>
+                <h3 className="text-xl font-bold">PREMIUM</h3>
+                <div className="text-3xl font-extrabold text-primary">2 500 XAF <span className="text-xs font-normal text-muted-foreground">/ mois</span></div>
+                <p className="text-xs text-muted-foreground">25 000 XAF / an (2 mois offerts). Tout l'Essentiel, plus :</p>
                 <hr className="border-border" />
                 <ul className="space-y-3 text-xs">
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Comptes financiers illimités</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Transactions illimitées</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Accès IA prioritaire</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Gestion complète des dettes et prêts</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Support client dédié 24h/7</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Analyse & Prédictions financières</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Score financier personnalisé</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> JARVIS — chat texte et vocal</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Conseils financiers personnalisés</li>
                 </ul>
               </div>
               <a href="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
-                Choisir Business
+                Choisir Premium
               </a>
             </div>
           </div>
