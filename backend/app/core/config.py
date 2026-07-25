@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # Broker/backend Celery (tâches de fond : transactions récurrentes...)
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Fournisseurs IA (module JARVIS, à venir) — optionnelles : rien ne les
+    # consomme encore, un clone du dépôt sans ces clés doit rester capable
+    # de lancer l'app et les tests.
+    GROQ_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

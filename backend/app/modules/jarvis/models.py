@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, ForeignKey, Uuid
+from sqlalchemy import Column, Integer, String, Boolean, Numeric, JSON, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -39,8 +39,15 @@ class Message(Base):
     type = Column(String, nullable=False)  # QUESTION, REPONSE
     canal = Column(String, default="TEXTE", nullable=False)  # TEXTE, VOCAL
     peut_se_permettre = Column(Boolean, nullable=True)
-    montant_suggere = Column(Float, nullable=True)
+    # Numeric (pas Float) : même principe que partout ailleurs dans le
+    # projet, l'argent n'est jamais sujet aux imprécisions IEEE-754.
+    montant_suggere = Column(Numeric(14, 2), nullable=True)
     conseil_supplementaire = Column(String, nullable=True)
+    # Renseignés uniquement sur les messages de type REPONSE quand la
+    # question du client était ambiguë : JARVIS repose la question au lieu
+    # de deviner, avec éventuellement des choix cliquables (QCM).
+    necessite_clarification = Column(Boolean, default=False, nullable=False)
+    options_suggerees = Column(JSON, nullable=True)
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     conversation = relationship("Conversation", back_populates="messages")
