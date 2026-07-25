@@ -88,7 +88,7 @@ def enregistrer_transaction(db: Session, id_client: int, payload: TransactionCre
         .filter(Categorie.id_categorie == payload.id_categorie, Categorie.id_client == id_client)
         .first()
     )
-    if categorie is None:
+    if categorie is None or not categorie.est_actif:
         raise CategorieIntrouvableError()
 
     if payload.type == "DEPENSE" and not compte.est_suffisant(payload.montant):

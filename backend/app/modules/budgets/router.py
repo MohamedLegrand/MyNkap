@@ -13,6 +13,7 @@ from app.modules.budgets.schemas import (
     BudgetUpdate,
     CategorieCreate,
     CategorieOut,
+    CategorieUpdate,
 )
 
 router = APIRouter(tags=["Budgets"])
@@ -58,11 +59,75 @@ def create_category(
 
 @router.get("/categories", response_model=List[CategorieOut])
 def list_categories(
+    include_inactifs: bool = False,
     current_client: Client = Depends(get_current_active_client),
     db: Session = Depends(get_db),
 ):
-    """Retourne l'ensemble des catégories créées par le client connecté."""
-    return service.obtenir_categories(db, current_client.id_client)
+    """Retourne les catégories du client connecté. Par défaut, ne renvoie
+    que les catégories actives."""
+    return service.obtenir_categories(db, current_client.id_client, include_inactifs)
+
+
+@router.get("/categories/{id_categorie}", response_model=CategorieOut)
+def get_category(
+    id_categorie: int,
+    current_client: Client = Depends(get_current_active_client),
+    db: Session = Depends(get_db),
+):
+    categorie = service.obtenir_categorie_du_client(db, id_categorie, current_client.id_client)
+    if categorie is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+    return categorie
+
+
+@router.put("/categories/{id_categorie}", response_model=CategorieOut)
+def update_category(
+    id_categorie: int,
+    schema: CategorieUpdate,
+    current_client: Client = Depends(get_current_active_client),
+    db: Session = Depends(get_db),
+):
+    """Modifie nom/icône/couleur d'une catégorie. Le type n'est
+    volontairement pas modifiable (voir service.modifier_categorie)."""
+    try:
+        return service.modifier_categorie(db, id_categorie, current_client.id_client, schema)
+    except service.CategorieIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+    except service.CategorieDejaExistanteError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Une catégorie avec ce nom et ce type existe déjà.",
+        )
+
+
+@router.delete("/categories/{id_categorie}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_category(
+    id_categorie: int,
+    current_client: Client = Depends(get_current_active_client),
+    db: Session = Depends(get_db),
+):
+    """Désactivation logique — jamais de suppression réelle."""
+    try:
+        service.desactiver_categorie(db, id_categorie, current_client.id_client)
+    except service.CategorieIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+
+
+@router.post("/categories/{id_categorie}/reactiver", response_model=CategorieOut)
+def reactivate_category(
+    id_categorie: int,
+    current_client: Client = Depends(get_current_active_client),
+    db: Session = Depends(get_db),
+):
+    try:
+        return service.reactiver_categorie(db, id_categorie, current_client.id_client)
+    except service.CategorieIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Catégorie introuvable.")
+    except service.CategorieDejaExistanteError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Une catégorie active avec ce nom et ce type existe déjà.",
+        )
 
 
 # --- Endpoints pour les Budgets ---

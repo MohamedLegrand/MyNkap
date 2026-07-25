@@ -78,10 +78,14 @@ def creer_compte(db: Session, id_client: int, payload: CompteFinancierCreate) ->
     juste insérée dans cette même transaction, invisible des autres sessions
     tant qu'elle n'est pas commit.
 
-    TODO(module Plan/Abonnement) : vérifier ici que le client n'a pas
-    atteint la limite max_comptes de son plan avant de créer le compte
-    (403 + message d'upgrade si atteinte) — actuellement non appliqué,
-    décision actée avec l'utilisateur.
+    Aucune limite de nombre de comptes, quel que soit le plan (décision
+    actée : tous les plans autorisent un nombre illimité de comptes — seule
+    l'offre la plus élevée se différencie par l'accès à des fonctionnalités
+    comme l'assistant IA, la prédiction, les templates, etc.). Ce contrôle
+    d'accès n'a donc pas sa place ici, mais dans le futur module
+    Plans/Abonnement, sous forme de vérification de fonctionnalité
+    (ex. dependency FastAPI) sur les endpoints concernés (JARVIS, Analyse,
+    Rapports...), pas sur la création de compte.
     """
     nouveau_compte = CompteFinancier(
         id_client=id_client,

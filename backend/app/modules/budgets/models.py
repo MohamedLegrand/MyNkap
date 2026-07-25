@@ -10,6 +10,12 @@ class Categorie(Base):
     transactions et les budgets d'un client.
     """
     __tablename__ = "categories"
+    __table_args__ = (
+        # Vérifiée en amont côté service pour un message d'erreur clair,
+        # ET imposée ici en base pour rattraper une race condition entre
+        # deux requêtes concurrentes (même raisonnement que Budget).
+        UniqueConstraint("id_client", "nom", "type", name="uq_categories_client_nom_type"),
+    )
 
     id_categorie = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
@@ -17,6 +23,10 @@ class Categorie(Base):
     type = Column(String, nullable=False)  # DEPENSE, REVENU
     icone = Column(String, nullable=True)
     couleur = Column(String, nullable=True)
+    # Désactivation logique — jamais de suppression réelle : Transaction et
+    # Budget référencent id_categorie, un hard-delete casserait leur
+    # historique (même principe que CompteFinancier/Budget).
+    est_actif = Column(Boolean, default=True, nullable=False)
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     client = relationship("Client", back_populates="categories")

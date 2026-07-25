@@ -30,30 +30,123 @@ def _creer_compte(client, headers, solde_initial=100000, nom="Compte principal")
 
 def test_crud_categorie(client):
     headers = _register_and_login(client, "cat.test@example.com")
-    
+    nombre_avant = len(client.get("/api/v1/categories", headers=headers).json())
+
     # 1. Création de catégorie
     response = client.post(
         "/api/v1/categories",
-        json={"nom": "Alimentation", "type": "DEPENSE", "icone": "utensils", "couleur": "red"},
+        json={"nom": "Abonnements", "type": "DEPENSE", "icone": "utensils", "couleur": "red"},
         headers=headers
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["nom"] == "Alimentation"
+    assert data["nom"] == "Abonnements"
     assert data["type"] == "DEPENSE"
-    
+    assert data["est_actif"] is True
+
     # Doublon impossible
     response_dup = client.post(
         "/api/v1/categories",
-        json={"nom": "Alimentation", "type": "DEPENSE"},
+        json={"nom": "Abonnements", "type": "DEPENSE"},
         headers=headers
     )
     assert response_dup.status_code == 400
 
-    # 2. Lister les catégories
+    # 2. Lister les catégories : les catégories par défaut créées à
+    # l'inscription (voir CATEGORIES_PAR_DEFAUT) + celle qu'on vient d'ajouter
     response_list = client.get("/api/v1/categories", headers=headers)
     assert response_list.status_code == 200
-    assert len(response_list.json()) == 1
+    assert len(response_list.json()) == nombre_avant + 1
+
+
+def test_categories_par_defaut_a_linscription(client):
+    headers = _register_and_login(client, "cat.defaut@example.com")
+    categories = client.get("/api/v1/categories", headers=headers).json()
+
+    noms = {c["nom"] for c in categories}
+    assert "Alimentation" in noms
+    assert "Salaire" in noms
+    assert all(c["est_actif"] for c in categories)
+    # Utilisable immédiatement pour une transaction, sans création manuelle
+    assert len(categories) > 0
+
+
+def test_modifier_categorie(client):
+    headers = _register_and_login(client, "cat.modifier@example.com")
+    categorie = client.post(
+        "/api/v1/categories", json={"nom": "Sport", "type": "DEPENSE"}, headers=headers
+    ).json()
+
+    modifiee = client.put(
+        f"/api/v1/categories/{categorie['id_categorie']}",
+        json={"nom": "Sport & Fitness", "couleur": "#00FF00"},
+        headers=headers,
+    )
+    assert modifiee.status_code == 200
+    assert modifiee.json()["nom"] == "Sport & Fitness"
+    assert modifiee.json()["couleur"] == "#00FF00"
+
+    # Renommer vers un nom déjà pris (même type) est refusé
+    conflit = client.put(
+        f"/api/v1/categories/{categorie['id_categorie']}",
+        json={"nom": "Alimentation"},
+        headers=headers,
+    )
+    assert conflit.status_code == 400
+
+
+def test_desactiver_categorie_bloque_son_usage_futur_mais_pas_lhistorique(client):
+    headers = _register_and_login(client, "cat.softdelete@example.com")
+    compte = _creer_compte(client, headers, solde_initial=100000)
+    categorie = client.post(
+        "/api/v1/categories", json={"nom": "Café", "type": "DEPENSE"}, headers=headers
+    ).json()
+
+    depense = client.post(
+        "/api/v1/transactions",
+        json={
+            "id_compte": compte["id_compte"],
+            "id_categorie": categorie["id_categorie"],
+            "montant": 1000,
+            "type": "DEPENSE",
+        },
+        headers=headers,
+    )
+    assert depense.status_code == 201
+
+    desactivation = client.delete(f"/api/v1/categories/{categorie['id_categorie']}", headers=headers)
+    assert desactivation.status_code == 204
+
+    # Absente de la liste par défaut, toujours consultable par ID
+    liste = client.get("/api/v1/categories", headers=headers).json()
+    assert categorie["id_categorie"] not in [c["id_categorie"] for c in liste]
+    toujours_la = client.get(f"/api/v1/categories/{categorie['id_categorie']}", headers=headers)
+    assert toujours_la.status_code == 200
+    assert toujours_la.json()["est_actif"] is False
+
+    # Impossible de créer une nouvelle transaction ou un budget dessus
+    nouvelle_depense = client.post(
+        "/api/v1/transactions",
+        json={
+            "id_compte": compte["id_compte"],
+            "id_categorie": categorie["id_categorie"],
+            "montant": 500,
+            "type": "DEPENSE",
+        },
+        headers=headers,
+    )
+    assert nouvelle_depense.status_code == 404
+
+    nouveau_budget = client.post(
+        "/api/v1/budgets",
+        json={"id_categorie": categorie["id_categorie"], "montant_limite": 5000, "mois": 9, "annee": 2026},
+        headers=headers,
+    )
+    assert nouveau_budget.status_code == 404
+
+    reactivation = client.post(f"/api/v1/categories/{categorie['id_categorie']}/reactiver", headers=headers)
+    assert reactivation.status_code == 200
+    assert reactivation.json()["est_actif"] is True
 
 def test_creation_budget_contraintes(client, db_session):
     headers = _register_and_login(client, "budget.constraint@example.com")
@@ -61,7 +154,7 @@ def test_creation_budget_contraintes(client, db_session):
     # Création des catégories
     cat_depense = client.post(
         "/api/v1/categories",
-        json={"nom": "Loisirs", "type": "DEPENSE"},
+        json={"nom": "Divertissement", "type": "DEPENSE"},
         headers=headers
     ).json()
     
@@ -121,7 +214,7 @@ def test_calcul_dynamique_et_alertes(client, db_session):
     
     cat_transport = client.post(
         "/api/v1/categories",
-        json={"nom": "Transport", "type": "DEPENSE"},
+        json={"nom": "Déplacements", "type": "DEPENSE"},
         headers=headers
     ).json()
 
@@ -277,7 +370,7 @@ def test_budget_introuvable_renvoie_404_pas_400(client):
 def test_desactiver_budget_est_une_desactivation_logique(client):
     headers = _register_and_login(client, "budget.softdelete@example.com")
     categorie = client.post(
-        "/api/v1/categories", json={"nom": "Santé", "type": "DEPENSE"}, headers=headers
+        "/api/v1/categories", json={"nom": "Médical", "type": "DEPENSE"}, headers=headers
     ).json()
     budget = client.post(
         "/api/v1/budgets",

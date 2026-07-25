@@ -34,7 +34,10 @@ def _creer_compte(client, headers, solde_initial=100000, nom="Compte principal")
     ).json()
 
 
-def _creer_categorie(db_session, id_client, nom="Alimentation", type_="DEPENSE"):
+def _creer_categorie(db_session, id_client, nom="Catégorie Test", type_="DEPENSE"):
+    # Nom distinct des catégories seedées par défaut à l'inscription (voir
+    # budgets.service.CATEGORIES_PAR_DEFAUT), pour ne pas violer la
+    # contrainte d'unicité (id_client, nom, type).
     from app.modules.budgets.models import Categorie
 
     categorie = Categorie(id_client=id_client, nom=nom, type=type_)
@@ -82,7 +85,7 @@ def test_revenu_credite_le_compte(client, db_session):
     headers = _register_and_login(client)
     compte = _creer_compte(client, headers, solde_initial=0)
     id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
-    categorie = _creer_categorie(db_session, id_client, nom="Salaire", type_="REVENU")
+    categorie = _creer_categorie(db_session, id_client, nom="Revenu Test", type_="REVENU")
 
     response = client.post(
         "/api/v1/transactions",

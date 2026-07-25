@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.security import get_password_hash, verify_password
 from app.modules.auth.models import Utilisateur, Client, Profile, RefreshToken
 from app.modules.auth.schemas import UserRegister, UserLogin, ResetPasswordRequest
+from app.modules.budgets import service as budgets_service
 
 # --- Services d'Inscription et Connexion ---
 
@@ -36,6 +37,12 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
         langue="FR"
     )
     db.add(db_profile)
+
+    # 4. Catégories usuelles par défaut, pour que le client puisse
+    # enregistrer une transaction dès sa première connexion (voir
+    # budgets.service.creer_categories_par_defaut)
+    budgets_service.creer_categories_par_defaut(db, db_client.id_client)
+
     db.commit()
     db.refresh(db_client)
     return db_client

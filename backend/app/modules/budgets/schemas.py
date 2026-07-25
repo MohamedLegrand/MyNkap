@@ -10,6 +10,11 @@ class CategorieCreate(BaseModel):
     icone: Optional[str] = None
     couleur: Optional[str] = None
 
+class CategorieUpdate(BaseModel):
+    nom: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    icone: Optional[str] = None
+    couleur: Optional[str] = None
+
 class CategorieOut(BaseModel):
     id_categorie: int
     id_client: int
@@ -17,6 +22,7 @@ class CategorieOut(BaseModel):
     type: str
     icone: Optional[str] = None
     couleur: Optional[str] = None
+    est_actif: bool
     date_creation: datetime
 
     class Config:

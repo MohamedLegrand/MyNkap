@@ -7,11 +7,31 @@ from sqlalchemy.orm import Session
 
 from app.modules.audit.service import enregistrer_action
 from app.modules.budgets.models import Budget, Categorie
-from app.modules.budgets.schemas import BudgetCreate, BudgetUpdate, CategorieCreate
+from app.modules.budgets.schemas import BudgetCreate, BudgetUpdate, CategorieCreate, CategorieUpdate
 from app.modules.transactions.models import Transaction
 
 SEUIL_ALERTE_80 = 80.0
 SEUIL_ALERTE_100 = 100.0
+
+# Jeu de catégories usuelles, pertinentes pour le marché centrafricain visé,
+# créées automatiquement à l'inscription (voir creer_categories_par_defaut)
+# pour qu'un client puisse enregistrer une transaction dès sa première
+# connexion sans devoir d'abord construire lui-même sa liste de catégories.
+CATEGORIES_PAR_DEFAUT = [
+    {"nom": "Alimentation", "type": "DEPENSE", "icone": "utensils", "couleur": "#F97316"},
+    {"nom": "Transport", "type": "DEPENSE", "icone": "car", "couleur": "#3B82F6"},
+    {"nom": "Logement", "type": "DEPENSE", "icone": "home", "couleur": "#8B5CF6"},
+    {"nom": "Santé", "type": "DEPENSE", "icone": "heart-pulse", "couleur": "#EF4444"},
+    {"nom": "Éducation", "type": "DEPENSE", "icone": "graduation-cap", "couleur": "#06B6D4"},
+    {"nom": "Factures & Services", "type": "DEPENSE", "icone": "receipt", "couleur": "#64748B"},
+    {"nom": "Loisirs", "type": "DEPENSE", "icone": "gamepad-2", "couleur": "#EC4899"},
+    {"nom": "Achats personnels", "type": "DEPENSE", "icone": "shopping-bag", "couleur": "#14B8A6"},
+    {"nom": "Autres dépenses", "type": "DEPENSE", "icone": "more-horizontal", "couleur": "#94A3B8"},
+    {"nom": "Salaire", "type": "REVENU", "icone": "wallet", "couleur": "#22C55E"},
+    {"nom": "Business", "type": "REVENU", "icone": "briefcase", "couleur": "#10B981"},
+    {"nom": "Transferts reçus", "type": "REVENU", "icone": "arrow-left-right", "couleur": "#0EA5E9"},
+    {"nom": "Autres revenus", "type": "REVENU", "icone": "plus-circle", "couleur": "#84CC16"},
+]
 
 
 class CategorieIntrouvableError(Exception):
@@ -37,7 +57,12 @@ class BudgetDejaExistantError(Exception):
 # --- Services pour les Catégories ---
 
 def creer_categorie(db: Session, id_client: int, schema: CategorieCreate) -> Categorie:
-    """Crée une nouvelle catégorie personnalisée pour le client."""
+    """
+    Crée une nouvelle catégorie personnalisée pour le client. Vérifiée en
+    amont pour un message d'erreur clair, ET protégée par la contrainte
+    UNIQUE en base (voir modèle) qui rattrape une éventuelle course entre
+    deux requêtes concurrentes.
+    """
     existant = db.query(Categorie).filter(
         Categorie.id_client == id_client,
         Categorie.nom == schema.nom,
@@ -54,13 +79,96 @@ def creer_categorie(db: Session, id_client: int, schema: CategorieCreate) -> Cat
         couleur=schema.couleur,
     )
     db.add(db_categorie)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise CategorieDejaExistanteError()
     db.refresh(db_categorie)
     return db_categorie
 
 
-def obtenir_categories(db: Session, id_client: int) -> List[Categorie]:
-    return db.query(Categorie).filter(Categorie.id_client == id_client).all()
+def creer_categories_par_defaut(db: Session, id_client: int) -> List[Categorie]:
+    """
+    Seed d'un jeu de catégories usuelles pour le nouveau client (voir
+    CATEGORIES_PAR_DEFAUT). Pas de commit ici : inséré dans la même
+    transaction SQL que la création du Client et de son Profile (voir
+    auth.services.creer_client), pour que le compte naisse déjà utilisable
+    — sans ce seed, un client ne peut enregistrer aucune transaction
+    DEPENSE/REVENU tant qu'il n'a pas d'abord créé une catégorie lui-même.
+    """
+    categories = [Categorie(id_client=id_client, **defaut) for defaut in CATEGORIES_PAR_DEFAUT]
+    db.add_all(categories)
+    return categories
+
+
+def obtenir_categorie_du_client(db: Session, id_categorie: int, id_client: int) -> Optional[Categorie]:
+    return (
+        db.query(Categorie)
+        .filter(Categorie.id_categorie == id_categorie, Categorie.id_client == id_client)
+        .first()
+    )
+
+
+def obtenir_categories(db: Session, id_client: int, include_inactifs: bool = False) -> List[Categorie]:
+    query = db.query(Categorie).filter(Categorie.id_client == id_client)
+    if not include_inactifs:
+        query = query.filter(Categorie.est_actif.is_(True))
+    return query.all()
+
+
+def modifier_categorie(db: Session, id_categorie: int, id_client: int, schema: CategorieUpdate) -> Categorie:
+    """Modifie nom/icône/couleur d'une catégorie. Le type (DEPENSE/REVENU)
+    n'est volontairement pas modifiable : ça changerait rétroactivement le
+    sens des Transaction et Budget qui la référencent déjà."""
+    categorie = obtenir_categorie_du_client(db, id_categorie, id_client)
+    if categorie is None:
+        raise CategorieIntrouvableError()
+
+    donnees = schema.model_dump(exclude_unset=True)
+    for champ, valeur in donnees.items():
+        setattr(categorie, champ, valeur)
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise CategorieDejaExistanteError()
+    db.refresh(categorie)
+    return categorie
+
+
+def desactiver_categorie(db: Session, id_categorie: int, id_client: int) -> Categorie:
+    """Désactivation logique — jamais de suppression réelle (voir modèle).
+    N'empêche pas la désactivation même si des Budget/Transaction actifs la
+    référencent : ça bloque seulement toute NOUVELLE utilisation (voir
+    creer_budget et transactions.enregistrer_transaction), l'historique
+    reste valide."""
+    categorie = obtenir_categorie_du_client(db, id_categorie, id_client)
+    if categorie is None:
+        raise CategorieIntrouvableError()
+
+    categorie.est_actif = False
+    db.commit()
+    db.refresh(categorie)
+    return categorie
+
+
+def reactiver_categorie(db: Session, id_categorie: int, id_client: int) -> Categorie:
+    categorie = obtenir_categorie_du_client(db, id_categorie, id_client)
+    if categorie is None:
+        raise CategorieIntrouvableError()
+
+    categorie.est_actif = True
+    try:
+        db.commit()
+    except IntegrityError:
+        # Une catégorie active avec le même (nom, type) a été créée entre
+        # temps : la contrainte unique empêche une collision silencieuse.
+        db.rollback()
+        raise CategorieDejaExistanteError()
+    db.refresh(categorie)
+    return categorie
 
 
 # --- Services pour les Budgets ---
@@ -79,7 +187,7 @@ def creer_budget(db: Session, id_client: int, schema: BudgetCreate) -> Budget:
         Categorie.id_categorie == schema.id_categorie,
         Categorie.id_client == id_client,
     ).first()
-    if not categorie:
+    if not categorie or not categorie.est_actif:
         raise CategorieIntrouvableError()
 
     if categorie.type != "DEPENSE":
