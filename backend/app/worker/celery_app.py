@@ -20,5 +20,11 @@ celery_app.conf.beat_schedule = {
         # fuseau horaire sur "le jour J", avant les heures d'usage typique.
         "schedule": crontab(hour=0, minute=5),
     },
+    "generer-snapshots-mensuels": {
+        "task": "app.worker.tasks.generer_snapshots_mensuels",
+        # Le 1er de chaque mois, après la vérification quotidienne des
+        # récurrences du même jour (00h05) pour partir de données à jour.
+        "schedule": crontab(day_of_month=1, hour=1, minute=0),
+    },
 }
 celery_app.conf.timezone = "UTC"
