@@ -8,7 +8,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
-import type { TokenResponse } from '../types';
+import type { TokenResponse, Client } from '../types';
 
 // Hook personnalisé pour gérer le mode sombre/clair
 const useDarkMode = () => {
@@ -612,6 +612,7 @@ const PasswordInput = ({
 const LoginPage = () => {
   const navigate = useNavigate();
   const setSession = useAuthStore((state) => state.setSession);
+  const setClient = useAuthStore((state) => state.setClient);
 
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -631,6 +632,13 @@ const LoginPage = () => {
 
       const isAdminUser = tokens.user_type === 'administrateur';
       setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token }, isAdminUser);
+
+      if (!isAdminUser) {
+        // /auth/me n'existe que pour les clients (403 pour un administrateur).
+        const moi = await api.request<Client>('/auth/me');
+        setClient(moi);
+      }
+
       navigate(isAdminUser ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Adresse e-mail ou mot de passe incorrect.');
@@ -775,6 +783,7 @@ export const AppRoutes: React.FC = () => {
 const RegisterPage = () => {
   const navigate = useNavigate();
   const setSession = useAuthStore((state) => state.setSession);
+  const setClient = useAuthStore((state) => state.setClient);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -796,7 +805,7 @@ const RegisterPage = () => {
 
     setIsSubmitting(true);
     try {
-      await api.request('/auth/register', {
+      const nouveauClient = await api.request<Client>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           email,
@@ -813,6 +822,7 @@ const RegisterPage = () => {
         body: JSON.stringify({ email, mot_de_passe: motDePasse }),
       });
       setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
+      setClient(nouveauClient);
       navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
