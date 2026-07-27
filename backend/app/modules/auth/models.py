@@ -103,10 +103,24 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id_refresh_token = Column(Integer, primary_key=True, index=True)
-    id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False)
+    # Référence n'importe quel Utilisateur (Client OU Administrateur) — pas
+    # seulement Client. Corrige un bug reel : /auth/login appelle
+    # creer_refresh_token() pour tout Utilisateur authentifie, mais la
+    # contrainte pointait avant uniquement vers clients.id_client, ce qui
+    # provoquait un IntegrityError Postgres (500 non gere) a chaque
+    # connexion d'un administrateur, puisqu'il n'a pas de ligne dans
+    # clients (verifie contre Postgres reel).
+    id_client = Column(Integer, ForeignKey("utilisateurs.id_utilisateur"), nullable=False)
     token = Column(String, unique=True, index=True, nullable=False)
     date_expiration = Column(DateTime, nullable=False)
     est_revoque = Column(Boolean, default=False)
     date_creation = Column(DateTime, default=datetime.utcnow)
 
-    client = relationship("Client", back_populates="refresh_tokens")
+    # primaryjoin explicite : la FK ci-dessus pointe vers `utilisateurs`,
+    # pas directement vers `clients` (heritage par jointure) — SQLAlchemy
+    # ne peut plus inferer seul la jointure entre RefreshToken et Client.
+    client = relationship(
+        "Client",
+        back_populates="refresh_tokens",
+        primaryjoin="foreign(RefreshToken.id_client) == Client.id_client",
+    )
