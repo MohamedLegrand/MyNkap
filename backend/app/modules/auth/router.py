@@ -92,7 +92,8 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
     }
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh_token(refresh_in: TokenRefreshRequest, db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def refresh_token(request: Request, refresh_in: TokenRefreshRequest, db: Session = Depends(get_db)):
     """
     Renouveler un jeton d'accès (Access Token) expiré en utilisant un jeton de rafraîchissement (Refresh Token).
     """
@@ -187,6 +188,7 @@ def forgot_password(request: Request, forgot_in: ForgotPasswordRequest, db: Sess
     }
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
 def reset_password(request: Request, reset_in: ResetPasswordRequest, db: Session = Depends(get_db)):
     """
     Valider le jeton et définir le nouveau mot de passe.

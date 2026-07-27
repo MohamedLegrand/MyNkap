@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # Génération : python -c "import secrets; print(secrets.token_urlsafe(64))"
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 11520 # 8 jours
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # CORS : origines autorisées à appeler l'API (séparées par des virgules dans .env)
     CORS_ORIGINS: str = "http://localhost:5173"
@@ -37,7 +37,6 @@ class Settings(BaseSettings):
     # raison que ci-dessus.
     HRPAY_PUBLIC_KEY: str | None = None
     HRPAY_SECRET_KEY: str | None = None
-    HRPAY_WEBHOOK_SECRET: str | None = None
 
     # Dossier de stockage des rapports PDF générés (module Rapports).
     # Chemin local pour l'instant — un stockage cloud (S3/Supabase) sera

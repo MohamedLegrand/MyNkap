@@ -18,4 +18,3 @@ from app.modules.dettes import models as _dettes_models  # noqa: F401
 from app.modules.rapports import models as _rapports_models  # noqa: F401
 from app.modules.jarvis import models as _jarvis_models  # noqa: F401
 from app.modules.analyse import models as _analyse_models  # noqa: F401
-from app.modules.webhooks import models as _webhooks_models  # noqa: F401

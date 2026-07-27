@@ -1,3 +1,6 @@
+from app.modules.auth.models import Client
+
+
 def _register_payload(**overrides):
     payload = {
         "email": "jean.dupont@example.com",
@@ -102,3 +105,79 @@ def test_logout_revokes_refresh_token(client):
 
     refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
     assert refresh_response.status_code == 401
+
+
+def test_forgot_password_generates_a_reset_token_for_existing_email(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+
+    response = client.post(
+        "/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"}
+    )
+    assert response.status_code == 200
+
+    db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
+    assert db_client.reset_password_token is not None
+    assert db_client.reset_password_expires is not None
+
+
+def test_forgot_password_renvoie_200_meme_pour_un_email_inconnu(client):
+    # Message générique volontaire (voir auth/router.py) pour éviter le
+    # dénombrement d'utilisateurs : ne doit jamais révéler si l'email existe.
+    response = client.post(
+        "/api/v1/auth/forgot-password", json={"email": "inconnu@example.com"}
+    )
+    assert response.status_code == 200
+
+
+def test_reset_password_avec_jeton_valide_permet_de_se_reconnecter(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    client.post("/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"})
+
+    db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
+    reset_token = db_client.reset_password_token
+
+    response = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": reset_token, "nouveau_mot_de_passe": "nouveaumotdepasse456"},
+    )
+    assert response.status_code == 200
+
+    # L'ancien mot de passe ne fonctionne plus
+    old_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
+    )
+    assert old_login.status_code == 400
+
+    # Le nouveau mot de passe fonctionne
+    new_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "jean.dupont@example.com", "mot_de_passe": "nouveaumotdepasse456"},
+    )
+    assert new_login.status_code == 200
+
+
+def test_reset_password_avec_jeton_invalide_est_rejete(client):
+    response = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": "jeton-inexistant", "nouveau_mot_de_passe": "peuimporte123"},
+    )
+    assert response.status_code == 400
+
+
+def test_reset_password_avec_jeton_expire_est_rejete(client, db_session):
+    from datetime import datetime, timedelta
+
+    client.post("/api/v1/auth/register", json=_register_payload())
+    client.post("/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"})
+
+    db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
+    reset_token = db_client.reset_password_token
+    db_client.reset_password_expires = datetime.utcnow() - timedelta(minutes=1)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/reset-password",
+        json={"token": reset_token, "nouveau_mot_de_passe": "peuimporte123"},
+    )
+    assert response.status_code == 400
