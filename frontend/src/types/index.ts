@@ -13,6 +13,7 @@ export interface TokenResponse {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+  user_type: string;
 }
 
 export interface CompteFinancier {

@@ -88,7 +88,8 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
         "access_token": access_token,
         "refresh_token": refresh_token_db.token,
         "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user_type": utilisateur.type,
     }
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -104,6 +105,8 @@ def refresh_token(request: Request, refresh_in: TokenRefreshRequest, db: Session
             detail="Jeton de rafraîchissement invalide, expiré ou révoqué."
         )
 
+    utilisateur = db.query(Utilisateur).filter(Utilisateur.id_utilisateur == db_token.id_client).first()
+
     # Nouveau token d'accès
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     new_access_token = create_access_token(
@@ -114,7 +117,8 @@ def refresh_token(request: Request, refresh_in: TokenRefreshRequest, db: Session
         "access_token": new_access_token,
         "refresh_token": db_token.token,
         "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user_type": utilisateur.type,
     }
 
 @router.post("/logout", status_code=status.HTTP_200_OK)

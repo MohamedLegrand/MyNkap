@@ -7,8 +7,9 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   client: Client | null;
+  isAdmin: boolean;
   isAuthenticated: boolean;
-  setSession: (tokens: { accessToken: string; refreshToken: string }) => void;
+  setSession: (tokens: { accessToken: string; refreshToken: string }, isAdmin?: boolean) => void;
   setClient: (client: Client) => void;
   logout: () => void;
 }
@@ -19,12 +20,13 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       client: null,
+      isAdmin: false,
       isAuthenticated: false,
-      setSession: ({ accessToken, refreshToken }) =>
-        set({ accessToken, refreshToken, isAuthenticated: true }),
+      setSession: ({ accessToken, refreshToken }, isAdmin = false) =>
+        set({ accessToken, refreshToken, isAuthenticated: true, isAdmin }),
       setClient: (client) => set({ client }),
       logout: () =>
-        set({ accessToken: null, refreshToken: null, client: null, isAuthenticated: false }),
+        set({ accessToken: null, refreshToken: null, client: null, isAdmin: false, isAuthenticated: false }),
     }),
     { name: 'mynkap-auth' }
   )

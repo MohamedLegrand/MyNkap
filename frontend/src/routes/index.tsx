@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Sun, Moon, Compass, ArrowRight, Check,
+  Sun, Moon, ArrowRight, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
   HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff,
 } from 'lucide-react';
@@ -622,22 +622,28 @@ const LoginPage = () => {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
+
     try {
       const tokens = await api.request<TokenResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, mot_de_passe: motDePasse }),
       });
-      setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
-      navigate('/dashboard');
+
+      const isAdminUser = tokens.user_type === 'administrateur';
+      setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token }, isAdminUser);
+      navigate(isAdminUser ? '/admin' : '/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+      setError(err instanceof Error ? err.message : 'Adresse e-mail ou mot de passe incorrect.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <AuthLayout title="Se connecter à MyNkap" subtitle="Accédez à votre tableau de bord financier">
+    <AuthLayout
+      title="Se connecter à MyNkap"
+      subtitle="Accédez à votre tableau de bord financier"
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
           <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
@@ -678,7 +684,7 @@ const LoginPage = () => {
           className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
         >
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isSubmitting ? 'Connexion en cours...' : 'Se connecter'}
+          {isSubmitting ? 'Vérification des identifiants...' : 'Se connecter'}
         </button>
 
         <p className="text-center text-sm text-muted-foreground pt-1">
@@ -687,6 +693,82 @@ const LoginPage = () => {
         </p>
       </form>
     </AuthLayout>
+  );
+};
+
+import { ClientDashboard } from '../pages/ClientDashboard';
+import { AdminDashboard } from '../pages/AdminDashboard';
+
+// Garde de route réservé aux clients authentifiés
+const RequireClientAuth = ({ children }: { children: React.ReactElement }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
+
+// Garde de route réservé aux administrateurs (Superadmin / Modérateur / Support)
+const RequireAdminAuth = ({ children }: { children: React.ReactElement }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+
+  if (!isAuthenticated || !isAdmin) {
+    return <Navigate to="/login?admin=1" replace />;
+  }
+  return children;
+};
+
+// Garde de route pour les visiteurs (redirige si déjà connecté)
+const GuestOnlyRoute = ({ children }: { children: React.ReactElement }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+
+  if (isAuthenticated) {
+    return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
+  }
+  return children;
+};
+
+export const AppRoutes: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/login"
+          element={
+            <GuestOnlyRoute>
+              <LoginPage />
+            </GuestOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <GuestOnlyRoute>
+              <RegisterPage />
+            </GuestOnlyRoute>
+          }
+        />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <RequireClientAuth>
+              <ClientDashboard />
+            </RequireClientAuth>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdminAuth>
+              <AdminDashboard />
+            </RequireAdminAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
@@ -1021,80 +1103,4 @@ const ResetPasswordPage = () => {
   );
 };
 
-const DashboardPage = () => {
-  const { theme, toggleTheme } = useDarkMode();
-  const navigate = useNavigate();
-  const logout = useAuthStore((state) => state.logout);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8 border-b border-border pb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary rounded-lg text-primary-foreground">
-              <Compass className="h-6 w-6" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight">Tableau de bord MyNkap</h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-            <button onClick={handleLogout} className="text-sm font-semibold text-secondary hover:underline">
-              Déconnexion
-            </button>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Solde principal (Vert forêt) */}
-          <div className="bg-card p-6 rounded-2xl shadow-md border-l-8 border-primary border border-y-border border-r-border">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Compte Principal</h3>
-            <p className="text-3xl font-extrabold text-primary tabular-nums">0 XAF</p>
-          </div>
-          {/* Revenus (Bleu) */}
-          <div className="bg-card p-6 rounded-2xl shadow-md border-l-8 border-secondary border border-y-border border-r-border">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Revenus du mois</h3>
-            <p className="text-3xl font-extrabold text-secondary tabular-nums">0 XAF</p>
-          </div>
-          {/* Dépenses (Rouge déstructif) */}
-          <div className="bg-card p-6 rounded-2xl shadow-md border-l-8 border-destructive border border-y-border border-r-border">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Dépenses du mois</h3>
-            <p className="text-3xl font-extrabold text-destructive tabular-nums">0 XAF</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const RequireAuth = ({ children }: { children: React.ReactElement }) => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
-};
-
-export const AppRoutes: React.FC = () => {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <RequireAuth>
-              <DashboardPage />
-            </RequireAuth>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
-  );
-};
