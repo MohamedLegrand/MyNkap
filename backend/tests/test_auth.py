@@ -1,3 +1,4 @@
+from app.modules.auth import services
 from app.modules.auth.models import Client
 
 
@@ -107,7 +108,11 @@ def test_logout_revokes_refresh_token(client):
     assert refresh_response.status_code == 401
 
 
-def test_forgot_password_generates_a_reset_token_for_existing_email(client, db_session):
+def test_forgot_password_generates_a_reset_token_for_existing_email(client, db_session, monkeypatch):
+    # N'appelle jamais réellement Brevo dans les tests (cf. HR-Skills Pay :
+    # aucun appel réseau réel/payant depuis la suite automatisée).
+    monkeypatch.setattr(services, "_envoyer_email_brevo", lambda *a, **k: None)
+
     client.post("/api/v1/auth/register", json=_register_payload())
 
     response = client.post(
@@ -129,7 +134,9 @@ def test_forgot_password_renvoie_200_meme_pour_un_email_inconnu(client):
     assert response.status_code == 200
 
 
-def test_reset_password_avec_jeton_valide_permet_de_se_reconnecter(client, db_session):
+def test_reset_password_avec_jeton_valide_permet_de_se_reconnecter(client, db_session, monkeypatch):
+    monkeypatch.setattr(services, "_envoyer_email_brevo", lambda *a, **k: None)
+
     client.post("/api/v1/auth/register", json=_register_payload())
     client.post("/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"})
 
@@ -165,8 +172,10 @@ def test_reset_password_avec_jeton_invalide_est_rejete(client):
     assert response.status_code == 400
 
 
-def test_reset_password_avec_jeton_expire_est_rejete(client, db_session):
+def test_reset_password_avec_jeton_expire_est_rejete(client, db_session, monkeypatch):
     from datetime import datetime, timedelta
+
+    monkeypatch.setattr(services, "_envoyer_email_brevo", lambda *a, **k: None)
 
     client.post("/api/v1/auth/register", json=_register_payload())
     client.post("/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"})

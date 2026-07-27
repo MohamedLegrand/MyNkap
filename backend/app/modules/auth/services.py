@@ -1,8 +1,11 @@
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
+
+import httpx
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.modules.auth.models import Utilisateur, Client, Profile, RefreshToken
 from app.modules.auth.schemas import UserRegister, UserLogin, ResetPasswordRequest
@@ -107,6 +110,45 @@ def revoquer_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
 
 # --- Services de récupération de mot de passe ---
 
+def _envoyer_email_brevo(destinataire: str, sujet: str, contenu_html: str) -> None:
+    """
+    Envoie un e-mail transactionnel via l'API REST Brevo. Sans clé configurée
+    (clone du dépôt, tests), se contente d'un affichage console — jamais
+    d'appel réseau non désiré. Fonction privée séparée pour rester
+    monkeypatchable dans les tests, comme _appeler_hrpay_cash_in dans
+    plans.service.
+    """
+    if not settings.BREVO_API_KEY:
+        print(f"\n[E-MAIL SIMULATION] Destinataire : {destinataire}")
+        print(f"[E-MAIL SIMULATION] Sujet : {sujet}")
+        print(f"[E-MAIL SIMULATION] Contenu : {contenu_html}\n")
+        return
+
+    try:
+        reponse = httpx.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": settings.BREVO_API_KEY,
+                "content-type": "application/json",
+                "accept": "application/json",
+            },
+            json={
+                "sender": {"name": settings.MAIL_FROM_NAME, "email": settings.MAIL_FROM_EMAIL},
+                "to": [{"email": destinataire}],
+                "subject": sujet,
+                "htmlContent": contenu_html,
+            },
+            timeout=10.0,
+        )
+        reponse.raise_for_status()
+    except httpx.HTTPError as exc:
+        # Ne jamais faire échouer le flux de mot de passe oublié à cause d'un
+        # incident du fournisseur d'e-mail : le jeton reste valide en base et
+        # la réponse de l'API reste générique dans tous les cas (pas de fuite
+        # d'information sur l'existence du compte).
+        print(f"[BREVO] Échec de l'envoi à {destinataire} : {exc}")
+
+
 def generer_forgot_password_token(db: Session, email: str) -> Optional[str]:
     """
     Génère un jeton de récupération pour le compte client associé à l'email donné.
@@ -114,19 +156,27 @@ def generer_forgot_password_token(db: Session, email: str) -> Optional[str]:
     client = db.query(Client).filter(Client.email == email).first()
     if not client:
         return None
-    
+
     # Génération d'un token aléatoire sécurisé
     reset_token = secrets.token_urlsafe(32)
     client.reset_password_token = reset_token
     # Le token expire dans 15 minutes
     client.reset_password_expires = datetime.utcnow() + timedelta(minutes=15)
-    
+
     db.commit()
-    
-    # Simulation d'envoi d'e-mail (Pour le dev, on l'affiche dans les logs de la console)
-    print(f"\n[E-MAIL SIMULATION] Réinitialisation demandée pour {email}")
-    print(f"[E-MAIL SIMULATION] Token : {reset_token}\n")
-    
+
+    lien_reinitialisation = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+    contenu_html = (
+        f"<p>Bonjour {client.first_name},</p>"
+        f"<p>Vous avez demandé la réinitialisation de votre mot de passe MyNkap. "
+        f"Ce lien est valable 15 minutes :</p>"
+        f'<p><a href="{lien_reinitialisation}" '
+        f'style="background-color:#254E2A;color:#ffffff;padding:10px 20px;'
+        f'border-radius:6px;text-decoration:none;">Réinitialiser mon mot de passe</a></p>'
+        f"<p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</p>"
+    )
+    _envoyer_email_brevo(client.email, "Réinitialisation de votre mot de passe MyNkap", contenu_html)
+
     return reset_token
 
 def reinitialiser_mot_de_passe(db: Session, reset_in: ResetPasswordRequest) -> Optional[Client]:

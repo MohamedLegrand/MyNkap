@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     HRPAY_PUBLIC_KEY: str | None = None
     HRPAY_SECRET_KEY: str | None = None
 
+    # Envoi d'e-mails transactionnels (mot de passe oublié...) via l'API
+    # REST Brevo — optionnelle, même raison que ci-dessus (sans clé, on
+    # retombe sur une simulation console, cf. auth.services).
+    BREVO_API_KEY: str | None = None
+    MAIL_FROM_EMAIL: str = "no-reply@mynkap.com"
+    MAIL_FROM_NAME: str = "MyNkap"
+
+    # Base du frontend, utilisée pour construire les liens envoyés par e-mail
+    # (ex: /reset-password?token=...).
+    FRONTEND_URL: str = "http://localhost:5173"
+
     # Dossier de stockage des rapports PDF générés (module Rapports).
     # Chemin local pour l'instant — un stockage cloud (S3/Supabase) sera
     # nécessaire en production, sans changer l'API du module.
