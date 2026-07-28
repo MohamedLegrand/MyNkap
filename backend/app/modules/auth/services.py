@@ -10,6 +10,7 @@ from app.core.security import get_password_hash, verify_password
 from app.modules.auth.models import Utilisateur, Client, Profile, RefreshToken
 from app.modules.auth.schemas import UserRegister, UserLogin, ResetPasswordRequest
 from app.modules.budgets import service as budgets_service
+from app.modules.notifications import service as notifications_service
 from app.modules.plans import service as plans_service
 
 # --- Services d'Inscription et Connexion ---
@@ -52,6 +53,23 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
 
     db.commit()
     db.refresh(db_client)
+
+    # 6. Notifications (bienvenue côté client, signalement côté admin) —
+    # non bloquantes pour l'inscription : gérées dans leur propre commit,
+    # après que le client existe déjà réellement en base.
+    notifications_service.creer_notification_client(
+        db, db_client.id_client, "BIENVENUE",
+        "Bienvenue sur MyNkap !",
+        f"Bonjour {db_client.first_name}, votre compte a été créé avec succès. "
+        "Découvrez vos comptes, vos budgets et votre assistant financier.",
+    )
+    notifications_service.creer_notification_admins(
+        db, "NOUVEAU_CLIENT",
+        "Nouveau client inscrit",
+        f"{db_client.first_name} {db_client.last_name} ({db_client.email}) vient de créer un compte.",
+        lien="/admin?tab=clients",
+    )
+
     return db_client
 
 def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utilisateur]:

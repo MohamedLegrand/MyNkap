@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.modules.audit.service import enregistrer_action
+from app.modules.notifications import service as notifications_service
 from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
 
 logger = logging.getLogger(__name__)
@@ -287,15 +288,37 @@ def verifier_paiements_en_attente(db: Session) -> int:
             continue  # on retentera au prochain passage
 
         if statut == "SUCCESS":
-            changer_plan(db, paiement.id_client, paiement.plan_demande.nom, paiement.cycle_facturation)
+            nom_plan = paiement.plan_demande.nom
+            changer_plan(db, paiement.id_client, nom_plan, paiement.cycle_facturation)
             paiement.statut = "SUCCESS"
             paiement.date_confirmation = datetime.utcnow()
             db.commit()
             nb_traites += 1
+
+            notifications_service.creer_notification_client(
+                db, paiement.id_client, "PAIEMENT_CONFIRME",
+                "Paiement confirmé",
+                f"Votre paiement de {paiement.montant} {paiement.devise} a été confirmé — "
+                f"vous êtes maintenant sur le plan {nom_plan}.",
+            )
+            notifications_service.creer_notification_admins(
+                db, "PAIEMENT_RECU",
+                "Paiement reçu",
+                f"{paiement.client.first_name} {paiement.client.last_name} ({paiement.client.email}) "
+                f"a payé {paiement.montant} {paiement.devise} pour le plan {nom_plan}.",
+                lien="/admin?tab=subscriptions",
+            )
         elif statut in ("FAILED", "REFUNDED"):
             paiement.statut = "FAILED"
             db.commit()
             nb_traites += 1
+
+            notifications_service.creer_notification_client(
+                db, paiement.id_client, "PAIEMENT_ECHEC",
+                "Paiement refusé",
+                f"Votre paiement de {paiement.montant} {paiement.devise} pour le plan "
+                f"{paiement.plan_demande.nom} a échoué ou expiré. Vous pouvez réessayer.",
+            )
         # PENDING ou HOLD (revue AML) : rien à faire, on retentera au
         # prochain passage.
 

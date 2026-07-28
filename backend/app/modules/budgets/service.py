@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.modules.audit.service import enregistrer_action
 from app.modules.budgets.models import Budget, Categorie
 from app.modules.budgets.schemas import BudgetCreate, BudgetUpdate, CategorieCreate, CategorieUpdate
+from app.modules.notifications import service as notifications_service
 from app.modules.transactions.models import Transaction
 
 SEUIL_ALERTE_80 = 80.0
@@ -266,8 +267,8 @@ def verifier_alertes(db: Session, budget: Budget, pourcentage_utilise: float, re
     """
     Compare passivement les dépenses actuelles aux seuils d'alerte en dur
     (80% et 100%). Si un seuil est franchi pour la première fois, pose le
-    flag en base et le trace dans l'AuditLog (pas de notification push
-    réelle : le module Notifications n'existe pas encore).
+    flag en base, le trace dans l'AuditLog et notifie le client (voir
+    notifications.service).
     """
     if budget.montant_limite <= 0:
         return
@@ -287,6 +288,12 @@ def verifier_alertes(db: Session, budget: Budget, pourcentage_utilise: float, re
             donnees_apres={"alerte_100": True, "alerte_80": True},
             request=request,
         )
+        notifications_service.creer_notification_client(
+            db, budget.id_client, "BUDGET_100",
+            "Budget dépassé",
+            f"Vous avez dépassé votre budget \"{budget.categorie.nom}\" "
+            f"({round(pourcentage_utilise)}% utilisé).",
+        )
     elif pourcentage_utilise >= SEUIL_ALERTE_80 and not budget.alerte_80:
         budget.alerte_80 = True
         db.commit()
@@ -300,6 +307,12 @@ def verifier_alertes(db: Session, budget: Budget, pourcentage_utilise: float, re
             donnees_avant={"alerte_80": False},
             donnees_apres={"alerte_80": True},
             request=request,
+        )
+        notifications_service.creer_notification_client(
+            db, budget.id_client, "BUDGET_80",
+            "Budget bientôt atteint",
+            f"Vous avez atteint {round(pourcentage_utilise)}% de votre budget "
+            f"\"{budget.categorie.nom}\".",
         )
 
 
