@@ -32,7 +32,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-amber-500" />
+            <ShieldCheck className="h-5 w-5 text-primary" />
             <h3 className="text-base font-bold">Créer un Administrateur</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
@@ -49,7 +49,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
               placeholder="ex: admin_support"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
 
@@ -61,7 +61,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
               placeholder="admin@mynkap.cm"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
 
@@ -74,7 +74,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
               placeholder="••••••••"
               value={motDePasse}
               onChange={(e) => setMotDePasse(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
 
@@ -83,7 +83,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
             <select
               value={niveauAcces}
               onChange={(e) => setNiveauAcces(Number(e.target.value))}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
             >
               <option value={1}>Niveau 1 : Support & Consultation</option>
               <option value={2}>Niveau 2 : Modérateur (Config & Fraude)</option>
@@ -98,7 +98,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold shadow-md hover:bg-amber-400 flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               <span>Créer l'Admin</span>
@@ -133,7 +133,7 @@ export const ResetClientPasswordModal: React.FC<ResetClientPasswordModalProps> =
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
-            <Key className="h-5 w-5 text-amber-500" />
+            <Key className="h-5 w-5 text-primary" />
             <h3 className="text-base font-bold">Réinitialisation de Mot de Passe</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
@@ -161,7 +161,7 @@ export const ResetClientPasswordModal: React.FC<ResetClientPasswordModalProps> =
             </>
           ) : (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 space-y-2">
+              <div className="p-4 rounded-xl bg-forest-500/10 border border-forest-500/20 text-forest-600 dark:text-forest-400 space-y-2">
                 <CheckCircle2 className="h-8 w-8 mx-auto" />
                 <h4 className="text-sm font-bold">Mot de passe temporaire généré !</h4>
                 <div className="bg-background px-4 py-2 rounded-lg border border-border font-mono text-base font-black text-foreground select-all">
@@ -209,7 +209,7 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
-            <Sliders className="h-5 w-5 text-amber-500" />
+            <Sliders className="h-5 w-5 text-primary" />
             <h3 className="text-base font-bold">Modifier la Configuration Système</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
@@ -232,7 +232,7 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
               required
               value={valeur}
               onChange={(e) => setValeur(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
 
@@ -240,7 +240,7 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted">
               Annuler
             </button>
-            <button type="submit" className="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold shadow-md hover:bg-amber-400">
+            <button type="submit" className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90">
               Appliquer à chaud
             </button>
           </div>
@@ -265,7 +265,7 @@ export const ViewAuditDetailModal: React.FC<ViewAuditDetailModalProps> = ({ isOp
       <div className="bg-card w-full max-w-2xl rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2">
-            <FileCode className="h-5 w-5 text-amber-500" />
+            <FileCode className="h-5 w-5 text-primary" />
             <h3 className="text-base font-bold">Détail d'Événement d'Audit #{auditItem.id_log}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
@@ -304,7 +304,7 @@ export const ViewAuditDetailModal: React.FC<ViewAuditDetailModalProps> = ({ isOp
           {/* JSON Donnees Apres */}
           <div className="space-y-1">
             <span className="font-bold text-muted-foreground uppercase text-[10px]">Données Après (JSON)</span>
-            <pre className="bg-slate-950 text-emerald-400 p-3 rounded-xl overflow-x-auto text-[11px] font-mono border border-slate-800">
+            <pre className="bg-slate-950 text-forest-400 p-3 rounded-xl overflow-x-auto text-[11px] font-mono border border-slate-800">
               {auditItem.donnees_apres ? JSON.stringify(auditItem.donnees_apres, null, 2) : 'null'}
             </pre>
           </div>

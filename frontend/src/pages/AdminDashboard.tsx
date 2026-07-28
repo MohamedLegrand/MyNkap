@@ -281,7 +281,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <p className="text-3xl font-black text-primary tabular-nums">{kpis.clients.total_clients}</p>
               <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Actifs : <strong className="text-emerald-600 dark:text-emerald-400">{kpis.clients.clients_actifs}</strong></span>
+                <span>Actifs : <strong className="text-forest-600 dark:text-forest-400">{kpis.clients.clients_actifs}</strong></span>
                 <span>Nouveaux +30j : <strong className="text-secondary">+{kpis.clients.nouveaux_clients_30j}</strong></span>
               </div>
             </div>
@@ -298,9 +298,9 @@ export const AdminDashboard: React.FC = () => {
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase">Conversion Payant</span>
-                <Zap className="h-5 w-5 text-amber-500" />
+                <Zap className="h-5 w-5 text-forest-500 dark:text-forest-400" />
               </div>
-              <p className="text-3xl font-black text-amber-500 tabular-nums">{kpis.abonnements.taux_conversion_payant_pourcent}%</p>
+              <p className="text-3xl font-black text-forest-500 dark:text-forest-400 tabular-nums">{kpis.abonnements.taux_conversion_payant_pourcent}%</p>
               <p className="text-xs text-muted-foreground mt-2">Payants : {kpis.abonnements.abonnes_essentiel + kpis.abonnements.abonnes_premium} abonnés</p>
             </div>
 
@@ -333,7 +333,7 @@ export const AdminDashboard: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Rechercher par nom, email, téléphone..."
-                  className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
@@ -365,7 +365,7 @@ export const AdminDashboard: React.FC = () => {
                     </td>
                     <td className="p-4">
                       {c.est_actif ? (
-                        <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold text-[10px]">
+                        <span className="inline-flex items-center gap-1 bg-forest-500/10 text-forest-600 dark:text-forest-400 px-2 py-0.5 rounded-full font-bold text-[10px]">
                           <CheckCircle2 className="h-3 w-3" /> Actif
                         </span>
                       ) : (
@@ -378,14 +378,14 @@ export const AdminDashboard: React.FC = () => {
                       <button
                         onClick={() => handleToggleClientStatus(c.id_client, c.est_actif)}
                         className={`p-1.5 rounded-lg border text-[11px] font-bold ${
-                          c.est_actif ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                          c.est_actif ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-forest-500/10 text-forest-600 border-forest-500/20'
                         }`}
                       >
                         {c.est_actif ? 'Suspendre' : 'Réactiver'}
                       </button>
                       <button
                         onClick={() => handleTriggerResetPassword(c.id_client, `${c.first_name} ${c.last_name}`)}
-                        className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-bold"
+                        className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[11px] font-bold"
                       >
                         Reset Password
                       </button>
@@ -409,7 +409,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <button
               onClick={() => setIsCreateAdminOpen(true)}
-              className="bg-amber-500 text-slate-950 font-bold text-xs py-2.5 px-4 rounded-xl shadow-md hover:bg-amber-400 flex items-center gap-1.5"
+              className="bg-primary text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md hover:bg-primary/90 flex items-center gap-1.5"
             >
               <Plus className="h-4 w-4" />
               <span>Créer un Admin</span>
@@ -436,7 +436,7 @@ export const AdminDashboard: React.FC = () => {
                     </td>
                     <td className="p-4">
                       <span className={`font-black px-2 py-0.5 rounded text-[10px] ${
-                        a.niveau_acces === 3 ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' : 'bg-muted text-muted-foreground'
+                        a.niveau_acces === 3 ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-muted text-muted-foreground'
                       }`}>
                         Niveau {a.niveau_acces} ({a.niveau_acces === 3 ? 'Superadmin' : a.niveau_acces === 2 ? 'Modérateur' : 'Support'})
                       </span>
@@ -444,7 +444,7 @@ export const AdminDashboard: React.FC = () => {
                     <td className="p-4">{new Date(a.date_creation).toLocaleDateString('fr-FR')}</td>
                     <td className="p-4">
                       {a.est_actif ? (
-                        <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold text-[10px]">
+                        <span className="inline-flex items-center gap-1 bg-forest-500/10 text-forest-600 dark:text-forest-400 px-2 py-0.5 rounded-full font-bold text-[10px]">
                           Actif
                         </span>
                       ) : (
@@ -546,13 +546,13 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <div className="pt-2 flex items-center justify-between border-t border-border">
-                  <span className="font-mono text-sm font-black text-amber-500">{cfg.valeur}</span>
+                  <span className="font-mono text-sm font-black text-primary">{cfg.valeur}</span>
                   <button
                     onClick={() => {
                       setTargetConfig({ key: cfg.cle, val: cfg.valeur, type: cfg.type, description: cfg.description });
                       setIsEditConfigOpen(true);
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-bold flex items-center gap-1"
                   >
                     <Edit className="h-3.5 w-3.5" />
                     <span>Modifier à chaud</span>
@@ -592,7 +592,7 @@ export const AdminDashboard: React.FC = () => {
                     <td className="p-4 font-bold text-foreground">{sub.email_client}</td>
                     <td className="p-4 font-bold text-primary">{sub.nom_plan}</td>
                     <td className="p-4">
-                      <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                      <span className="inline-flex items-center gap-1 bg-forest-500/10 text-forest-600 font-bold px-2 py-0.5 rounded-full text-[10px]">
                         {sub.statut}
                       </span>
                     </td>
@@ -646,7 +646,7 @@ export const AdminDashboard: React.FC = () => {
                       <button
                         onClick={() => handleToggleFraudStatus(tx.id_transaction, tx.est_suspecte)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                          tx.est_suspecte ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
+                          tx.est_suspecte ? 'bg-forest-500/10 text-forest-600 border border-forest-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
                         }`}
                       >
                         {tx.est_suspecte ? 'Lever la suspicion' : 'Marquer Suspecte'}

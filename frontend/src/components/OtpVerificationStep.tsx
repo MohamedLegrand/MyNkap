@@ -182,7 +182,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
 
         {/* Message de Succès Renvoi */}
         {resendSuccessMsg && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center justify-center gap-2 border border-emerald-500/20">
+          <div className="p-3 rounded-xl bg-forest-500/10 text-forest-600 dark:text-forest-400 text-xs font-semibold flex items-center justify-center gap-2 border border-forest-500/20">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>{resendSuccessMsg}</span>
           </div>

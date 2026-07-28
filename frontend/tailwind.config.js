@@ -68,19 +68,6 @@ export default {
           900: '#1b321e',
           950: '#0e1b10',
         },
-        brandblue: {
-          50: '#edf4ff',
-          100: '#d6e5ff',
-          200: '#b5d0ff',
-          300: '#83b1ff',
-          400: '#4b8aff',
-          500: '#2260ff', // Bleu
-          600: '#0a3cfa',
-          700: '#002be6',
-          800: '#0024be',
-          900: '#072199',
-          950: '#0a145c',
-        },
       },
       borderRadius: {
         lg: "var(--radius)",

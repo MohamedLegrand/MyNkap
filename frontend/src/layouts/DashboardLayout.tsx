@@ -125,7 +125,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <div className="p-4 border-b border-border bg-muted/30">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground">Formule Actuelle</span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
               <Crown className="h-3 w-3" />
               <span>{LABEL_PLAN[nomPlan] ?? nomPlan}</span>
             </span>
@@ -185,7 +185,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-border/50"
           >
             <span className="flex items-center gap-2">
-              {theme === 'light' ? <Moon className="h-4 w-4 text-secondary" /> : <Sun className="h-4 w-4 text-amber-400" />}
+              {theme === 'light' ? <Moon className="h-4 w-4 text-secondary" /> : <Sun className="h-4 w-4 text-secondary" />}
               <span>{theme === 'light' ? 'Mode Sombre' : 'Mode Clair'}</span>
             </span>
             <span className="text-[10px] text-muted-foreground uppercase">{theme}</span>
@@ -216,7 +216,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             aria-label="Basculer le thème"
             className="p-2 rounded-xl bg-muted text-foreground border border-border"
           >
-            {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4 text-amber-400" />}
+            {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4 text-secondary" />}
           </button>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

@@ -79,22 +79,22 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans transition-colors duration-200 selection:bg-amber-500/20">
+    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans transition-colors duration-200 selection:bg-primary/20">
       {/* 1. Sidebar Latérale Desktop Admin */}
       <aside className="hidden md:flex flex-col w-68 border-r border-border bg-card/80 backdrop-blur-xl sticky top-0 h-screen z-30">
         {/* Brand Header Admin */}
         <div className="p-5 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-amber-500 via-primary to-secondary p-0.5 shadow-md">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-primary to-secondary p-0.5 shadow-md">
               <div className="h-full w-full bg-card rounded-[10px] flex items-center justify-center">
-                <Shield className="h-5 w-5 text-amber-500" />
+                <Shield className="h-5 w-5 text-primary" />
               </div>
             </div>
             <div>
-              <span className="text-lg font-black tracking-tight bg-gradient-to-r from-amber-500 via-primary to-secondary bg-clip-text text-transparent">
+              <span className="text-lg font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 MyNkap Admin
               </span>
-              <span className="block text-[10px] font-bold text-amber-500 uppercase tracking-widest">
+              <span className="block text-[10px] font-bold text-primary uppercase tracking-widest">
                 Console de Contrôle
               </span>
             </div>
@@ -102,13 +102,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         </div>
 
         {/* Badge Niveaux & Status Admin */}
-        <div className="p-4 border-b border-border bg-amber-500/5">
+        <div className="p-4 border-b border-border bg-primary/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-500 animate-pulse" />
+              <Zap className="h-4 w-4 text-primary animate-pulse" />
               <span className="text-xs font-bold text-foreground">Accès Superadmin</span>
             </div>
-            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
               Niveau 3
             </span>
           </div>
@@ -129,16 +129,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 onClick={() => onTabChange?.(item.id)}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
                   isActive
-                    ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-slate-950' : 'text-muted-foreground'}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
                   <span>{item.label}</span>
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-md font-black ${
-                  isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-muted text-muted-foreground'
+                  isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}>
                   {item.badge}
                 </span>
@@ -154,7 +154,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-border"
           >
             <span className="flex items-center gap-2">
-              {theme === 'light' ? <Moon className="h-4 w-4 text-secondary" /> : <Sun className="h-4 w-4 text-amber-400" />}
+              {theme === 'light' ? <Moon className="h-4 w-4 text-secondary" /> : <Sun className="h-4 w-4 text-secondary" />}
               <span>{theme === 'light' ? 'Mode Sombre' : 'Mode Clair'}</span>
             </span>
             <span className="text-[10px] text-muted-foreground uppercase">{theme}</span>
@@ -173,8 +173,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       {/* 2. Menu Mobile Drawer Admin */}
       <div className="md:hidden sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Shield className="h-6 w-6 text-amber-500" />
-          <span className="text-lg font-black bg-gradient-to-r from-amber-500 to-primary bg-clip-text text-transparent">
+          <Shield className="h-6 w-6 text-primary" />
+          <span className="text-lg font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             MyNkap Admin
           </span>
         </div>
@@ -184,7 +184,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             onClick={toggleTheme}
             className="p-2 rounded-xl bg-muted text-foreground border border-border"
           >
-            {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4 text-amber-400" />}
+            {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4 text-secondary" />}
           </button>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -199,8 +199,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         <div className="md:hidden fixed inset-0 z-50 bg-background/95 backdrop-blur-xl flex flex-col p-6 space-y-4">
           <div className="flex justify-between items-center pb-4 border-b border-border">
             <div className="flex items-center gap-3">
-              <Shield className="h-7 w-7 text-amber-500" />
-              <span className="text-xl font-black text-amber-500">Console Admin</span>
+              <Shield className="h-7 w-7 text-primary" />
+              <span className="text-xl font-black text-primary">Console Admin</span>
             </div>
             <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-xl bg-muted">
               <X className="h-6 w-6" />
@@ -218,7 +218,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                     setMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm ${
-                    activeTab === item.id ? 'bg-amber-500 text-slate-950' : 'text-muted-foreground'
+                    activeTab === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -246,7 +246,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             <h1 className="text-lg font-black text-foreground uppercase tracking-wider">
               {navItems.find(i => i.id === activeTab)?.label || 'Console Admin'}
             </h1>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
               <Lock className="h-3 w-3" />
               <span>Environnement Sécurisé SSL</span>
             </span>
@@ -255,19 +255,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           <div className="flex items-center gap-4">
             <button className="relative p-2 rounded-xl bg-muted hover:bg-accent text-foreground transition-colors border border-border">
               <Bell className="h-4 w-4 text-muted-foreground" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
             </button>
 
             <div className="h-5 w-[1px] bg-border" />
 
             {/* Profile Admin */}
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500 to-primary text-slate-950 font-black flex items-center justify-center shadow-sm">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary to-secondary text-primary-foreground font-black flex items-center justify-center shadow-sm">
                 A
               </div>
               <div className="text-left">
                 <span className="block text-xs font-bold leading-tight">Administrateur Principal</span>
-                <span className="block text-[10px] text-amber-500 font-semibold leading-tight">Superadmin (Niveau 3)</span>
+                <span className="block text-[10px] text-primary font-semibold leading-tight">Superadmin (Niveau 3)</span>
               </div>
             </div>
           </div>

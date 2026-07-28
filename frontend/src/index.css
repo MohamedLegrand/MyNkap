@@ -18,8 +18,8 @@
     --primary: 127.3 35.5% 22.7%;
     --primary-foreground: 120 20% 98%;
 
-    /* Bleu (Secondary) - HSL correspondant à #2260ff */
-    --secondary: 223.3 100% 56.7%;
+    /* Vert Forêt clair (Secondary) - HSL correspondant à #42834a (forest-500) */
+    --secondary: 127 33% 38.6%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 210 40% 96.1%;
@@ -53,8 +53,8 @@
     --primary: 127 33% 38.6%;
     --primary-foreground: 120 20% 98%;
 
-    /* Bleu plus clair pour le mode sombre - HSL de #4b8aff */
-    --secondary: 219.1 100% 64.7%;
+    /* Vert forêt très clair pour le mode sombre - HSL de #98c39e (forest-300) */
+    --secondary: 128 26% 68%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 217.2 32.6% 17.5%;

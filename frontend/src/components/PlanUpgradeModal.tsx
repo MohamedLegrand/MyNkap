@@ -136,7 +136,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
       <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
-            <Crown className="h-5 w-5 text-amber-500" />
+            <Crown className="h-5 w-5 text-primary" />
             <span>Changer de formule</span>
           </h3>
           <button onClick={handleClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
@@ -185,7 +185,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
                       <ul className="space-y-1">
                         {(FEATURES_PAR_PLAN[p.nom] ?? []).map((f) => (
                           <li key={f} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                            <Check className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />
+                            <Check className="h-3 w-3 text-forest-500 mt-0.5 shrink-0" />
                             <span>{f}</span>
                           </li>
                         ))}
@@ -313,7 +313,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
 
           {etape === 'succes' && (
             <div className="text-center space-y-3 py-6">
-              <CheckCircle2 className="h-10 w-10 mx-auto text-emerald-500" />
+              <CheckCircle2 className="h-10 w-10 mx-auto text-forest-500" />
               <p className="text-sm font-bold text-foreground">Paiement confirmé !</p>
               <p className="text-xs text-muted-foreground">
                 Votre formule {LABEL_PLAN[planChoisi] ?? planChoisi} est maintenant active.
