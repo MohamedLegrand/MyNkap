@@ -40,6 +40,16 @@ class TokenResponse(BaseModel):
 class TokenRefreshRequest(BaseModel):
     refresh_token: str
 
+# --- Schémas pour la double authentification par code OTP (e-mail) ---
+class LoginOtpResponse(BaseModel):
+    otp_requis: bool = True
+    message: str = "Un code de vérification a été envoyé par e-mail."
+    expires_in: int
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6)
+
 # --- Schémas de sortie pour les utilisateurs ---
 class ClientOut(BaseModel):
     id_client: int

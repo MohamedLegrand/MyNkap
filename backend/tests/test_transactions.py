@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from app.modules.transactions.models import Transaction
+from tests.conftest import se_connecter_avec_otp
 
 
 def _solde(client, headers, id_compte):
@@ -18,11 +19,7 @@ def _register_and_login(client, email="transactions.test@example.com", mot_de_pa
             "phone": "+237600000000",
         },
     )
-    login_response = client.post(
-        "/api/v1/auth/login",
-        json={"email": email, "mot_de_passe": mot_de_passe},
-    )
-    access_token = login_response.json()["access_token"]
+    access_token = se_connecter_avec_otp(client, email, mot_de_passe).json()["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
 
 

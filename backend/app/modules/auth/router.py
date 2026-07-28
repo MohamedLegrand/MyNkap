@@ -18,6 +18,8 @@ from app.modules.auth.schemas import (
     ProfileUpdate,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    LoginOtpResponse,
+    VerifyOtpRequest,
 )
 from app.modules.auth import services
 from app.modules.audit.service import enregistrer_action
@@ -53,11 +55,13 @@ def register(request: Request, client_in: UserRegister, db: Session = Depends(ge
 
     return nouveau_client
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=LoginOtpResponse)
 @limiter.limit("10/minute")
 def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
     """
-    Connexion d'un utilisateur (Client ou Administrateur) et génération des jetons.
+    Étape 1 de la connexion : valide l'e-mail/mot de passe puis envoie un
+    code de vérification à 6 chiffres par e-mail. Aucun jeton n'est émis
+    ici — voir POST /auth/verify-otp pour la seconde étape.
     """
     utilisateur = services.authentifier_utilisateur(db, login_in)
     if not utilisateur:
@@ -66,13 +70,34 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
             detail="Adresse e-mail ou mot de passe incorrect."
         )
 
-    # Durée de validité du jeton d'accès
+    services.generer_et_envoyer_otp(db, utilisateur)
+
+    return {
+        "otp_requis": True,
+        "message": "Un code de vérification a été envoyé par e-mail.",
+        "expires_in": 300,
+    }
+
+@router.post("/verify-otp", response_model=TokenResponse)
+@limiter.limit("10/minute")
+def verify_otp(request: Request, payload: VerifyOtpRequest, db: Session = Depends(get_db)):
+    """
+    Étape 2 de la connexion : valide le code OTP reçu par e-mail et émet
+    les jetons de session (comme le faisait /auth/login avant l'ajout de
+    la double authentification).
+    """
+    utilisateur = services.verifier_otp(db, payload.email, payload.code)
+    if not utilisateur:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Code de vérification invalide ou expiré."
+        )
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         subject=utilisateur.id_utilisateur, expires_delta=access_token_expires
     )
-    
-    # Génération du Refresh Token en BDD
+
     refresh_token_db = services.creer_refresh_token(db, utilisateur.id_utilisateur)
 
     enregistrer_action(

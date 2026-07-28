@@ -1,5 +1,5 @@
-from app.modules.auth import services
-from app.modules.auth.models import Client
+from app.modules.auth.models import Client, Utilisateur
+from tests.conftest import se_connecter_avec_otp
 
 
 def _register_payload(**overrides):
@@ -31,7 +31,7 @@ def test_register_rejects_duplicate_email(client):
     assert response.status_code == 400
 
 
-def test_login_with_correct_credentials_returns_tokens(client):
+def test_login_step1_avec_identifiants_corrects_declenche_un_otp(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
 
     response = client.post(
@@ -41,9 +41,13 @@ def test_login_with_correct_credentials_returns_tokens(client):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["access_token"]
-    assert body["refresh_token"]
-    assert body["token_type"] == "bearer"
+    assert body["otp_requis"] is True
+    assert "access_token" not in body
+
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    assert db_client.otp_code is not None
+    assert len(db_client.otp_code) == 6
+    assert db_client.otp_expiration is not None
 
 
 def test_login_with_wrong_password_is_rejected(client):
@@ -57,49 +61,108 @@ def test_login_with_wrong_password_is_rejected(client):
     assert response.status_code == 400
 
 
+def test_verify_otp_avec_code_correct_renvoie_les_jetons(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+
+    response = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["access_token"]
+    assert body["refresh_token"]
+    assert body["token_type"] == "bearer"
+    assert body["user_type"] == "client"
+
+
+def test_verify_otp_avec_code_incorrect_est_rejete(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
+    )
+
+    response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": "jean.dupont@example.com", "code": "000000"},
+    )
+    assert response.status_code == 400
+
+
+def test_verify_otp_est_a_usage_unique(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
+    )
+
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    code = db_client.otp_code
+
+    premiere_verification = client.post(
+        "/api/v1/auth/verify-otp", json={"email": "jean.dupont@example.com", "code": code}
+    )
+    assert premiere_verification.status_code == 200
+
+    # Rejouer le même code une seconde fois échoue (déjà invalidé en base)
+    reponse_rejouee = client.post(
+        "/api/v1/auth/verify-otp", json={"email": "jean.dupont@example.com", "code": code}
+    )
+    assert reponse_rejouee.status_code == 400
+
+
+def test_verify_otp_expire_est_rejete(client, db_session):
+    from datetime import datetime, timedelta
+
+    client.post("/api/v1/auth/register", json=_register_payload())
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
+    )
+
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    code = db_client.otp_code
+    db_client.otp_expiration = datetime.utcnow() - timedelta(minutes=1)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": "jean.dupont@example.com", "code": code},
+    )
+    assert response.status_code == 400
+
+
 def test_me_requires_authentication(client):
     response = client.get("/api/v1/auth/me")
     assert response.status_code == 401
 
 
-def test_me_returns_current_client_with_valid_token(client):
+def test_me_returns_current_client_with_valid_token(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    login_response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
-    )
-    access_token = login_response.json()["access_token"]
+    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
 
     response = client.get(
         "/api/v1/auth/me",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
     )
 
     assert response.status_code == 200
     assert response.json()["email"] == "jean.dupont@example.com"
 
 
-def test_refresh_token_issues_new_access_token(client):
+def test_refresh_token_issues_new_access_token(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    login_response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
-    )
-    refresh_token = login_response.json()["refresh_token"]
+    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
 
-    response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    response = client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
 
     assert response.status_code == 200
     assert response.json()["access_token"]
 
 
-def test_logout_revokes_refresh_token(client):
+def test_logout_revokes_refresh_token(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    login_response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
-    )
-    refresh_token = login_response.json()["refresh_token"]
+    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+    refresh_token = tokens["refresh_token"]
 
     logout_response = client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
     assert logout_response.status_code == 200
@@ -108,11 +171,7 @@ def test_logout_revokes_refresh_token(client):
     assert refresh_response.status_code == 401
 
 
-def test_forgot_password_generates_a_reset_token_for_existing_email(client, db_session, monkeypatch):
-    # N'appelle jamais réellement Brevo dans les tests (cf. HR-Skills Pay :
-    # aucun appel réseau réel/payant depuis la suite automatisée).
-    monkeypatch.setattr(services, "_envoyer_email_brevo", lambda *a, **k: None)
-
+def test_forgot_password_generates_a_reset_token_for_existing_email(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
 
     response = client.post(
@@ -134,9 +193,7 @@ def test_forgot_password_renvoie_200_meme_pour_un_email_inconnu(client):
     assert response.status_code == 200
 
 
-def test_reset_password_avec_jeton_valide_permet_de_se_reconnecter(client, db_session, monkeypatch):
-    monkeypatch.setattr(services, "_envoyer_email_brevo", lambda *a, **k: None)
-
+def test_reset_password_avec_jeton_valide_permet_de_se_reconnecter(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
     client.post("/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"})
 
@@ -156,7 +213,7 @@ def test_reset_password_avec_jeton_valide_permet_de_se_reconnecter(client, db_se
     )
     assert old_login.status_code == 400
 
-    # Le nouveau mot de passe fonctionne
+    # Le nouveau mot de passe fonctionne (étape 1 : déclenche l'envoi de l'OTP)
     new_login = client.post(
         "/api/v1/auth/login",
         json={"email": "jean.dupont@example.com", "mot_de_passe": "nouveaumotdepasse456"},
@@ -172,10 +229,8 @@ def test_reset_password_avec_jeton_invalide_est_rejete(client):
     assert response.status_code == 400
 
 
-def test_reset_password_avec_jeton_expire_est_rejete(client, db_session, monkeypatch):
+def test_reset_password_avec_jeton_expire_est_rejete(client, db_session):
     from datetime import datetime, timedelta
-
-    monkeypatch.setattr(services, "_envoyer_email_brevo", lambda *a, **k: None)
 
     client.post("/api/v1/auth/register", json=_register_payload())
     client.post("/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"})

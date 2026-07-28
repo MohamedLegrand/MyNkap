@@ -3,13 +3,18 @@ import { ShieldCheck, Mail, ArrowLeft, RefreshCw, CheckCircle2, AlertCircle, Loa
 
 interface OtpVerificationStepProps {
   email: string;
-  onVerifySuccess: (otpCode: string) => void;
+  // Renvoie un message d'erreur si le code est invalide, ou null en cas de succès
+  // (dans ce cas le parent gère la navigation, ce composant n'a rien à faire de plus).
+  onVerifyCode: (otpCode: string) => Promise<string | null>;
+  // Renvoie un message d'erreur si le renvoi échoue, ou null en cas de succès.
+  onResend: () => Promise<string | null>;
   onBackToLogin: () => void;
 }
 
 export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
   email,
-  onVerifySuccess,
+  onVerifyCode,
+  onResend,
   onBackToLogin,
 }) => {
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -85,24 +90,28 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
     }
   };
 
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     if (!canResend || isResending) return;
     setIsResending(true);
     setResendSuccessMsg(null);
     setErrorMsg(null);
 
-    // Simulation d'envoi d'e-mail via Brevo
-    setTimeout(() => {
-      setIsResending(false);
-      setTimer(60);
-      setCanResend(false);
-      setResendSuccessMsg('Un nouveau code à 6 chiffres a été envoyé par e-mail (Brevo).');
-      setDigits(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
-    }, 1200);
+    const erreur = await onResend();
+    setIsResending(false);
+
+    if (erreur) {
+      setErrorMsg(erreur);
+      return;
+    }
+
+    setTimer(60);
+    setCanResend(false);
+    setResendSuccessMsg('Un nouveau code à 6 chiffres a été envoyé par e-mail.');
+    setDigits(['', '', '', '', '', '']);
+    inputRefs.current[0]?.focus();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const fullCode = digits.join('');
     if (fullCode.length < 6) {
@@ -113,17 +122,18 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    // Transmettre le code pour validation finale
-    setTimeout(() => {
-      onVerifySuccess(fullCode);
-    }, 800);
+    const erreur = await onVerifyCode(fullCode);
+    setIsSubmitting(false);
+    if (erreur) {
+      setErrorMsg(erreur);
+    }
   };
 
   const isComplete = digits.join('').length === 6;
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-      {/* Header avec Icône de Sécurité Brevo */}
+      {/* Header avec Icône de Sécurité */}
       <div className="text-center space-y-3">
         <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary/20 via-primary/10 to-secondary/20 text-primary flex items-center justify-center border border-primary/20 shadow-sm">
           <ShieldCheck className="h-7 w-7 text-primary" />
@@ -131,7 +141,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
         <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground">Double Authentification (OTP)</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto leading-relaxed">
-            Un code de sécurité à 6 chiffres a été envoyé par e-mail via Brevo à :
+            Un code de sécurité à 6 chiffres a été envoyé par e-mail à :
           </p>
           <span className="inline-block mt-1 text-xs font-black text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
             {email}
@@ -193,7 +203,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
       <div className="pt-2 border-t border-border flex flex-col items-center gap-3">
         <div className="text-xs text-muted-foreground flex items-center gap-2">
           <Mail className="h-3.5 w-3.5" />
-          <span>Vous n'avez pas reçu le code par Brevo ?</span>
+          <span>Vous n'avez pas reçu le code ?</span>
         </div>
 
         {canResend ? (
@@ -204,7 +214,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
             className="text-xs font-bold text-secondary hover:underline flex items-center gap-1.5"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isResending ? 'animate-spin' : ''}`} />
-            <span>{isResending ? 'Envoi du code...' : 'Renvoyer un nouveau code (Brevo)'}</span>
+            <span>{isResending ? 'Envoi du code...' : 'Renvoyer un nouveau code'}</span>
           </button>
         ) : (
           <span className="text-xs font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-full border border-border">

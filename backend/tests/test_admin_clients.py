@@ -3,6 +3,7 @@ import pytest
 from app.core.security import create_access_token, get_password_hash
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import Administrateur, RefreshToken
+from tests.conftest import se_connecter_avec_otp
 
 def _create_admin(db_session, username="superadmin", email="admin@mynkap.cm", password="adminpassword123", niveau_acces=1):
     admin = Administrateur(
@@ -39,11 +40,8 @@ def test_admin_routes_forbidden_for_clients_and_guests(client, db_session):
     assert res_guest.status_code == 401
 
     # 2. Accès avec token d'un simple client -> 403
-    client_data = _register_client(client, "simple.client@example.com")
-    login_res = client.post(
-        "/api/v1/auth/login",
-        json={"email": "simple.client@example.com", "mot_de_passe": "clientpassword123"}
-    ).json()
+    _register_client(client, "simple.client@example.com")
+    login_res = se_connecter_avec_otp(client, "simple.client@example.com", "clientpassword123", db_session).json()
     client_headers = {"Authorization": f"Bearer {login_res['access_token']}"}
 
     res_client = client.get("/api/v1/admin/clients", headers=client_headers)

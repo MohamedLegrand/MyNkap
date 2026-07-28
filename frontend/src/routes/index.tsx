@@ -9,6 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type { TokenResponse, Client } from '../types';
+import { OtpVerificationStep } from '../components/OtpVerificationStep';
 
 // Hook personnalisé pour gérer le mode sombre/clair
 const useDarkMode = () => {
@@ -614,6 +615,7 @@ const LoginPage = () => {
   const setSession = useAuthStore((state) => state.setSession);
   const setClient = useAuthStore((state) => state.setClient);
 
+  const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -625,9 +627,25 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
-      const tokens = await api.request<TokenResponse>('/auth/login', {
+      // Étape 1 : mot de passe vérifié, un code à 6 chiffres est envoyé
+      // par e-mail (aucun jeton n'est émis à ce stade — voir /auth/verify-otp).
+      await api.request('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, mot_de_passe: motDePasse }),
+      });
+      setStep(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Adresse e-mail ou mot de passe incorrect.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async (code: string): Promise<string | null> => {
+    try {
+      const tokens = await api.request<TokenResponse>('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
       });
 
       const isAdminUser = tokens.user_type === 'administrateur';
@@ -640,66 +658,89 @@ const LoginPage = () => {
       }
 
       navigate(isAdminUser ? '/admin' : '/dashboard');
+      return null;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Adresse e-mail ou mot de passe incorrect.');
-    } finally {
-      setIsSubmitting(false);
+      return err instanceof Error ? err.message : 'Code de vérification invalide ou expiré.';
+    }
+  };
+
+  const handleResend = async (): Promise<string | null> => {
+    try {
+      // Réutilise /auth/login (mot de passe déjà validé une première fois
+      // à l'étape 1, toujours en mémoire côté client) plutôt qu'un endpoint
+      // dédié : évite d'exposer une route de renvoi d'OTP sans mot de passe.
+      await api.request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, mot_de_passe: motDePasse }),
+      });
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : "Impossible de renvoyer le code.";
     }
   };
 
   return (
     <AuthLayout
-      title="Se connecter à MyNkap"
-      subtitle="Accédez à votre tableau de bord financier"
+      title={step === 1 ? 'Se connecter à MyNkap' : 'Vérification de sécurité'}
+      subtitle={step === 1 ? 'Accédez à votre tableau de bord financier' : 'Saisissez le code reçu par e-mail'}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
-          <IconInput
-            icon={Mail}
-            id="email"
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="vous@gmail.com"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
-            <a href="/forgot-password" className="text-xs text-secondary hover:underline font-medium">
-              Mot de passe oublié ?
-            </a>
+      {step === 1 ? (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+            <IconInput
+              icon={Mail}
+              id="email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="vous@gmail.com"
+            />
           </div>
-          <PasswordInput
-            id="mot_de_passe"
-            required
-            minLength={6}
-            autoComplete="current-password"
-            value={motDePasse}
-            onChange={(e) => setMotDePasse(e.target.value)}
-            placeholder="••••••••"
-          />
-        </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
+              <a href="/forgot-password" className="text-xs text-secondary hover:underline font-medium">
+                Mot de passe oublié ?
+              </a>
+            </div>
+            <PasswordInput
+              id="mot_de_passe"
+              required
+              minLength={6}
+              autoComplete="current-password"
+              value={motDePasse}
+              onChange={(e) => setMotDePasse(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
 
-        {error && <p className="text-sm text-destructive text-center">{error}</p>}
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
-        >
-          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isSubmitting ? 'Vérification des identifiants...' : 'Se connecter'}
-        </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+          >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? 'Vérification des identifiants...' : 'Se connecter'}
+          </button>
 
-        <p className="text-center text-sm text-muted-foreground pt-1">
-          Pas encore de compte ?{' '}
-          <a href="/register" className="text-secondary hover:underline font-medium">Créer un compte</a>
-        </p>
-      </form>
+          <p className="text-center text-sm text-muted-foreground pt-1">
+            Pas encore de compte ?{' '}
+            <a href="/register" className="text-secondary hover:underline font-medium">Créer un compte</a>
+          </p>
+        </form>
+      ) : (
+        <OtpVerificationStep
+          email={email}
+          onVerifyCode={handleVerifyCode}
+          onResend={handleResend}
+          onBackToLogin={() => setStep(1)}
+        />
+      )}
     </AuthLayout>
   );
 };

@@ -2,6 +2,7 @@ import pytest
 from app.core.security import create_access_token, get_password_hash
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import Administrateur
+from tests.conftest import se_connecter_avec_otp
 
 def _create_admin(db_session, username="superadmin", email="superadmin@mynkap.cm", password="adminpassword123", niveau_acces=3):
     admin = Administrateur(
@@ -26,14 +27,12 @@ def test_connexion_admin_via_login_reel(client, db_session):
     # or un Administrateur n'a pas de ligne dans `clients`).
     _create_admin(db_session, username="loginreel", email="loginreel@mynkap.cm", password="adminpassword123")
 
-    response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "loginreel@mynkap.cm", "mot_de_passe": "adminpassword123"},
-    )
+    response = se_connecter_avec_otp(client, "loginreel@mynkap.cm", "adminpassword123", db_session)
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
     assert "refresh_token" in data
+    assert data["user_type"] == "administrateur"
 
     # Le token émis doit permettre d'accéder à une route admin protégée
     headers = {"Authorization": f"Bearer {data['access_token']}"}

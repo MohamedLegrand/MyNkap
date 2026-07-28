@@ -65,6 +65,51 @@ def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utili
         return None
     return utilisateur
 
+# --- Services de double authentification par code OTP (e-mail) ---
+
+def generer_et_envoyer_otp(db: Session, utilisateur: Utilisateur) -> None:
+    """
+    Génère un code à 6 chiffres valable 5 minutes et l'envoie par e-mail
+    (Brevo). Appelé après validation du mot de passe, avant l'émission des
+    jetons de session — voir verifier_otp() pour la seconde étape.
+    """
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    utilisateur.otp_code = code
+    utilisateur.otp_expiration = datetime.utcnow() + timedelta(minutes=5)
+    db.commit()
+
+    contenu_html = (
+        f"<p>Bonjour,</p>"
+        f"<p>Voici votre code de vérification MyNkap, valable 5 minutes :</p>"
+        f'<p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#254E2A;">{code}</p>'
+        f"<p>Si vous n'êtes pas à l'origine de cette connexion, ignorez cet e-mail et changez votre mot de passe.</p>"
+    )
+    _envoyer_email_brevo(utilisateur.email, "Votre code de vérification MyNkap", contenu_html)
+
+
+def verifier_otp(db: Session, email: str, code: str) -> Optional[Utilisateur]:
+    """
+    Valide le code OTP soumis pour l'e-mail donné. Retourne l'utilisateur si
+    le code est correct, non expiré, et le compte toujours actif — invalide
+    le code dans tous les cas (usage unique).
+    """
+    utilisateur = db.query(Utilisateur).filter(Utilisateur.email == email).first()
+    if not utilisateur or not utilisateur.est_actif:
+        return None
+    if not utilisateur.otp_code or not utilisateur.otp_expiration:
+        return None
+
+    code_valide = (
+        utilisateur.otp_expiration >= datetime.utcnow()
+        and secrets.compare_digest(utilisateur.otp_code, code)
+    )
+
+    utilisateur.otp_code = None
+    utilisateur.otp_expiration = None
+    db.commit()
+
+    return utilisateur if code_valide else None
+
 # --- Services de gestion des Refresh Tokens ---
 
 def creer_refresh_token(db: Session, client_id: int) -> RefreshToken:

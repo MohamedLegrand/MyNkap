@@ -17,6 +17,12 @@ class Utilisateur(Base):
     est_actif = Column(Boolean, default=True)
     type = Column(String(50), nullable=False)
 
+    # Double authentification par code à 6 chiffres envoyé par e-mail
+    # (Brevo) à chaque connexion — sur Utilisateur (pas Client) pour
+    # s'appliquer uniformément aux clients ET aux administrateurs.
+    otp_code = Column(String(6), nullable=True)
+    otp_expiration = Column(DateTime, nullable=True)
+
     __mapper_args__ = {
         "polymorphic_on": type,
         "polymorphic_identity": "utilisateur",
