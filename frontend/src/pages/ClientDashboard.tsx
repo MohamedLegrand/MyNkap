@@ -80,10 +80,6 @@ export const ClientDashboard: React.FC = () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      // Requêtes indépendantes : certaines fonctionnalités (Épargne, JARVIS)
-      // sont réservées à des paliers d'abonnement supérieurs et renvoient un
-      // 403 pour un client GRATUIT — cela ne doit jamais empêcher le reste
-      // du tableau de bord (comptes, transactions, budgets) de s'afficher.
       const [cp, listeComptes, listeTransactions, listeCategories, listeBudgets] = await Promise.all([
         api.request<ComptePrincipal>('/comptes/principal'),
         api.request<CompteFinancier[]>('/comptes'),
@@ -96,12 +92,6 @@ export const ClientDashboard: React.FC = () => {
       setTransactions(listeTransactions);
       setCategories(listeCategories);
       setBudgets(listeBudgets);
-
-      try {
-        setObjectifsEpargne(await api.request<ObjectifEpargne[]>('/epargne'));
-      } catch {
-        setObjectifsEpargne([]);
-      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Impossible de charger votre tableau de bord.');
     } finally {
@@ -113,6 +103,20 @@ export const ClientDashboard: React.FC = () => {
     chargerDonnees();
     chargerAbonnement();
   }, [chargerDonnees, chargerAbonnement]);
+
+  useEffect(() => {
+    // Ne tente /epargne que si le forfait y donne accès — évite un 403
+    // systématique (et inutile, déjà géré comme "aucun objectif") pour un
+    // client GRATUIT ou STANDARD à chaque chargement du dashboard.
+    if (!abonnement?.plan.acces_epargne) {
+      setObjectifsEpargne([]);
+      return;
+    }
+    api
+      .request<ObjectifEpargne[]>('/epargne')
+      .then(setObjectifsEpargne)
+      .catch(() => setObjectifsEpargne([]));
+  }, [abonnement]);
 
   const nomCategorie = (idCategorie: number | null) =>
     categories.find((c) => c.id_categorie === idCategorie)?.nom ?? 'Non catégorisé';
@@ -218,7 +222,7 @@ export const ClientDashboard: React.FC = () => {
 
             <button
               onClick={() => setIsUpgradeModalOpen(true)}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-xs py-3 px-5 rounded-xl shadow-lg transition-all flex items-center gap-2"
+              className="bg-white text-primary hover:bg-white/95 font-bold text-xs py-3 px-5 rounded-xl shadow-lg transition-all flex items-center gap-2"
             >
               <Crown className="h-4 w-4" />
               <span>{abonnement?.plan.nom === 'PREMIUM' ? 'Gérer mon abonnement' : 'Passer Standard / Premium'}</span>
@@ -282,14 +286,14 @@ export const ClientDashboard: React.FC = () => {
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Réserves Épargne</span>
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <div className="p-2 rounded-xl bg-forest-500/10 text-forest-600 dark:text-forest-400">
                   <PiggyBank className="h-5 w-5" />
                 </div>
               </div>
               <p className="text-2xl sm:text-3xl font-black tracking-tight text-foreground tabular-nums">
                 {totalEpargne.toLocaleString('fr-FR')} <span className="text-xs font-bold text-muted-foreground">XAF</span>
               </p>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-forest-600 dark:text-forest-400">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 <span>{objectifsEpargne.length} objectif{objectifsEpargne.length > 1 ? 's' : ''}</span>
               </div>
@@ -366,7 +370,7 @@ export const ClientDashboard: React.FC = () => {
                     {transactionsRecentes.map((tx) => (
                       <div key={tx.id_transaction} className="py-3.5 flex items-center justify-between hover:bg-muted/30 px-2 rounded-xl transition-colors">
                         <div className="flex items-center gap-3.5">
-                          <div className={`p-2.5 rounded-xl ${tx.type === 'REVENU' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive'}`}>
+                          <div className={`p-2.5 rounded-xl ${tx.type === 'REVENU' ? 'bg-forest-500/10 text-forest-600' : 'bg-destructive/10 text-destructive'}`}>
                             {tx.type === 'REVENU' ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                           </div>
 
@@ -382,7 +386,7 @@ export const ClientDashboard: React.FC = () => {
                           </div>
                         </div>
 
-                        <span className={`block text-sm font-black tabular-nums ${tx.type === 'REVENU' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                        <span className={`block text-sm font-black tabular-nums ${tx.type === 'REVENU' ? 'text-forest-600 dark:text-forest-400' : 'text-foreground'}`}>
                           {tx.type === 'REVENU' ? '+ ' : '- '}{Number(tx.montant).toLocaleString('fr-FR')} XAF
                         </span>
                       </div>
@@ -508,7 +512,7 @@ export const ClientDashboard: React.FC = () => {
               <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <PiggyBank className="h-4 w-4 text-emerald-600" />
+                    <PiggyBank className="h-4 w-4 text-forest-600" />
                     <span>Objectifs d'Épargne</span>
                   </h3>
                 </div>
@@ -521,10 +525,10 @@ export const ClientDashboard: React.FC = () => {
                       <div key={g.id_objectif} className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-2">
                         <div className="flex justify-between items-center text-xs">
                           <span className="font-bold text-foreground">{g.nom}</span>
-                          <span className="font-black text-emerald-600 dark:text-emerald-400">{Math.round(g.pourcentage_atteint)}%</span>
+                          <span className="font-black text-forest-600 dark:text-forest-400">{Math.round(g.pourcentage_atteint)}%</span>
                         </div>
                         <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-                          <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${Math.min(g.pourcentage_atteint, 100)}%` }} />
+                          <div className="bg-forest-500 h-full rounded-full transition-all" style={{ width: `${Math.min(g.pourcentage_atteint, 100)}%` }} />
                         </div>
                         <div className="flex justify-between text-[11px] text-muted-foreground">
                           <span>Actuel : {formatMontant(Number(g.montant_actuel))}</span>

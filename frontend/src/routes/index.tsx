@@ -38,7 +38,7 @@ const ThemeToggle = ({ theme, toggleTheme }: { theme: string; toggleTheme: () =>
     className="p-2 rounded-xl bg-muted hover:bg-accent text-foreground border border-border transition-colors duration-150"
     title="Changer de thème"
   >
-    {theme === 'light' ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-yellow-400" />}
+    {theme === 'light' ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-secondary" />}
   </button>
 );
 
@@ -493,7 +493,7 @@ const LandingPage = () => {
               </ul>
               {/* Badge Sécurisé */}
               <div className="pt-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold uppercase tracking-wider">
                   <Shield className="h-3 w-3" />
                   Données Chiffrées
                 </span>
@@ -773,38 +773,13 @@ const RequireAdminAuth = ({ children }: { children: React.ReactElement }) => {
   return children;
 };
 
-// Garde de route pour les visiteurs (redirige si déjà connecté)
-const GuestOnlyRoute = ({ children }: { children: React.ReactElement }) => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isAdmin = useAuthStore((state) => state.isAdmin);
-
-  if (isAuthenticated) {
-    return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
-  }
-  return children;
-};
-
 export const AppRoutes: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route
-          path="/login"
-          element={
-            <GuestOnlyRoute>
-              <LoginPage />
-            </GuestOnlyRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <GuestOnlyRoute>
-              <RegisterPage />
-            </GuestOnlyRoute>
-          }
-        />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
