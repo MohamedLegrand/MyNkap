@@ -98,6 +98,16 @@ export interface JarvisConversation {
   date_dernier_message: string;
 }
 
+export interface AppNotification {
+  id_notification: number;
+  type: string;
+  titre: string;
+  message: string;
+  lien: string | null;
+  est_lue: boolean;
+  date_creation: string;
+}
+
 export interface Plan {
   id_plan: number;
   nom: 'GRATUIT' | 'ESSENTIEL' | 'PREMIUM';

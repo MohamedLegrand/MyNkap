@@ -11,7 +11,6 @@ import {
   Sun,
   Moon,
   LogOut,
-  Bell,
   Menu,
   X,
   Shield,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
+import { NotificationsBell } from '../components/NotificationsBell';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -253,10 +253,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2 rounded-xl bg-muted hover:bg-accent text-foreground transition-colors border border-border">
-              <Bell className="h-4 w-4 text-muted-foreground" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
-            </button>
+            <NotificationsBell basePath="/admin/notifications" />
 
             <div className="h-5 w-[1px] bg-border" />
 

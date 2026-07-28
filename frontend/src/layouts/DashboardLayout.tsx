@@ -12,7 +12,6 @@ import {
   Sun,
   Moon,
   LogOut,
-  Bell,
   Menu,
   X,
   Crown,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
+import { NotificationsBell } from '../components/NotificationsBell';
 import type { Plan } from '../types';
 
 interface DashboardLayoutProps {
@@ -294,10 +294,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <div className="h-5 w-[1px] bg-border" />
 
             {/* Notifications */}
-            <button className="relative p-2 rounded-xl bg-muted hover:bg-accent text-foreground transition-colors border border-border">
-              <Bell className="h-4 w-4 text-muted-foreground" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-secondary animate-pulse" />
-            </button>
+            <NotificationsBell basePath="/notifications" />
 
             {/* User Profile Info */}
             <div className="flex items-center gap-3 pl-2">
