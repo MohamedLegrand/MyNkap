@@ -18,12 +18,15 @@ import {
   Sparkles,
   ShieldCheck,
   Loader2,
+  Crown,
 } from 'lucide-react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
+import { PlanUpgradeModal } from '../components/PlanUpgradeModal';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type {
+  Abonnement,
   CompteFinancier,
   ComptePrincipal,
   Transaction,
@@ -45,10 +48,12 @@ const formatMontant = (valeur: number) => `${valeur.toLocaleString('fr-FR')} XAF
 export const ClientDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const client = useAuthStore((state) => state.client);
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [abonnement, setAbonnement] = useState<Abonnement | null>(null);
   const [comptePrincipal, setComptePrincipal] = useState<ComptePrincipal | null>(null);
   const [comptes, setComptes] = useState<CompteFinancier[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -62,6 +67,14 @@ export const ClientDashboard: React.FC = () => {
     { sender: 'jarvis', text: 'Bonjour ! Je suis JARVIS, votre assistant financier IA. Posez-moi une question sur vos finances.' },
   ]);
   const [isJarvisSending, setIsJarvisSending] = useState(false);
+
+  const chargerAbonnement = useCallback(async () => {
+    try {
+      setAbonnement(await api.request<Abonnement>('/abonnement'));
+    } catch {
+      setAbonnement(null);
+    }
+  }, []);
 
   const chargerDonnees = useCallback(async () => {
     setIsLoading(true);
@@ -98,7 +111,8 @@ export const ClientDashboard: React.FC = () => {
 
   useEffect(() => {
     chargerDonnees();
-  }, [chargerDonnees]);
+    chargerAbonnement();
+  }, [chargerDonnees, chargerAbonnement]);
 
   const nomCategorie = (idCategorie: number | null) =>
     categories.find((c) => c.id_categorie === idCategorie)?.nom ?? 'Non catégorisé';
@@ -156,6 +170,8 @@ export const ClientDashboard: React.FC = () => {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       onOpenTransactionModal={() => setIsModalOpen(true)}
+      onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
+      plan={abonnement?.plan}
     >
       {/* 1. Bannière de Bienvenue */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-forest-600 to-secondary p-6 sm:p-8 text-white shadow-xl">
@@ -190,12 +206,22 @@ export const ClientDashboard: React.FC = () => {
               <span>Nouveau Mouvement</span>
             </button>
 
+            {abonnement?.plan.acces_jarvis && (
+              <button
+                onClick={() => document.getElementById('jarvis-widget')?.scrollIntoView({ behavior: 'smooth' })}
+                className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-3 px-5 rounded-xl border border-white/25 backdrop-blur-md transition-all flex items-center gap-2"
+              >
+                <Bot className="h-4 w-4" />
+                <span>Demander à JARVIS</span>
+              </button>
+            )}
+
             <button
-              onClick={() => document.getElementById('jarvis-widget')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-3 px-5 rounded-xl border border-white/25 backdrop-blur-md transition-all flex items-center gap-2"
+              onClick={() => setIsUpgradeModalOpen(true)}
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-xs py-3 px-5 rounded-xl shadow-lg transition-all flex items-center gap-2"
             >
-              <Bot className="h-4 w-4" />
-              <span>Demander à JARVIS</span>
+              <Crown className="h-4 w-4" />
+              <span>{abonnement?.plan.nom === 'PREMIUM' ? 'Gérer mon abonnement' : 'Passer Standard / Premium'}</span>
             </button>
           </div>
         </div>
@@ -368,7 +394,8 @@ export const ClientDashboard: React.FC = () => {
 
             {/* Colonne Droite (Budgets, Épargne & Widget JARVIS) - 1 tier */}
             <div className="space-y-8">
-              {/* Widget Assistant Virtuel JARVIS IA */}
+              {/* Widget Assistant Virtuel JARVIS IA — réservé au forfait Premium */}
+              {abonnement?.plan.acces_jarvis && (
               <div id="jarvis-widget" className="bg-gradient-to-b from-secondary/10 via-card to-card rounded-2xl border border-secondary/30 p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-border">
                   <div className="flex items-center gap-2.5">
@@ -426,6 +453,7 @@ export const ClientDashboard: React.FC = () => {
                   </button>
                 </form>
               </div>
+              )}
 
               {/* Suivi des Budgets par Catégorie */}
               <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
@@ -475,7 +503,8 @@ export const ClientDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* Projets d'Épargne */}
+              {/* Projets d'Épargne — réservé aux forfaits Standard et Premium */}
+              {abonnement?.plan.acces_epargne && (
               <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -506,6 +535,7 @@ export const ClientDashboard: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
         </>
@@ -516,6 +546,14 @@ export const ClientDashboard: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={chargerDonnees}
+      />
+
+      {/* Modal de changement de formule (Standard / Premium) */}
+      <PlanUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        onSuccess={chargerAbonnement}
+        planActuel={abonnement?.plan.nom}
       />
     </DashboardLayout>
   );

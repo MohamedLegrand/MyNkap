@@ -75,6 +75,8 @@ def initier_paiement(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Numéro de téléphone et opérateur Mobile Money requis.",
         )
+    except service.PaiementRefuseError as erreur:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
     except service.ServicePaiementIndisponibleError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

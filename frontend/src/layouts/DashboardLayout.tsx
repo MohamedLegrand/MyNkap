@@ -20,13 +20,22 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
+import type { Plan } from '../types';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   onOpenTransactionModal?: () => void;
+  onOpenUpgradeModal?: () => void;
+  plan?: Plan | null;
 }
+
+const LABEL_PLAN: Record<string, string> = {
+  GRATUIT: 'GRATUIT',
+  ESSENTIEL: 'STANDARD',
+  PREMIUM: 'PREMIUM',
+};
 
 // Hook personnalisé pour gérer le thème clair/sombre
 export const useDarkMode = () => {
@@ -52,7 +61,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   activeTab = 'overview',
   onTabChange,
   onOpenTransactionModal,
+  onOpenUpgradeModal,
+  plan,
 }) => {
+  const nomPlan = plan?.nom ?? 'GRATUIT';
   const { theme, toggleTheme } = useDarkMode();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
@@ -79,11 +91,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'accounts', label: 'Mes Comptes', icon: Wallet, badge: '4' },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'budgets', label: 'Budgets & Alertes', icon: PieChart },
-    { id: 'savings', label: 'Épargne & Projets', icon: PiggyBank },
-    { id: 'debts', label: 'Dettes & Créances', icon: HandCoins },
-    { id: 'jarvis', label: 'Assistant JARVIS IA', icon: Bot, isNew: true },
-    { id: 'reports', label: 'Rapports PDF', icon: FileText },
+    { id: 'savings', label: 'Épargne & Projets', icon: PiggyBank, gate: 'acces_epargne' as const },
+    { id: 'debts', label: 'Dettes & Créances', icon: HandCoins, gate: 'acces_dettes' as const },
+    { id: 'jarvis', label: 'Assistant JARVIS IA', icon: Bot, isNew: true, gate: 'acces_jarvis' as const },
+    { id: 'reports', label: 'Rapports PDF', icon: FileText, gate: 'acces_rapport' as const },
   ];
+
+  // Un item sans `gate` est toujours visible ; un item gaté n'apparaît que
+  // si le forfait actif y donne accès — évite d'afficher des fonctionnalités
+  // inutilisables et de saturer le menu avant un upgrade.
+  const navItemsVisibles = navItems.filter((item) => !item.gate || plan?.[item.gate]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans transition-colors duration-200">
@@ -110,11 +127,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <span className="text-xs font-medium text-muted-foreground">Formule Actuelle</span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
               <Crown className="h-3 w-3" />
-              <span>GRATUIT</span>
+              <span>{LABEL_PLAN[nomPlan] ?? nomPlan}</span>
             </span>
           </div>
           <button
-            onClick={() => onTabChange?.('plans')}
+            onClick={onOpenUpgradeModal}
             className="w-full text-xs font-semibold py-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center justify-center gap-1.5"
           >
             <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -124,7 +141,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
         {/* Navigation Items */}
         <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
-          {navItems.map((item) => {
+          {navItemsVisibles.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
 
@@ -223,7 +240,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
 
           <nav className="space-y-2 flex-1">
-            {navItems.map((item) => {
+            {navItemsVisibles.map((item) => {
               const Icon = item.icon;
               return (
                 <button

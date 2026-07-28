@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
 import hrpay
@@ -6,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.modules.audit.service import enregistrer_action
 from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
+
+logger = logging.getLogger(__name__)
 
 DUREE_CYCLE = {"MENSUEL": timedelta(days=30), "ANNUEL": timedelta(days=365)}
 
@@ -24,6 +27,15 @@ class TelephoneOperateurRequisError(Exception):
 
 class ServicePaiementIndisponibleError(Exception):
     """L'appel à HR-Skills Pay a échoué (réseau, clé invalide, quota...)."""
+
+
+class PaiementRefuseError(Exception):
+    """
+    HR-Skills Pay a rejeté la demande à cause des informations fournies par
+    le client (numéro/opérateur incohérents...) — voir CODES_ERREUR_CLIENT.
+    Distinct de ServicePaiementIndisponibleError : ce n'est pas une panne,
+    le client peut corriger sa saisie et réessayer immédiatement.
+    """
 
 
 def lister_plans(db: Session) -> List[Plan]:
@@ -225,8 +237,30 @@ def initier_paiement_plan(
 
     try:
         reference = _appeler_hrpay_cash_in(phone_number, operator, montant, plan.devise, paiement.id_paiement)
+    except hrpay.ValidationError as erreur:
+        # Payload rejeté par HR-Skills Pay (HTTP 400/422) : c'est le seul
+        # cas structurellement imputable à la saisie du client (le SDK a sa
+        # propre classe pour ça, indépendamment du code renvoyé) — les
+        # autres HRPayError (APIError, réseau, quota...) restent
+        # génériques ci-dessous, car imputables à HR-Skills Pay, pas au
+        # client.
+        db.rollback()
+        logger.warning(
+            "Paiement rejeté (validation HR-Skills Pay) : statut=%s message=%s issues=%s",
+            erreur.status_code, erreur.message, erreur.issues,
+        )
+        raise PaiementRefuseError("Le numéro de téléphone fourni est invalide.")
     except hrpay.HRPayError as erreur:
         db.rollback()
+        # Toujours logué côté serveur : le message générique renvoyé au
+        # client (ci-dessous) ne doit jamais divulguer les détails internes
+        # HR-Skills Pay, mais un développeur doit pouvoir diagnostiquer sans
+        # deviner (voir historique : une simple instabilité de l'API HR-Skills
+        # Pay était impossible à distinguer d'une vraie panne sans ce log).
+        logger.warning(
+            "Échec HR-Skills Pay (cash-in) : type=%s code=%s statut=%s message=%s",
+            type(erreur).__name__, erreur.code, erreur.status_code, erreur.message,
+        )
         raise ServicePaiementIndisponibleError(str(erreur))
 
     paiement.reference_hrpay = reference

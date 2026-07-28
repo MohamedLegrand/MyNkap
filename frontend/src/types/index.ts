@@ -98,6 +98,43 @@ export interface JarvisConversation {
   date_dernier_message: string;
 }
 
+export interface Plan {
+  id_plan: number;
+  nom: 'GRATUIT' | 'ESSENTIEL' | 'PREMIUM';
+  prix_mensuel: number;
+  prix_annuel: number;
+  devise: string;
+  acces_dettes: boolean;
+  acces_epargne: boolean;
+  acces_recurrentes: boolean;
+  acces_templates: boolean;
+  acces_analyse: boolean;
+  acces_jarvis: boolean;
+  acces_rapport: boolean;
+}
+
+export interface Abonnement {
+  id_abonnement: number;
+  plan: Plan;
+  statut: string;
+  date_debut: string;
+  date_fin: string | null;
+  cycle_facturation: 'MENSUEL' | 'ANNUEL' | null;
+  renouvellement_auto: boolean;
+}
+
+export interface PaiementAbonnement {
+  id_paiement: number;
+  plan_demande: Plan;
+  cycle_facturation: string;
+  montant: number;
+  devise: string;
+  reference_hrpay: string;
+  statut: 'PENDING' | 'SUCCESS' | 'FAILED';
+  date_creation: string;
+  date_confirmation: string | null;
+}
+
 // --- Types Admin ---
 export interface AdminClientListItem {
   id_client: number;
