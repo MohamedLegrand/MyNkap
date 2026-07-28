@@ -612,6 +612,7 @@ const PasswordInput = ({
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const setSession = useAuthStore((state) => state.setSession);
   const setClient = useAuthStore((state) => state.setClient);
 
@@ -620,6 +621,7 @@ const LoginPage = () => {
   const [motDePasse, setMotDePasse] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const compteVientDetreCree = searchParams.get('compte_cree') === '1';
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -686,6 +688,12 @@ const LoginPage = () => {
     >
       {step === 1 ? (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {compteVientDetreCree && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-secondary/10 border border-secondary/20 text-sm text-secondary font-medium">
+              <Check className="h-4 w-4 shrink-0" />
+              <span>Compte créé ! Connectez-vous pour continuer.</span>
+            </div>
+          )}
           <div className="space-y-1.5">
             <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
             <IconInput
@@ -823,8 +831,6 @@ export const AppRoutes: React.FC = () => {
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const setSession = useAuthStore((state) => state.setSession);
-  const setClient = useAuthStore((state) => state.setClient);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -846,7 +852,7 @@ const RegisterPage = () => {
 
     setIsSubmitting(true);
     try {
-      const nouveauClient = await api.request<Client>('/auth/register', {
+      await api.request<Client>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           email,
@@ -857,14 +863,10 @@ const RegisterPage = () => {
         }),
       });
 
-      // Connexion automatique juste après l'inscription
-      const tokens = await api.request<TokenResponse>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, mot_de_passe: motDePasse }),
-      });
-      setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
-      setClient(nouveauClient);
-      navigate('/dashboard');
+      // Pas de connexion automatique : l'inscription ne renvoie aucun
+      // jeton, seule /auth/login (suivi du code OTP envoyé par e-mail)
+      // établit une session. On redirige vers /login pour ce vrai flux.
+      navigate('/login?compte_cree=1');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
     } finally {
