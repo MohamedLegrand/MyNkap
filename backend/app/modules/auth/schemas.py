@@ -50,6 +50,12 @@ class VerifyOtpRequest(BaseModel):
     email: EmailStr
     code: str = Field(..., min_length=6, max_length=6)
 
+# --- Schéma pour la connexion via Google (Google Identity Services) ---
+class GoogleLoginRequest(BaseModel):
+    # Jeton d'identité (JWT) renvoyé par le bouton Google côté frontend —
+    # jamais un access_token OAuth classique, voir auth.services.
+    id_token: str
+
 # --- Schémas de sortie pour les utilisateurs ---
 class ClientOut(BaseModel):
     id_client: int

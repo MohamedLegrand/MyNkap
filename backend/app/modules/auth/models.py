@@ -23,6 +23,14 @@ class Utilisateur(Base):
     otp_code = Column(String(6), nullable=True)
     otp_expiration = Column(DateTime, nullable=True)
 
+    # Suivi des tentatives de connexion échouées (mot de passe OU code OTP
+    # incorrect) — remis à zéro dès une connexion réussie. Sert à notifier
+    # le client au-delà d'un seuil (voir auth.services.SEUIL_ALERTE_TENTATIVES)
+    # sans le renotifier à chaque nouvel échec tant que le seuil reste
+    # dépassé (même principe que Budget.alerte_80/alerte_100).
+    tentatives_echouees = Column(Integer, default=0, nullable=False)
+    alerte_tentatives_envoyee = Column(Boolean, default=False, nullable=False)
+
     __mapper_args__ = {
         "polymorphic_on": type,
         "polymorphic_identity": "utilisateur",

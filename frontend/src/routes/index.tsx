@@ -10,6 +10,20 @@ import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type { TokenResponse, Client } from '../types';
 import { OtpVerificationStep } from '../components/OtpVerificationStep';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+
+// Décode la charge utile d'un jeton d'identité Google (JWT) côté client,
+// uniquement pour connaître l'e-mail à afficher/transmettre à l'étape OTP
+// — la vérification de signature qui fait foi reste faite par le backend
+// (voir POST /auth/google).
+const decoderEmailGoogle = (credential: string): string => {
+  try {
+    const payload = JSON.parse(atob(credential.split('.')[1]));
+    return typeof payload.email === 'string' ? payload.email : '';
+  } catch {
+    return '';
+  }
+};
 
 // Hook personnalisé pour gérer le mode sombre/clair
 const useDarkMode = () => {
@@ -621,6 +635,9 @@ const LoginPage = () => {
   const [motDePasse, setMotDePasse] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Jeton Google en attente de vérification OTP — distinct de motDePasse
+  // pour que handleResend sache quel endpoint rappeler (voir plus bas).
+  const [googleCredential, setGoogleCredential] = useState<string | null>(null);
   const compteVientDetreCree = searchParams.get('compte_cree') === '1';
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -638,6 +655,26 @@ const LoginPage = () => {
       setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Adresse e-mail ou mot de passe incorrect.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleCredential = async (credential: string) => {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      // Même étape 1 que le mot de passe : un code OTP est envoyé par
+      // e-mail, la double authentification s'applique aussi à Google.
+      await api.request('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ id_token: credential }),
+      });
+      setGoogleCredential(credential);
+      setEmail(decoderEmailGoogle(credential));
+      setStep(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Connexion Google impossible.');
     } finally {
       setIsSubmitting(false);
     }
@@ -668,13 +705,21 @@ const LoginPage = () => {
 
   const handleResend = async (): Promise<string | null> => {
     try {
-      // Réutilise /auth/login (mot de passe déjà validé une première fois
-      // à l'étape 1, toujours en mémoire côté client) plutôt qu'un endpoint
-      // dédié : évite d'exposer une route de renvoi d'OTP sans mot de passe.
-      await api.request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, mot_de_passe: motDePasse }),
-      });
+      // Réutilise /auth/login ou /auth/google (identifiants déjà validés
+      // une première fois à l'étape 1, toujours en mémoire côté client)
+      // plutôt qu'un endpoint dédié : évite d'exposer une route de renvoi
+      // d'OTP sans ré-authentification.
+      if (googleCredential) {
+        await api.request('/auth/google', {
+          method: 'POST',
+          body: JSON.stringify({ id_token: googleCredential }),
+        });
+      } else {
+        await api.request('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, mot_de_passe: motDePasse }),
+        });
+      }
       return null;
     } catch (err) {
       return err instanceof Error ? err.message : "Impossible de renvoyer le code.";
@@ -740,13 +785,21 @@ const LoginPage = () => {
             Pas encore de compte ?{' '}
             <a href="/register" className="text-secondary hover:underline font-medium">Créer un compte</a>
           </p>
+
+          <div className="flex items-center gap-3 pt-1">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">ou</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          <GoogleSignInButton onCredential={handleGoogleCredential} />
         </form>
       ) : (
         <OtpVerificationStep
           email={email}
           onVerifyCode={handleVerifyCode}
           onResend={handleResend}
-          onBackToLogin={() => setStep(1)}
+          onBackToLogin={() => { setStep(1); setGoogleCredential(null); }}
         />
       )}
     </AuthLayout>

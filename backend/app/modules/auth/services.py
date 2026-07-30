@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -12,6 +14,19 @@ from app.modules.auth.schemas import UserRegister, UserLogin, ResetPasswordReque
 from app.modules.budgets import service as budgets_service
 from app.modules.notifications import service as notifications_service
 from app.modules.plans import service as plans_service
+
+# Nombre de tentatives de connexion échouées consécutives (mot de passe OU
+# code OTP) à partir duquel le client est alerté par notification — voir
+# _signaler_tentative_echouee.
+SEUIL_ALERTE_TENTATIVES = 3
+
+
+class GoogleTokenInvalideError(Exception):
+    """Le jeton d'identité Google fourni est invalide, expiré, ou son audience ne correspond pas à GOOGLE_CLIENT_ID."""
+
+
+class CompteInexistantPourGoogleError(Exception):
+    """Aucun compte MyNkap n'est associé à l'adresse e-mail du compte Google utilisé."""
 
 # --- Services d'Inscription et Connexion ---
 
@@ -80,8 +95,46 @@ def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utili
     if not utilisateur or not utilisateur.est_actif:
         return None
     if not verify_password(login_in.mot_de_passe, utilisateur.mot_de_passe):
+        _signaler_tentative_echouee(db, utilisateur)
         return None
     return utilisateur
+
+
+# --- Suivi des tentatives de connexion échouées ---
+
+def _signaler_tentative_echouee(db: Session, utilisateur: Utilisateur) -> None:
+    """
+    Incrémente le compteur d'échecs consécutifs (mot de passe OU code OTP,
+    peu importe l'étape) et notifie le client une seule fois par série
+    d'échecs dès que SEUIL_ALERTE_TENTATIVES est atteint — jamais
+    renotifié à chaque échec supplémentaire tant que le flag reste posé,
+    même principe que budgets.service.verifier_alertes. Ne concerne que
+    les comptes Client : les notifications admin sont des diffusions
+    globales, pas un canal par administrateur individuel (voir
+    notifications.service.creer_notification_admins).
+    """
+    utilisateur.tentatives_echouees += 1
+    faut_alerter = (
+        utilisateur.tentatives_echouees >= SEUIL_ALERTE_TENTATIVES
+        and not utilisateur.alerte_tentatives_envoyee
+        and utilisateur.type == "client"
+    )
+    if faut_alerter:
+        utilisateur.alerte_tentatives_envoyee = True
+    db.commit()
+
+    if faut_alerter:
+        notifications_service.creer_notification_client(
+            db, utilisateur.id_utilisateur, "TENTATIVES_ECHOUEES",
+            "Tentatives de connexion suspectes",
+            f"{utilisateur.tentatives_echouees} tentatives de connexion ont échoué sur votre compte. "
+            "Si ce n'est pas vous, changez votre mot de passe par précaution.",
+        )
+
+
+def _reinitialiser_tentatives_echouees(utilisateur: Utilisateur) -> None:
+    utilisateur.tentatives_echouees = 0
+    utilisateur.alerte_tentatives_envoyee = False
 
 # --- Services de double authentification par code OTP (e-mail) ---
 
@@ -124,9 +177,64 @@ def verifier_otp(db: Session, email: str, code: str) -> Optional[Utilisateur]:
 
     utilisateur.otp_code = None
     utilisateur.otp_expiration = None
-    db.commit()
 
-    return utilisateur if code_valide else None
+    if code_valide:
+        _reinitialiser_tentatives_echouees(utilisateur)
+        db.commit()
+        if utilisateur.type == "client":
+            notifications_service.creer_notification_client(
+                db, utilisateur.id_utilisateur, "CONNEXION_REUSSIE",
+                "Nouvelle connexion à votre compte",
+                f"Connexion réussie le {datetime.utcnow().strftime('%d/%m/%Y à %H:%M')} UTC. "
+                "Si ce n'est pas vous, changez votre mot de passe immédiatement.",
+            )
+        return utilisateur
+
+    db.commit()
+    _signaler_tentative_echouee(db, utilisateur)
+    return None
+
+
+# --- Connexion via Google (Google Identity Services) ---
+
+def _verifier_id_token_google(id_token_str: str) -> dict:
+    """
+    Vérifie la signature, l'émetteur et l'audience (GOOGLE_CLIENT_ID) du
+    jeton d'identité renvoyé par le bouton Google côté frontend. Isolée
+    dans sa propre fonction pour rester mockable en test — même principe
+    que plans.service._appeler_hrpay_cash_in (aucun test ne doit dépendre
+    d'un vrai jeton Google, ni faire d'appel réseau réel vers Google).
+    """
+    return google_id_token.verify_oauth2_token(
+        id_token_str, google_requests.Request(), settings.GOOGLE_CLIENT_ID
+    )
+
+
+def authentifier_avec_google(db: Session, id_token_str: str) -> Utilisateur:
+    """
+    Étape 1 (alternative au mot de passe) de la connexion via Google :
+    vérifie le jeton d'identité et retrouve le compte MyNkap existant
+    associé à son adresse e-mail. Ne crée jamais de compte à la volée —
+    Google ne fournit pas de numéro de téléphone, requis à l'inscription
+    (Mobile Money) — l'utilisateur doit d'abord s'inscrire normalement.
+    Toujours suivie de la même étape OTP que le mot de passe (voir
+    generer_et_envoyer_otp) : Google Sign-In ne contourne jamais la double
+    authentification.
+    """
+    try:
+        payload = _verifier_id_token_google(id_token_str)
+    except ValueError as erreur:
+        raise GoogleTokenInvalideError(str(erreur))
+
+    email = payload.get("email")
+    if not email or not payload.get("email_verified"):
+        raise GoogleTokenInvalideError("L'e-mail du compte Google n'est pas vérifié.")
+
+    utilisateur = db.query(Utilisateur).filter(Utilisateur.email == email).first()
+    if not utilisateur or not utilisateur.est_actif:
+        raise CompteInexistantPourGoogleError()
+
+    return utilisateur
 
 # --- Services de gestion des Refresh Tokens ---
 

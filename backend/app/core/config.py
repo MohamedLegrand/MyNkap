@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     # (ex: /reset-password?token=...).
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # OAuth Google (Se connecter avec Google) — optionnelles, même raison
+    # que les autres clés fournisseur ci-dessus. GOOGLE_CLIENT_SECRET n'est
+    # pas utilisé par la vérification du jeton d'identité (audience seule
+    # via GOOGLE_CLIENT_ID, voir auth.services._verifier_id_token_google) ;
+    # conservé pour un futur flux d'échange de code côté serveur.
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+
     # Dossier de stockage des rapports PDF générés (module Rapports).
     # Chemin local pour l'instant — un stockage cloud (S3/Supabase) sera
     # nécessaire en production, sans changer l'API du module.

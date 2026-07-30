@@ -47,12 +47,14 @@ def _creer_compte(client, headers, solde_initial=100000, nom="Compte principal")
 
 def test_inscription_cree_une_notification_bienvenue_et_signale_les_admins(client, db_session):
     admin, admin_headers = _create_admin(db_session)
+    # _register_and_login effectue aussi le login complet (OTP), qui crée sa
+    # propre notification CONNEXION_REUSSIE — voir test_auth.py — d'où les
+    # deux notifications (BIENVENUE + CONNEXION_REUSSIE) ci-dessous.
     headers = _register_and_login(client, "notif.inscription@example.com")
 
     mes_notifs = client.get("/api/v1/notifications", headers=headers).json()
-    assert len(mes_notifs) == 1
-    assert mes_notifs[0]["type"] == "BIENVENUE"
-    assert mes_notifs[0]["est_lue"] is False
+    assert len(mes_notifs) == 2
+    assert any(n["type"] == "BIENVENUE" and not n["est_lue"] for n in mes_notifs)
 
     notifs_admin = client.get("/api/v1/admin/notifications", headers=admin_headers).json()
     assert any(n["type"] == "NOUVEAU_CLIENT" for n in notifs_admin)
@@ -66,8 +68,8 @@ def test_client_ne_voit_que_ses_propres_notifications(client):
 
     notifs_a = client.get("/api/v1/notifications", headers=headers_a).json()
     notifs_b = client.get("/api/v1/notifications", headers=headers_b).json()
-    assert len(notifs_a) == 1
-    assert len(notifs_b) == 1
+    assert len(notifs_a) == 2
+    assert len(notifs_b) == 2
 
     id_notif_b = notifs_b[0]["id_notification"]
     # Un client ne peut pas marquer comme lue la notification d'un autre client.
@@ -78,8 +80,10 @@ def test_client_ne_voit_que_ses_propres_notifications(client):
 def test_marquer_lue_et_compteur_non_lues(client):
     headers = _register_and_login(client, "notif.marquerlue@example.com")
 
+    # BIENVENUE (inscription) + CONNEXION_REUSSIE (login complet effectué
+    # par _register_and_login).
     compte = client.get("/api/v1/notifications/non-lues-count", headers=headers).json()
-    assert compte["non_lues"] == 1
+    assert compte["non_lues"] == 2
 
     id_notif = client.get("/api/v1/notifications", headers=headers).json()[0]["id_notification"]
     marquee = client.post(f"/api/v1/notifications/{id_notif}/lire", headers=headers)
@@ -87,7 +91,7 @@ def test_marquer_lue_et_compteur_non_lues(client):
     assert marquee.json()["est_lue"] is True
 
     compte_apres = client.get("/api/v1/notifications/non-lues-count", headers=headers).json()
-    assert compte_apres["non_lues"] == 0
+    assert compte_apres["non_lues"] == 1
 
 
 def test_marquer_toutes_les_notifications_lues(client, db_session):
@@ -97,11 +101,12 @@ def test_marquer_toutes_les_notifications_lues(client, db_session):
     from app.modules.notifications import service as notifications_service
     notifications_service.creer_notification_client(db_session, id_client, "AUTRE", "Titre", "Message")
 
-    assert client.get("/api/v1/notifications/non-lues-count", headers=headers).json()["non_lues"] == 2
+    # BIENVENUE + CONNEXION_REUSSIE + la notification "AUTRE" créée ci-dessus.
+    assert client.get("/api/v1/notifications/non-lues-count", headers=headers).json()["non_lues"] == 3
 
     reponse = client.post("/api/v1/notifications/lire-tout", headers=headers)
     assert reponse.status_code == 200
-    assert reponse.json()["nb_marquees"] == 2
+    assert reponse.json()["nb_marquees"] == 3
     assert client.get("/api/v1/notifications/non-lues-count", headers=headers).json()["non_lues"] == 0
 
 

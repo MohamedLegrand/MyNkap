@@ -1,4 +1,6 @@
+from app.modules.auth import services as auth_services
 from app.modules.auth.models import Client, Utilisateur
+from app.modules.notifications.models import Notification
 from tests.conftest import se_connecter_avec_otp
 
 
@@ -245,3 +247,107 @@ def test_reset_password_avec_jeton_expire_est_rejete(client, db_session):
         json={"token": reset_token, "nouveau_mot_de_passe": "peuimporte123"},
     )
     assert response.status_code == 400
+
+
+# --- Connexion via Google (Google Identity Services) ---
+
+def _mocker_id_token_google(monkeypatch, email="jean.dupont@example.com"):
+    monkeypatch.setattr(
+        auth_services,
+        "_verifier_id_token_google",
+        lambda id_token_str: {"email": email, "email_verified": True},
+    )
+
+
+def test_login_google_pour_un_compte_existant_declenche_un_otp(client, db_session, monkeypatch):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    _mocker_id_token_google(monkeypatch)
+
+    response = client.post("/api/v1/auth/google", json={"id_token": "faux-jeton-google"})
+
+    assert response.status_code == 200
+    assert response.json()["otp_requis"] is True
+
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    assert db_client.otp_code is not None
+
+
+def test_login_google_pour_un_compte_inexistant_est_rejete(client, monkeypatch):
+    _mocker_id_token_google(monkeypatch, email="personne@example.com")
+
+    response = client.post("/api/v1/auth/google", json={"id_token": "faux-jeton-google"})
+    assert response.status_code == 404
+
+
+def test_login_google_avec_jeton_invalide_est_rejete(client, monkeypatch):
+    def leve_erreur(id_token_str):
+        raise ValueError("Jeton invalide")
+
+    monkeypatch.setattr(auth_services, "_verifier_id_token_google", leve_erreur)
+
+    response = client.post("/api/v1/auth/google", json={"id_token": "jeton-corrompu"})
+    assert response.status_code == 400
+
+
+def test_login_google_complete_le_meme_flux_otp_que_le_mot_de_passe(client, db_session, monkeypatch):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    _mocker_id_token_google(monkeypatch)
+    client.post("/api/v1/auth/google", json={"id_token": "faux-jeton-google"})
+
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    code = db_client.otp_code
+
+    reponse = client.post(
+        "/api/v1/auth/verify-otp", json={"email": "jean.dupont@example.com", "code": code}
+    )
+    assert reponse.status_code == 200
+    assert reponse.json()["access_token"]
+
+
+# --- Tentatives de connexion échouées & notifications ---
+
+def test_connexion_reussie_cree_une_notification_client(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    notifs = client.get("/api/v1/notifications", headers=headers).json()
+    assert any(n["type"] == "CONNEXION_REUSSIE" for n in notifs)
+
+
+def test_plusieurs_mots_de_passe_incorrects_notifient_le_client_une_seule_fois(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+
+    for _ in range(auth_services.SEUIL_ALERTE_TENTATIVES + 2):
+        client.post(
+            "/api/v1/auth/login",
+            json={"email": "jean.dupont@example.com", "mot_de_passe": "mauvais-mot-de-passe"},
+        )
+
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    assert db_client.tentatives_echouees == auth_services.SEUIL_ALERTE_TENTATIVES + 2
+    assert db_client.alerte_tentatives_envoyee is True
+
+    notifs_tentatives = (
+        db_session.query(Notification)
+        .filter(Notification.id_utilisateur == db_client.id_utilisateur, Notification.type == "TENTATIVES_ECHOUEES")
+        .all()
+    )
+    # Une seule notification malgré les échecs supplémentaires après le seuil.
+    assert len(notifs_tentatives) == 1
+
+
+def test_une_connexion_reussie_reinitialise_le_compteur_de_tentatives(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+
+    for _ in range(auth_services.SEUIL_ALERTE_TENTATIVES):
+        client.post(
+            "/api/v1/auth/login",
+            json={"email": "jean.dupont@example.com", "mot_de_passe": "mauvais-mot-de-passe"},
+        )
+
+    se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session)
+
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    assert db_client.tentatives_echouees == 0
+    assert db_client.alerte_tentatives_envoyee is False

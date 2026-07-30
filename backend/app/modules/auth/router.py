@@ -20,6 +20,7 @@ from app.modules.auth.schemas import (
     ResetPasswordRequest,
     LoginOtpResponse,
     VerifyOtpRequest,
+    GoogleLoginRequest,
 )
 from app.modules.auth import services
 from app.modules.audit.service import enregistrer_action
@@ -68,6 +69,39 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Adresse e-mail ou mot de passe incorrect."
+        )
+
+    services.generer_et_envoyer_otp(db, utilisateur)
+
+    return {
+        "otp_requis": True,
+        "message": "Un code de vérification a été envoyé par e-mail.",
+        "expires_in": 300,
+    }
+
+@router.post("/google", response_model=LoginOtpResponse)
+@limiter.limit("10/minute")
+def login_google(request: Request, payload: GoogleLoginRequest, db: Session = Depends(get_db)):
+    """
+    Étape 1 de la connexion via Google (alternative au mot de passe) :
+    vérifie le jeton d'identité Google et envoie le même code de
+    vérification à 6 chiffres par e-mail que /auth/login — la double
+    authentification s'applique aussi à Google Sign-In, sans exception.
+    Ne fonctionne que pour un compte MyNkap déjà existant (voir
+    services.authentifier_avec_google) : Google ne fournit pas de numéro
+    de téléphone, requis à l'inscription.
+    """
+    try:
+        utilisateur = services.authentifier_avec_google(db, payload.id_token)
+    except services.GoogleTokenInvalideError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Jeton d'identité Google invalide ou expiré.",
+        )
+    except services.CompteInexistantPourGoogleError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aucun compte MyNkap n'est associé à cette adresse Google. Créez d'abord un compte.",
         )
 
     services.generer_et_envoyer_otp(db, utilisateur)
