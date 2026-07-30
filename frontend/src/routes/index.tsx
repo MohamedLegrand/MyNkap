@@ -13,15 +13,19 @@ import { OtpVerificationStep } from '../components/OtpVerificationStep';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 
 // Décode la charge utile d'un jeton d'identité Google (JWT) côté client,
-// uniquement pour connaître l'e-mail à afficher/transmettre à l'étape OTP
-// — la vérification de signature qui fait foi reste faite par le backend
-// (voir POST /auth/google).
-const decoderEmailGoogle = (credential: string): string => {
+// uniquement pour connaître l'e-mail (et, à l'inscription, le prénom/nom) à
+// afficher ou pré-remplir — la vérification de signature qui fait foi reste
+// faite par le backend (voir POST /auth/google).
+const decoderProfilGoogle = (credential: string): { email: string; prenom: string; nom: string } => {
   try {
     const payload = JSON.parse(atob(credential.split('.')[1]));
-    return typeof payload.email === 'string' ? payload.email : '';
+    return {
+      email: typeof payload.email === 'string' ? payload.email : '',
+      prenom: typeof payload.given_name === 'string' ? payload.given_name : '',
+      nom: typeof payload.family_name === 'string' ? payload.family_name : '',
+    };
   } catch {
-    return '';
+    return { email: '', prenom: '', nom: '' };
   }
 };
 
@@ -671,7 +675,7 @@ const LoginPage = () => {
         body: JSON.stringify({ id_token: credential }),
       });
       setGoogleCredential(credential);
-      setEmail(decoderEmailGoogle(credential));
+      setEmail(decoderProfilGoogle(credential).email);
       setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connexion Google impossible.');
@@ -868,6 +872,20 @@ const RegisterPage = () => {
   const [confirmMotDePasse, setConfirmMotDePasse] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [prerempliParGoogle, setPrerempliParGoogle] = useState(false);
+
+  const handleGoogleCredential = (credential: string) => {
+    // Google ne fournit pas de numéro de téléphone (requis pour le Mobile
+    // Money) : on ne peut pas créer le compte à la volée. On se contente de
+    // pré-remplir le formulaire — le mot de passe et le téléphone restent à
+    // saisir avant de soumettre /auth/register normalement.
+    const profil = decoderProfilGoogle(credential);
+    setError(null);
+    setPrerempliParGoogle(true);
+    if (profil.email) setEmail(profil.email);
+    if (profil.prenom) setFirstName(profil.prenom);
+    if (profil.nom) setLastName(profil.nom);
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -909,6 +927,20 @@ const RegisterPage = () => {
       maxWidthClassName="max-w-lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <GoogleSignInButton onCredential={handleGoogleCredential} />
+        {prerempliParGoogle && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-secondary/10 border border-secondary/20 text-sm text-secondary font-medium">
+            <Check className="h-4 w-4 shrink-0" />
+            <span>Infos reprises de votre compte Google. Ajoutez votre téléphone et un mot de passe pour terminer.</span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground">ou remplissez le formulaire</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label htmlFor="first_name" className="text-sm font-medium">Prénom</label>
