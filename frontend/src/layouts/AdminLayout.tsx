@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
 import { NotificationsBell } from '../components/NotificationsBell';
+import { useDarkMode } from '../hooks/useDarkMode';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -27,30 +28,12 @@ interface AdminLayoutProps {
   onTabChange?: (tab: string) => void;
 }
 
-export const useDarkMode = () => {
-  const [theme, setTheme] = React.useState(localStorage.getItem('theme') || 'dark');
-
-  React.useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
-
-  return { theme, toggleTheme };
-};
-
 export const AdminLayout: React.FC<AdminLayoutProps> = ({
   children,
   activeTab = 'kpis',
   onTabChange,
 }) => {
-  const { theme, toggleTheme } = useDarkMode();
+  const { theme, toggleTheme } = useDarkMode('dark');
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
   const refreshToken = useAuthStore((state) => state.refreshToken);

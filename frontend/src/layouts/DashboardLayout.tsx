@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
 import { NotificationsBell } from '../components/NotificationsBell';
+import { useDarkMode } from '../hooks/useDarkMode';
 import type { Plan } from '../types';
 
 interface DashboardLayoutProps {
@@ -35,25 +36,6 @@ const LABEL_PLAN: Record<string, string> = {
   GRATUIT: 'GRATUIT',
   ESSENTIEL: 'STANDARD',
   PREMIUM: 'PREMIUM',
-};
-
-// Hook personnalisé pour gérer le thème clair/sombre
-export const useDarkMode = () => {
-  const [theme, setTheme] = React.useState(localStorage.getItem('theme') || 'light');
-
-  React.useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
-
-  return { theme, toggleTheme };
 };
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({

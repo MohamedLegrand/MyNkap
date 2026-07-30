@@ -19,7 +19,9 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
 }) => {
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [timer, setTimer] = useState<number>(60);
-  const [canResend, setCanResend] = useState<boolean>(false);
+  // Dérivé de timer plutôt qu'un état séparé synchronisé par effet : évite
+  // un aller-retour de rendu inutile (et le state à maintenir en double).
+  const canResend = timer <= 0;
   const [isResending, setIsResending] = useState<boolean>(false);
   const [resendSuccessMsg, setResendSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -29,14 +31,11 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
 
   // Décompte du timer 60s
   useEffect(() => {
-    if (timer > 0) {
-      const interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    } else {
-      setCanResend(true);
-    }
+    if (timer <= 0) return;
+    const interval = setInterval(() => {
+      setTimer((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
   }, [timer]);
 
   // Focus sur la première case au montage
@@ -105,7 +104,6 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
     }
 
     setTimer(60);
-    setCanResend(false);
     setResendSuccessMsg('Un nouveau code à 6 chiffres a été envoyé par e-mail.');
     setDigits(['', '', '', '', '', '']);
     inputRefs.current[0]?.focus();

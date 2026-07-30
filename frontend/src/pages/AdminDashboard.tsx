@@ -144,6 +144,9 @@ export const AdminDashboard: React.FC = () => {
     const fetcher = fetchersParOnglet[activeTab];
     if (!fetcher) return;
 
+    // Chargement à chaque changement d'onglet, pas une synchronisation
+    // d'état dérivé d'un rendu précédent.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
     setIsLoading(true);
     fetcher().finally(() => setIsLoading(false));

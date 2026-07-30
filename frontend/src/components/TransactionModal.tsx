@@ -48,8 +48,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (!isOpen) return;
+    // Chargement à l'ouverture de la modale, pas une synchronisation d'état
+    // dérivé d'un rendu précédent.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     chargerComptesEtCategories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const handleCreerCompte = async (e: React.FormEvent) => {
@@ -79,7 +81,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
   const categoriesFiltrees = categories.filter((c) => c.type === type);
 
   useEffect(() => {
+    // Réinitialise la catégorie sélectionnée quand la liste filtrée change
+    // (bascule DEPENSE/REVENU) — un choix de l'utilisateur reste ensuite
+    // libre tant que la liste ne change pas, ce n'est pas un état dérivable
+    // en continu.
     if (categoriesFiltrees.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIdCategorie(String(categoriesFiltrees[0].id_categorie));
     } else {
       setIdCategorie('');

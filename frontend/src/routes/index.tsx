@@ -11,6 +11,7 @@ import { useAuthStore } from '../store';
 import type { TokenResponse, Client } from '../types';
 import { OtpVerificationStep } from '../components/OtpVerificationStep';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { useDarkMode } from '../hooks/useDarkMode';
 
 // Décode la charge utile d'un jeton d'identité Google (JWT) côté client,
 // uniquement pour connaître l'e-mail (et, à l'inscription, le prénom/nom) à
@@ -27,25 +28,6 @@ const decoderProfilGoogle = (credential: string): { email: string; prenom: strin
   } catch {
     return { email: '', prenom: '', nom: '' };
   }
-};
-
-// Hook personnalisé pour gérer le mode sombre/clair
-const useDarkMode = () => {
-  const [theme, setTheme] = React.useState(localStorage.getItem('theme') || 'light');
-
-  React.useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
-
-  return { theme, toggleTheme };
 };
 
 // Bouton de bascule de thème

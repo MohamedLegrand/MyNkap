@@ -54,6 +54,10 @@ export const NotificationsBell: React.FC<NotificationsBellProps> = ({ basePath }
   }, [basePath]);
 
   useEffect(() => {
+    // Chargement à la demande (ouverture du panneau), pas une synchronisation
+    // d'état dérivé — chargerListe déclenche volontairement setIsLoading/
+    // setNotifications au clic sur la cloche.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isOpen) chargerListe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);

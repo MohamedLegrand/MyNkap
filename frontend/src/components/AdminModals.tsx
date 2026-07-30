@@ -251,9 +251,21 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
 };
 
 // --- 4. Modal Visualiseur d'Audit JSON ---
+interface AuditItemDetail {
+  id_log: number;
+  utilisateur_email: string | null;
+  id_utilisateur: number;
+  action: string;
+  ressource: string;
+  id_ressource: number | null;
+  date_action: string;
+  donnees_avant: Record<string, unknown> | null;
+  donnees_apres: Record<string, unknown> | null;
+}
+
 interface ViewAuditDetailModalProps {
   isOpen: boolean;
-  auditItem: any;
+  auditItem: AuditItemDetail | null;
   onClose: () => void;
 }
 

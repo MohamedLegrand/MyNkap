@@ -54,6 +54,9 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (!isOpen) return;
+    // Réinitialise l'état du formulaire à chaque ouverture de la modale
+    // (pas une synchronisation d'état dérivé d'un rendu précédent).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEtape('choix');
     setError(null);
     setPaiement(null);
