@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Les tests passent entièrement par une base SQLite en mémoire (voir
+      # tests/conftest.py) : DATABASE_URL n'est jamais réellement utilisée.
+      # SECRET_KEY n'a pas de valeur par défaut dans app/core/config.py, il
+      # faut donc en fournir une ici — sans rapport avec la clé de prod.
+      SECRET_KEY: ci-only-secret-key-jamais-utilisee-en-production
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Configurer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer la suite de tests
+        run: pytest -q
+
+  frontend:
+    name: Frontend (lint, build, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Configurer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Linter (ESLint)
+        run: npm run lint
+
+      - name: Lancer les tests
+        run: npm test
+
+      - name: Build de production (inclut la vérification des types)
+        run: npm run build
