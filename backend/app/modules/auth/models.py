@@ -124,7 +124,13 @@ class RefreshToken(Base):
     # connexion d'un administrateur, puisqu'il n'a pas de ligne dans
     # clients (verifie contre Postgres reel).
     id_client = Column(Integer, ForeignKey("utilisateurs.id_utilisateur"), nullable=False)
-    token = Column(String, unique=True, index=True, nullable=False)
+    # Empreinte SHA-256 du jeton, jamais le jeton en clair (voir
+    # auth.services._hasher_token) — une fuite de la base ne donne plus un
+    # accès direct de 8 jours à un compte, même principe que le hachage
+    # bcrypt des mots de passe (une empreinte rapide suffit ici : le jeton a
+    # déjà 256 bits d'entropie aléatoire, contrairement à un mot de passe
+    # choisi par l'utilisateur).
+    token_hash = Column(String, unique=True, index=True, nullable=False)
     date_expiration = Column(DateTime, nullable=False)
     est_revoque = Column(Boolean, default=False)
     date_creation = Column(DateTime, default=datetime.utcnow)

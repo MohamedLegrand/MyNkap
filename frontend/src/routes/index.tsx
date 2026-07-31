@@ -986,7 +986,7 @@ const RegisterPage = () => {
             <PasswordInput
               id="mot_de_passe"
               required
-              minLength={6}
+              minLength={8}
               autoComplete="new-password"
               value={motDePasse}
               onChange={(e) => setMotDePasse(e.target.value)}
@@ -998,7 +998,7 @@ const RegisterPage = () => {
             <PasswordInput
               id="confirm_mot_de_passe"
               required
-              minLength={6}
+              minLength={8}
               autoComplete="new-password"
               value={confirmMotDePasse}
               onChange={(e) => setConfirmMotDePasse(e.target.value)}
@@ -1162,7 +1162,7 @@ const ResetPasswordPage = () => {
             <PasswordInput
               id="nouveau_mot_de_passe"
               required
-              minLength={6}
+              minLength={8}
               autoComplete="new-password"
               value={nouveauMotDePasse}
               onChange={(e) => setNouveauMotDePasse(e.target.value)}
@@ -1174,7 +1174,7 @@ const ResetPasswordPage = () => {
             <PasswordInput
               id="confirm_mot_de_passe"
               required
-              minLength={6}
+              minLength={8}
               autoComplete="new-password"
               value={confirmMotDePasse}
               onChange={(e) => setConfirmMotDePasse(e.target.value)}

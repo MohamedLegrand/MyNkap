@@ -20,7 +20,7 @@ class ProfileUpdate(BaseModel):
 # --- Schémas pour l'inscription ---
 class UserRegister(BaseModel):
     email: EmailStr
-    mot_de_passe: str = Field(..., min_length=6)
+    mot_de_passe: str = Field(..., min_length=8)
     first_name: str
     last_name: str
     phone: str
@@ -87,4 +87,4 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    nouveau_mot_de_passe: str = Field(..., min_length=6)
+    nouveau_mot_de_passe: str = Field(..., min_length=8)

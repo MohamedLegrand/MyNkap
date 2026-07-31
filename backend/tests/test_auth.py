@@ -161,6 +161,38 @@ def test_refresh_token_issues_new_access_token(client, db_session):
     assert response.json()["access_token"]
 
 
+def test_refresh_token_tourne_et_invalide_lancien(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+    ancien_refresh_token = tokens["refresh_token"]
+
+    premiere_reponse = client.post("/api/v1/auth/refresh", json={"refresh_token": ancien_refresh_token})
+    assert premiere_reponse.status_code == 200
+    nouveau_refresh_token = premiere_reponse.json()["refresh_token"]
+
+    # Le jeton renvoyé n'est jamais le même : rotation à chaque appel.
+    assert nouveau_refresh_token != ancien_refresh_token
+
+    # Rejouer l'ancien jeton (déjà tourné) échoue désormais.
+    reponse_rejouee = client.post("/api/v1/auth/refresh", json={"refresh_token": ancien_refresh_token})
+    assert reponse_rejouee.status_code == 401
+
+    # Le nouveau jeton, lui, fonctionne toujours.
+    reponse_nouveau = client.post("/api/v1/auth/refresh", json={"refresh_token": nouveau_refresh_token})
+    assert reponse_nouveau.status_code == 200
+
+
+def test_refresh_token_nest_jamais_stocke_en_clair(client, db_session):
+    from app.modules.auth.models import RefreshToken
+
+    client.post("/api/v1/auth/register", json=_register_payload())
+    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+
+    db_token = db_session.query(RefreshToken).order_by(RefreshToken.id_refresh_token.desc()).first()
+    assert db_token.token_hash != tokens["refresh_token"]
+    assert auth_services._hasher_token(tokens["refresh_token"]) == db_token.token_hash
+
+
 def test_logout_revokes_refresh_token(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
     tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()

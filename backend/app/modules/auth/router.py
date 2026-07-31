@@ -132,7 +132,7 @@ def verify_otp(request: Request, payload: VerifyOtpRequest, db: Session = Depend
         subject=utilisateur.id_utilisateur, expires_delta=access_token_expires
     )
 
-    refresh_token_db = services.creer_refresh_token(db, utilisateur.id_utilisateur)
+    _, refresh_token_str = services.creer_refresh_token(db, utilisateur.id_utilisateur)
 
     enregistrer_action(
         db,
@@ -145,7 +145,7 @@ def verify_otp(request: Request, payload: VerifyOtpRequest, db: Session = Depend
 
     return {
         "access_token": access_token,
-        "refresh_token": refresh_token_db.token,
+        "refresh_token": refresh_token_str,
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         "user_type": utilisateur.type,
@@ -155,7 +155,10 @@ def verify_otp(request: Request, payload: VerifyOtpRequest, db: Session = Depend
 @limiter.limit("20/minute")
 def refresh_token(request: Request, refresh_in: TokenRefreshRequest, db: Session = Depends(get_db)):
     """
-    Renouveler un jeton d'accès (Access Token) expiré en utilisant un jeton de rafraîchissement (Refresh Token).
+    Renouveler un jeton d'accès (Access Token) expiré en utilisant un jeton
+    de rafraîchissement (Refresh Token). Fait tourner ce dernier à chaque
+    appel (voir services.faire_tourner_refresh_token) : le jeton renvoyé
+    ici remplace celui fourni, qui devient invalide immédiatement.
     """
     db_token = services.valider_refresh_token(db, refresh_in.refresh_token)
     if not db_token:
@@ -171,10 +174,11 @@ def refresh_token(request: Request, refresh_in: TokenRefreshRequest, db: Session
     new_access_token = create_access_token(
         subject=db_token.id_client, expires_delta=access_token_expires
     )
+    nouveau_refresh_token = services.faire_tourner_refresh_token(db, db_token)
 
     return {
         "access_token": new_access_token,
-        "refresh_token": db_token.token,
+        "refresh_token": nouveau_refresh_token,
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         "user_type": utilisateur.type,

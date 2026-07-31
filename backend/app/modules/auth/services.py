@@ -1,6 +1,7 @@
+import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Tuple
 
 import httpx
 from google.auth.transport import requests as google_requests
@@ -238,30 +239,43 @@ def authentifier_avec_google(db: Session, id_token_str: str) -> Utilisateur:
 
 # --- Services de gestion des Refresh Tokens ---
 
-def creer_refresh_token(db: Session, client_id: int) -> RefreshToken:
+def _hasher_token(token: str) -> str:
     """
-    Génère un jeton de rafraîchissement unique, l'enregistre en base et le retourne.
+    Empreinte SHA-256 du jeton en clair — jamais le jeton lui-même n'est
+    stocké en base (voir RefreshToken.token_hash). Un hachage rapide
+    suffit ici, contrairement aux mots de passe : le jeton a déjà 256 bits
+    d'entropie aléatoire (secrets.token_hex), aucun risque de dictionnaire.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def creer_refresh_token(db: Session, client_id: int) -> Tuple[RefreshToken, str]:
+    """
+    Génère un jeton de rafraîchissement, l'enregistre en base (empreinte
+    uniquement) et retourne à la fois l'enregistrement et le jeton en
+    clair — ce dernier n'est jamais reconstituable après cet appel, il ne
+    doit être transmis qu'une fois au client.
     """
     token_string = secrets.token_hex(32)
     # Le jeton expire dans 8 jours
     expiration = datetime.utcnow() + timedelta(days=8)
-    
+
     db_refresh = RefreshToken(
         id_client=client_id,
-        token=token_string,
+        token_hash=_hasher_token(token_string),
         date_expiration=expiration
     )
     db.add(db_refresh)
     db.commit()
     db.refresh(db_refresh)
-    return db_refresh
+    return db_refresh, token_string
 
 def valider_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
     """
     Vérifie si le jeton existe, n'est pas expiré et n'est pas révoqué.
     """
     db_token = db.query(RefreshToken).filter(
-        RefreshToken.token == token,
+        RefreshToken.token_hash == _hasher_token(token),
         RefreshToken.est_revoque == False,
         RefreshToken.date_expiration > datetime.utcnow()
     ).first()
@@ -272,12 +286,25 @@ def revoquer_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
     Révoque un jeton de rafraîchissement en base de données et le retourne
     (ou None si le jeton n'existe pas).
     """
-    db_token = db.query(RefreshToken).filter(RefreshToken.token == token).first()
+    db_token = db.query(RefreshToken).filter(RefreshToken.token_hash == _hasher_token(token)).first()
     if db_token:
         db_token.est_revoque = True
         db.commit()
         return db_token
     return None
+
+def faire_tourner_refresh_token(db: Session, ancien: RefreshToken) -> str:
+    """
+    Révoque l'ancien jeton et en émet un nouveau pour le même utilisateur —
+    rotation à chaque rafraîchissement (recommandation OWASP) : toute
+    réutilisation ultérieure de l'ancien jeton (déjà révoqué) est donc
+    détectable, signe probable d'un vol plutôt qu'un simple double appel
+    légitime. Retourne le nouveau jeton en clair.
+    """
+    ancien.est_revoque = True
+    db.commit()
+    _, nouveau_token = creer_refresh_token(db, ancien.id_client)
+    return nouveau_token
 
 # --- Services de récupération de mot de passe ---
 
