@@ -201,7 +201,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isCreatingCompte && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>Créer le compte</span>
+                <span>Créer compte</span>
               </button>
             </div>
           </form>
@@ -329,7 +329,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>{isSubmitting ? 'Enregistrement...' : 'Valider'}</span>
+                <span>{isSubmitting ? 'Enregistrement...' : 'Effectuer transaction'}</span>
               </button>
             </div>
           </form>

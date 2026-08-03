@@ -49,7 +49,12 @@ async function rafraichirAccessToken(): Promise<string | null> {
 
 const executerRequete = async (endpoint: string, options: RequestInit, accessToken: string | null) => {
   const headers = new Headers(options.headers);
-  headers.set('Content-Type', 'application/json');
+  // FormData (envoi de fichier, ex: message vocal JARVIS) : ne jamais fixer
+  // Content-Type nous-mêmes, le navigateur doit poser le boundary multipart
+  // lui-même — l'écraser en "application/json" casserait l'upload.
+  if (!(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }

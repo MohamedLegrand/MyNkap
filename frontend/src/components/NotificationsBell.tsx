@@ -1,24 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bell, Check, CheckCheck, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
+import { formatDateRelative } from '../utils/formatters';
 import type { AppNotification } from '../types';
 
 interface NotificationsBellProps {
   // '/notifications' pour un client, '/admin/notifications' pour l'équipe admin.
   basePath: '/notifications' | '/admin/notifications';
 }
-
-const formatDateRelative = (iso: string) => {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "À l'instant";
-  if (minutes < 60) return `Il y a ${minutes} min`;
-  const heures = Math.floor(minutes / 60);
-  if (heures < 24) return `Il y a ${heures} h`;
-  const jours = Math.floor(heures / 24);
-  if (jours < 7) return `Il y a ${jours} j`;
-  return new Date(iso).toLocaleDateString('fr-FR');
-};
 
 export const NotificationsBell: React.FC<NotificationsBellProps> = ({ basePath }) => {
   const [isOpen, setIsOpen] = useState(false);

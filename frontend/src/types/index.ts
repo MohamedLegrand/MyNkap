@@ -83,12 +83,21 @@ export interface ObjectifEpargne {
 
 export interface JarvisMessage {
   id_message: string;
-  type: string;
-  canal: string;
+  type: 'QUESTION' | 'REPONSE';
+  canal: 'TEXTE' | 'VOCAL';
   contenu: string;
   necessite_clarification: boolean;
   options_suggerees: string[] | null;
+  peut_se_permettre: boolean | null;
+  montant_suggere: number | null;
+  conseil_supplementaire: string | null;
   date_creation: string;
+}
+
+export interface JarvisMessageVocal extends JarvisMessage {
+  // null si la synthèse vocale de la réponse a échoué (la réponse texte
+  // reste utilisable quand même) — voir jarvis.service.poser_question_vocale.
+  audio_base64: string | null;
 }
 
 export interface JarvisConversation {
@@ -96,6 +105,10 @@ export interface JarvisConversation {
   titre: string | null;
   date_creation: string;
   date_dernier_message: string;
+}
+
+export interface JarvisConversationDetail extends JarvisConversation {
+  messages: JarvisMessage[];
 }
 
 export interface AppNotification {

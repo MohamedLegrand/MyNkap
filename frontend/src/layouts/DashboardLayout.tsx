@@ -16,6 +16,7 @@ import {
   X,
   Crown,
   Sparkles,
+  Plus,
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
@@ -270,7 +271,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               onClick={onOpenTransactionModal}
               className="bg-primary hover:bg-primary/95 text-primary-foreground font-semibold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
             >
-              <span>+ Enregistrer une opération</span>
+              <Plus className="h-4 w-4" />
+              <span>Effectuer transaction</span>
             </button>
 
             <div className="h-5 w-[1px] bg-border" />
