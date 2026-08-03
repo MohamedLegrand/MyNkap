@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # CORS : origines autorisées à appeler l'API (séparées par des virgules dans .env)
-    CORS_ORIGINS: str = "http://localhost:5173"
+    # 5175 est le port fixe du frontend MyNkap, voir frontend/vite.config.ts.
+    CORS_ORIGINS: str = "http://localhost:5175"
 
     # Broker/backend Celery (tâches de fond : transactions récurrentes...)
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -47,7 +48,7 @@ class Settings(BaseSettings):
 
     # Base du frontend, utilisée pour construire les liens envoyés par e-mail
     # (ex: /reset-password?token=...).
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str = "http://localhost:5175"
 
     # OAuth Google (Se connecter avec Google) — optionnelles, même raison
     # que les autres clés fournisseur ci-dessus. GOOGLE_CLIENT_SECRET n'est
