@@ -22,7 +22,7 @@ import { useAuthStore } from '../store';
 import { api } from '../services/api';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { useDarkMode } from '../hooks/useDarkMode';
-import type { Plan } from '../types';
+import type { Plan, Abonnement } from '../types';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -31,7 +31,14 @@ interface DashboardLayoutProps {
   onOpenTransactionModal?: () => void;
   onOpenUpgradeModal?: () => void;
   plan?: Plan | null;
+  abonnement?: Abonnement | null;
 }
+
+// Nombre de jours restants avant la fin de l'essai gratuit (arrondi au
+// jour supérieur pour ne jamais afficher "0 jour" alors qu'il en reste
+// encore quelques heures).
+const joursRestants = (dateFin: string): number =>
+  Math.max(0, Math.ceil((new Date(dateFin).getTime() - Date.now()) / 86_400_000));
 
 const LABEL_PLAN: Record<string, string> = {
   GRATUIT: 'GRATUIT',
@@ -46,8 +53,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onOpenTransactionModal,
   onOpenUpgradeModal,
   plan,
+  abonnement,
 }) => {
   const nomPlan = plan?.nom ?? 'GRATUIT';
+  const estEnEssai = abonnement?.statut === 'ESSAI' && !!abonnement.date_fin;
   const { theme, toggleTheme } = useDarkMode();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
@@ -92,7 +101,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* Brand Header */}
         <div className="p-5 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpg" alt="MyNkap Logo" className="h-10 w-10 rounded-xl object-cover shadow-sm border border-border" />
+            <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-sm border border-border" />
             <div>
               <span className="text-xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 MyNkap
@@ -107,18 +116,26 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* User Badge / Plan */}
         <div className="p-4 border-b border-border bg-muted/30">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground">Formule Actuelle</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {estEnEssai ? 'Essai gratuit' : 'Formule Actuelle'}
+            </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
               <Crown className="h-3 w-3" />
               <span>{LABEL_PLAN[nomPlan] ?? nomPlan}</span>
             </span>
           </div>
+          {estEnEssai && abonnement?.date_fin && (
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Accès complet, JARVIS inclus — encore{' '}
+              <strong className="text-foreground">{joursRestants(abonnement.date_fin)} jour{joursRestants(abonnement.date_fin) > 1 ? 's' : ''}</strong>.
+            </p>
+          )}
           <button
             onClick={onOpenUpgradeModal}
             className="w-full text-xs font-semibold py-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center justify-center gap-1.5"
           >
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span>Passer à la vitesse supérieure</span>
+            <span>{estEnEssai ? "Garder l'accès après l'essai" : 'Passer à la vitesse supérieure'}</span>
           </button>
         </div>
 
@@ -187,7 +204,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* 2. Drawer Mobile Menu */}
       <div className="md:hidden sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.jpg" alt="MyNkap Logo" className="h-9 w-9 rounded-xl object-cover border border-border" />
+          <img src="/logo.jpg" alt="MyNkap Logo" className="h-12 w-12 rounded-xl object-cover border border-border" />
           <span className="text-xl font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             MyNkap
           </span>
@@ -214,7 +231,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <div className="md:hidden fixed inset-0 z-50 bg-background/95 backdrop-blur-xl flex flex-col p-6 space-y-4">
           <div className="flex justify-between items-center pb-4 border-b border-border">
             <div className="flex items-center gap-3">
-              <img src="/logo.jpg" alt="MyNkap Logo" className="h-10 w-10 rounded-xl" />
+              <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl" />
               <span className="text-xl font-black text-primary">MyNkap</span>
             </div>
             <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-xl bg-muted">

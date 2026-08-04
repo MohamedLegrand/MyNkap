@@ -80,3 +80,25 @@
     @apply bg-background text-foreground transition-colors duration-200;
   }
 }
+
+@layer utilities {
+  /* Bandeau de confiance qui défile horizontalement sans jamais s'arrêter
+     (voir la section "Conçu pour la sécurité..." de la landing page). La
+     piste contient deux copies identiques de la liste ; translateX(-50%)
+     avance exactement d'une copie, ce qui rend la boucle invisible. */
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  .animate-marquee {
+    animation: marquee 38s linear infinite;
+  }
+  .marquee-fade {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  }
+}

@@ -144,6 +144,7 @@ export const ClientDashboard: React.FC = () => {
       onOpenTransactionModal={() => setIsModalOpen(true)}
       onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
       plan={abonnement?.plan}
+      abonnement={abonnement}
     >
       {/* 1. Bannière de Bienvenue */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-forest-600 to-secondary p-6 sm:p-8 text-white shadow-xl">

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sun, Moon, ArrowRight, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
-  HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff,
+  HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff, Wallet,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
@@ -30,6 +30,17 @@ const decoderProfilGoogle = (credential: string): { email: string; prenom: strin
   }
 };
 
+// Bandeau de confiance défilant (section "Conçu pour la sécurité...")
+const TRUST_PILLS: { icon: LucideIcon; titre: string; description: string }[] = [
+  { icon: Globe, titre: 'XAF', description: 'Devise native Afrique Centrale' },
+  { icon: Users, titre: 'Mobile Money', description: 'Orange Money & MTN MoMo intégrés' },
+  { icon: Database, titre: '0 écart', description: 'Aucune incohérence de solde tolérée' },
+  { icon: Lock, titre: 'Chiffré', description: 'Données protégées de bout en bout' },
+  { icon: Shield, titre: '2FA', description: 'Double authentification par e-mail' },
+  { icon: Check, titre: 'Historique inaltérable', description: 'Aucune transaction supprimable' },
+  { icon: TrendingUp, titre: 'Patrimoine en temps réel', description: 'Calculé à chaque opération' },
+];
+
 // Bouton de bascule de thème
 const ThemeToggle = ({ theme, toggleTheme }: { theme: string; toggleTheme: () => void }) => (
   <button
@@ -42,77 +53,331 @@ const ThemeToggle = ({ theme, toggleTheme }: { theme: string; toggleTheme: () =>
   </button>
 );
 
-const LandingPage = () => {
+// En-tête partagé par la landing page et la page À propos
+const SiteHeader = () => {
   const { theme, toggleTheme } = useDarkMode();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
-      {/* 1. Header (Navigation) */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-3">
-            <img src="/logo.jpg" alt="MyNkap Logo" className="h-10 w-10 rounded-xl object-cover shadow-sm border border-border" />
-            <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              MyNkap
-            </span>
-          </div>
+    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border transition-colors duration-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Logo & Brand */}
+        <a href="/" className="flex items-center gap-3">
+          <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-sm border border-border" />
+          <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            MyNkap
+          </span>
+        </a>
 
-          {/* Desktop Nav Links */}
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#ia" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Intelligence Artificielle</a>
-            <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
-            <a href="#about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Comptabilité</a>
-            <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Tarifs</a>
-          </nav>
+        {/* Desktop Nav Links */}
+        <nav className="hidden lg:flex items-center gap-8">
+          <a href="/#ia" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Intelligence Artificielle</a>
+          <a href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
+          <a href="/#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Tarifs</a>
+          <a href="/a-propos" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">À propos</a>
+          <a href="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+        </nav>
 
-          {/* CTA & Theme toggle */}
-          <div className="hidden md:flex items-center gap-4">
-            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-            <a href="/login" className="text-sm font-semibold hover:text-primary transition-colors">
+        {/* CTA & Theme toggle */}
+        <div className="hidden lg:flex items-center gap-4">
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+          <a href="/login" className="text-sm font-semibold hover:text-primary transition-colors">
+            Connexion
+          </a>
+          <a
+            href="/register"
+            className="bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 px-5 rounded-xl transition-all shadow-sm"
+          >
+            S'inscrire
+          </a>
+        </div>
+
+        {/* Mobile Menu Toggle */}
+        <div className="flex items-center gap-4 lg:hidden">
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={mobileMenuOpen}
+            className="p-2 text-muted-foreground hover:text-foreground"
+          >
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden border-t border-border bg-background px-4 pt-4 pb-6 space-y-3 transition-colors duration-200">
+          <a href="/#ia" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Intelligence Artificielle</a>
+          <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Fonctionnalités</a>
+          <a href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Tarifs</a>
+          <a href="/a-propos" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">À propos</a>
+          <a href="/contact" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Contact</a>
+          <div className="pt-4 border-t border-border flex flex-col gap-3">
+            <a href="/login" className="text-center py-2.5 font-semibold text-sm hover:text-primary transition-colors">
               Connexion
             </a>
-            <a
-              href="/register"
-              className="bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 px-5 rounded-xl transition-all shadow-sm"
-            >
+            <a href="/register" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-sm">
               S'inscrire
             </a>
           </div>
+        </div>
+      )}
+    </header>
+  );
+};
 
-          {/* Mobile Menu Toggle */}
-          <div className="flex items-center gap-4 md:hidden">
-            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
-              aria-expanded={mobileMenuOpen}
-              className="p-2 text-muted-foreground hover:text-foreground"
-            >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
+// Numéro de contact WhatsApp (Cameroun, +237)
+const WHATSAPP_NUMERO = '237677246900';
+const WHATSAPP_LIEN = `https://wa.me/${WHATSAPP_NUMERO}`;
+
+// Pied de page partagé par la landing page et la page À propos
+const SiteFooter = () => (
+  <footer className="bg-background text-muted-foreground transition-colors duration-200 border-t border-border pt-16 pb-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-border">
+
+        {/* Colonne 1: Marque & Description */}
+        <div className="md:col-span-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <img src="/logo.jpg" alt="MyNkap" className="h-12 w-12 rounded-xl object-cover border border-border shadow-sm" />
+            <span className="text-xl font-black text-foreground">MyNkap</span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
+            L'application intelligente d'analyse financière et de suivi budgétaire conçue pour le marché d'Afrique Centrale. Centralisez vos comptes Orange Money, MTN MoMo, cartes bancaires et cash.
+          </p>
+
+          {/* Réseaux sociaux */}
+          <div className="flex gap-4 pt-2 text-muted-foreground">
+            <a href="#" className="hover:text-primary transition-colors" title="Twitter / X">
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </a>
+            <a href="#" className="hover:text-primary transition-colors" title="GitHub">
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
+              </svg>
+            </a>
+            <a href="#" className="hover:text-primary transition-colors" title="LinkedIn">
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+              </svg>
+            </a>
           </div>
         </div>
 
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border bg-background px-4 pt-4 pb-6 space-y-3 transition-colors duration-200">
-            <a href="#ia" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Intelligence Artificielle</a>
-            <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Fonctionnalités</a>
-            <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Comptabilité</a>
-            <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Tarifs</a>
-            <div className="pt-4 border-t border-border flex flex-col gap-3">
-              <a href="/login" className="text-center py-2.5 font-semibold text-sm hover:text-primary transition-colors">
-                Connexion
+        {/* Colonne 2: Produit */}
+        <div className="md:col-span-2 space-y-4">
+          <h4 className="text-sm font-bold text-foreground">Produit</h4>
+          <ul className="space-y-2 text-xs">
+            <li><a href="/#features" className="hover:text-foreground transition-colors">Fonctionnalités</a></li>
+            <li><a href="/#ia" className="hover:text-foreground transition-colors">Intelligence Artificielle</a></li>
+            <li><a href="/#pricing" className="hover:text-foreground transition-colors">Tarifs & Offres</a></li>
+            <li><a href="#" className="hover:text-foreground transition-colors">Mises à jour</a></li>
+          </ul>
+        </div>
+
+        {/* Colonne 3: Ressources */}
+        <div className="md:col-span-2 space-y-4">
+          <h4 className="text-sm font-bold text-foreground">Ressources</h4>
+          <ul className="space-y-2 text-xs">
+            <li><a href="/a-propos" className="hover:text-foreground transition-colors">À propos</a></li>
+            <li><a href="/contact" className="hover:text-foreground transition-colors">Contact</a></li>
+            <li><a href="/#about" className="hover:text-foreground transition-colors">Principes Comptables</a></li>
+            <li><a href="#" className="hover:text-foreground transition-colors">Centre d'aide</a></li>
+            <li><a href="#" className="hover:text-foreground transition-colors">API Développeurs</a></li>
+          </ul>
+        </div>
+
+        {/* Colonne 4: Support & Localisation */}
+        <div className="md:col-span-4 space-y-4">
+          <h4 className="text-sm font-bold text-foreground">Support & Contact</h4>
+          <ul className="space-y-2.5 text-xs">
+            <li className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-primary" />
+              <a href="mailto:support@mynkap.com" className="hover:text-foreground transition-colors">support@mynkap.com</a>
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="h-4 w-4 text-forest-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884M20.52 3.449C18.24 1.245 15.24 0 12.05 0 5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.304-1.654a11.888 11.888 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.463-8.452" />
+              </svg>
+              <a
+                href={WHATSAPP_LIEN}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                +237 677 246 900 (WhatsApp)
               </a>
-              <a href="/register" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-sm">
-                S'inscrire
-              </a>
+            </li>
+            <li className="flex items-center gap-2">
+              <HelpCircle className="h-4 w-4 text-secondary" />
+              <span className="text-muted-foreground">Yaoundé / Douala, Cameroun</span>
+            </li>
+          </ul>
+          {/* Badge Sécurisé */}
+          <div className="pt-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold uppercase tracking-wider">
+              <Shield className="h-3 w-3" />
+              Données Chiffrées
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Bottom Bar: Copyright et Avertissement */}
+      <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="text-left space-y-2 max-w-2xl">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            <strong>Avertissement légal :</strong> MyNkap est un outil d'analyse et de planification financière personnelle. L'application ne gère aucun dépôt de fonds réels, n'effectue aucun transfert monétaire réel et ne détient pas de licence d'établissement bancaire. Les transactions doivent être renseignées par l'utilisateur.
+          </p>
+          <p className="text-xs">
+            &copy; {new Date().getFullYear()} MyNkap SaaS. Conçu pour le marché africain. Tous droits réservés.
+          </p>
+        </div>
+
+        <div className="flex gap-4 text-xs font-semibold whitespace-nowrap">
+          <a href="#" className="hover:text-foreground transition-colors">Confidentialité</a>
+          <a href="#" className="hover:text-foreground transition-colors">Conditions</a>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+);
+
+// Démo animée de l'assistant IA (section "Intelligence Artificielle") : la
+// question puis la réponse s'affichent lettre par lettre, en boucle continue,
+// pour simuler une vraie conversation en train de s'écrire.
+const IA_DEMO_QUESTION = "Puis-je me permettre d'acheter un téléphone à 250 000 XAF ce mois-ci ?";
+const IA_DEMO_REPONSE = "En analysant vos revenus (800 000 XAF) et vos dépenses fixes actuelles (300 000 XAF), oui vous le pouvez. Cependant, cela réduira votre objectif d'épargne 'Terrain Douala' de 12% ce mois-ci. Je vous recommande d'attendre le 5 du mois prochain.";
+
+type PhaseDemoIA = 'question' | 'reflexion' | 'reponse' | 'pause';
+
+const AiChatDemo = () => {
+  const [phase, setPhase] = useState<PhaseDemoIA>('question');
+  const [question, setQuestion] = useState('');
+  const [reponse, setReponse] = useState('');
+
+  useEffect(() => {
+    let annule = false;
+    let idTimeout: ReturnType<typeof setTimeout>;
+
+    const attendre = (ms: number) =>
+      new Promise<void>((resolve) => {
+        idTimeout = setTimeout(resolve, ms);
+      });
+
+    const ecrireProgressivement = async (texte: string, onChange: (valeur: string) => void, vitesseMs: number) => {
+      for (let i = 1; i <= texte.length; i++) {
+        if (annule) return;
+        onChange(texte.slice(0, i));
+        await attendre(vitesseMs);
+      }
+    };
+
+    const boucle = async () => {
+      while (!annule) {
+        setQuestion('');
+        setReponse('');
+        setPhase('question');
+        await ecrireProgressivement(IA_DEMO_QUESTION, setQuestion, 35);
+        if (annule) return;
+
+        await attendre(600);
+        if (annule) return;
+        setPhase('reflexion');
+        await attendre(1100);
+        if (annule) return;
+
+        setPhase('reponse');
+        await ecrireProgressivement(IA_DEMO_REPONSE, setReponse, 18);
+        if (annule) return;
+
+        setPhase('pause');
+        await attendre(4500);
+      }
+    };
+
+    boucle();
+    return () => {
+      annule = true;
+      clearTimeout(idTimeout);
+    };
+  }, []);
+
+  return (
+    <div className="w-full max-w-sm bg-card rounded-2xl shadow-xl border border-border p-6 space-y-4 text-left">
+      <div className="flex items-center gap-2 border-b border-border pb-3">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex justify-center items-center text-primary">
+          <Sparkles className="w-6 h-6" />
+        </div>
+        <div>
+          <h4 className="font-bold text-sm">Assistant Financier IA</h4>
+          <span className="text-xs text-green-500 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
+            En ligne
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3 h-[240px] overflow-y-auto pr-1 text-xs">
+        {question && (
+          <div className="flex flex-col items-end">
+            <div className="bg-secondary text-secondary-foreground p-3 rounded-2xl rounded-tr-none max-w-[85%]">
+              "{question}
+              {phase === 'question' && <span className="animate-pulse">▌</span>}"
+            </div>
+            <span className="text-[10px] text-muted-foreground mt-1">Vous, 14:58</span>
+          </div>
+        )}
+
+        {phase === 'reflexion' && (
+          <div className="flex flex-col items-start">
+            <div className="bg-muted p-3 rounded-2xl rounded-tl-none border border-border flex gap-1.5">
+              <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:0ms]" />
+              <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:150ms]" />
+              <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:300ms]" />
             </div>
           </div>
         )}
-      </header>
+
+        {reponse && (
+          <div className="flex flex-col items-start">
+            <div className="bg-muted p-3 rounded-2xl rounded-tl-none max-w-[85%] border border-border leading-relaxed">
+              "{reponse}
+              {phase === 'reponse' && <span className="animate-pulse">▌</span>}"
+            </div>
+            <span className="text-[10px] text-muted-foreground mt-1">Assistant IA, 14:59</span>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-border pt-3">
+        <div className="flex gap-2 bg-muted p-2 rounded-xl border border-border">
+          <input
+            disabled
+            placeholder="Posez une question financière à l'IA..."
+            className="bg-transparent border-none text-xs flex-1 outline-none text-muted-foreground"
+          />
+          <button className="bg-primary text-primary-foreground p-1.5 rounded-lg" aria-label="Envoyer">
+            <MessageSquare className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const LandingPage = () => {
+  return (
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
+      {/* 1. Header (Navigation) */}
+      <SiteHeader />
 
       {/* 2. Hero Section */}
       <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
@@ -147,42 +412,28 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* 3. Trusted By / Stats Section */}
-      <section className="py-12 bg-muted transition-colors duration-200 border-y border-border">
+      {/* 3. Trusted By / Bandeau de confiance défilant */}
+      <section className="py-12 bg-muted transition-colors duration-200 border-y border-border overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-8">
             Conçu pour la sécurité et la fiabilité financière au quotidien
           </p>
+        </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div className="space-y-1">
-              <div className="text-3xl font-extrabold text-primary flex items-center justify-center gap-1">
-                <Globe className="h-6 w-6 text-primary/80" />
-                <span>XAF</span>
+        <div className="relative w-full marquee-fade">
+          <div className="flex w-max animate-marquee">
+            {[...TRUST_PILLS, ...TRUST_PILLS].map((pill, idx) => (
+              <div key={idx} className="flex items-center gap-3 pr-10 shrink-0">
+                <span className="p-2.5 rounded-xl bg-card border border-border shadow-sm text-primary shrink-0">
+                  <pill.icon className="h-5 w-5" />
+                </span>
+                <div className="text-left leading-tight">
+                  <span className="block text-sm font-bold text-foreground whitespace-nowrap">{pill.titre}</span>
+                  <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{pill.description}</span>
+                </div>
+                <span className="text-border pl-7 select-none">•</span>
               </div>
-              <p className="text-xs text-muted-foreground">Devise native Afrique Centrale</p>
-            </div>
-            <div className="space-y-1">
-              <div className="text-3xl font-extrabold text-secondary flex items-center justify-center gap-1">
-                <Users className="h-6 w-6 text-secondary/80" />
-                <span>Mobile Money</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Orange Money & MTN MoMo intégrés</p>
-            </div>
-            <div className="space-y-1">
-              <div className="text-3xl font-extrabold text-primary flex items-center justify-center gap-1">
-                <Database className="h-6 w-6 text-primary/80" />
-                <span>0 écart</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Aucune incohérence de solde tolérée</p>
-            </div>
-            <div className="space-y-1">
-              <div className="text-3xl font-extrabold text-secondary flex items-center justify-center gap-1">
-                <Lock className="h-6 w-6 text-secondary/80" />
-                <span>Chiffré</span>
-              </div>
-              <p className="text-xs text-muted-foreground">Données protégées de bout en bout</p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -194,51 +445,7 @@ const LandingPage = () => {
 
             {/* Left Column (Interactive AI Conversation Box) */}
             <div className="lg:col-span-5 flex justify-center order-last lg:order-first">
-              <div className="w-full max-w-sm bg-card rounded-2xl shadow-xl border border-border p-6 space-y-4 text-left">
-                <div className="flex items-center gap-2 border-b border-border pb-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex justify-center items-center text-primary">
-                    <Sparkles className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm">Assistant Financier IA</h4>
-                    <span className="text-xs text-green-500 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
-                      En ligne
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-3 h-[240px] overflow-y-auto pr-1 text-xs">
-                  {/* User Bubble */}
-                  <div className="flex flex-col items-end">
-                    <div className="bg-secondary text-secondary-foreground p-3 rounded-2xl rounded-tr-none max-w-[85%]">
-                      "Puis-je me permettre d'acheter un téléphone à 250 000 XAF ce mois-ci ?"
-                    </div>
-                    <span className="text-[10px] text-muted-foreground mt-1">Vous, 14:58</span>
-                  </div>
-
-                  {/* AI Bubble */}
-                  <div className="flex flex-col items-start">
-                    <div className="bg-muted p-3 rounded-2xl rounded-tl-none max-w-[85%] border border-border leading-relaxed">
-                      "En analysant vos revenus (800 000 XAF) et vos dépenses fixes actuelles (300 000 XAF), oui vous le pouvez. Cependant, cela réduira votre objectif d'épargne 'Terrain Douala' de 12% ce mois-ci. Je vous recommande d'attendre le 5 du mois prochain."
-                    </div>
-                    <span className="text-[10px] text-muted-foreground mt-1">Assistant IA, 14:59</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-border pt-3">
-                  <div className="flex gap-2 bg-muted p-2 rounded-xl border border-border">
-                    <input
-                      disabled
-                      placeholder="Posez une question financière à l'IA..."
-                      className="bg-transparent border-none text-xs flex-1 outline-none text-muted-foreground"
-                    />
-                    <button className="bg-primary text-primary-foreground p-1.5 rounded-lg" aria-label="Envoyer">
-                      <MessageSquare className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <AiChatDemo />
             </div>
 
             {/* Right Column (Content) */}
@@ -421,106 +628,235 @@ const LandingPage = () => {
       </section>
 
       {/* 8. Footer */}
-      <footer className="bg-background text-muted-foreground transition-colors duration-200 border-t border-border pt-16 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-border">
-            
-            {/* Colonne 1: Marque & Description */}
-            <div className="md:col-span-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <img src="/logo.jpg" alt="MyNkap" className="h-9 w-9 rounded-xl object-cover border border-border shadow-sm" />
-                <span className="text-xl font-black text-foreground">MyNkap</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
-                L'application intelligente d'analyse financière et de suivi budgétaire conçue pour le marché d'Afrique Centrale. Centralisez vos comptes Orange Money, MTN MoMo, cartes bancaires et cash.
-              </p>
-              
-              {/* Réseaux sociaux */}
-              <div className="flex gap-4 pt-2 text-muted-foreground">
-                <a href="#" className="hover:text-primary transition-colors" title="Twitter / X">
-                  <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                </a>
-                <a href="#" className="hover:text-primary transition-colors" title="GitHub">
-                  <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-                    <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
-                  </svg>
-                </a>
-                <a href="#" className="hover:text-primary transition-colors" title="LinkedIn">
-                  <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-                  </svg>
-                </a>
-              </div>
-            </div>
+      <SiteFooter />
+    </div>
+  );
+};
 
-            {/* Colonne 2: Produit */}
-            <div className="md:col-span-2 space-y-4">
-              <h4 className="text-sm font-bold text-foreground">Produit</h4>
-              <ul className="space-y-2 text-xs">
-                <li><a href="#features" className="hover:text-foreground transition-colors">Fonctionnalités</a></li>
-                <li><a href="#ia" className="hover:text-foreground transition-colors">Intelligence Artificielle</a></li>
-                <li><a href="#pricing" className="hover:text-foreground transition-colors">Tarifs & Offres</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Mises à jour</a></li>
-              </ul>
-            </div>
+const AboutPage = () => {
+  return (
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
+      <SiteHeader />
 
-            {/* Colonne 3: Ressources */}
-            <div className="md:col-span-2 space-y-4">
-              <h4 className="text-sm font-bold text-foreground">Ressources</h4>
-              <ul className="space-y-2 text-xs">
-                <li><a href="#about" className="hover:text-foreground transition-colors">Principes Comptables</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Centre d'aide</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Blog & Conseils</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">API Développeurs</a></li>
-              </ul>
-            </div>
-
-            {/* Colonne 4: Support & Localisation */}
-            <div className="md:col-span-4 space-y-4">
-              <h4 className="text-sm font-bold text-foreground">Support & Contact</h4>
-              <ul className="space-y-2.5 text-xs">
-                <li className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-primary" />
-                  <a href="mailto:support@mynkap.com" className="hover:text-foreground transition-colors">support@mynkap.com</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <HelpCircle className="h-4 w-4 text-secondary" />
-                  <span className="text-muted-foreground">Yaoundé / Douala, Cameroun</span>
-                </li>
-              </ul>
-              {/* Badge Sécurisé */}
-              <div className="pt-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold uppercase tracking-wider">
-                  <Shield className="h-3 w-3" />
-                  Données Chiffrées
-                </span>
-              </div>
-            </div>
-            
+      {/* Hero */}
+      <section className="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
+            <Sparkles className="h-4 w-4" />
+            <span>À propos de MyNkap</span>
           </div>
-
-          {/* Bottom Bar: Copyright et Avertissement */}
-          <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-left space-y-2 max-w-2xl">
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                <strong>Avertissement légal :</strong> MyNkap est un outil d'analyse et de planification financière personnelle. L'application ne gère aucun dépôt de fonds réels, n'effectue aucun transfert monétaire réel et ne détient pas de licence d'établissement bancaire. Les transactions doivent être renseignées par l'utilisateur.
-              </p>
-              <p className="text-xs">
-                &copy; {new Date().getFullYear()} MyNkap SaaS. Conçu pour le marché africain. Tous droits réservés.
-              </p>
-            </div>
-
-            <div className="flex gap-4 text-xs font-semibold whitespace-nowrap">
-              <a href="#" className="hover:text-foreground transition-colors">Confidentialité</a>
-              <a href="#" className="hover:text-foreground transition-colors">Conditions</a>
-            </div>
-          </div>
-          
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight">
+            Une application pensée pour les finances personnelles en <span className="text-primary">Afrique Centrale</span>
+          </h1>
+          <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            MyNkap est né d'un constat simple : gérer son argent au quotidien en zone CEMAC (FCFA) — entre Mobile Money, comptes bancaires et espèces — reste éclaté entre plusieurs applications qui ne se parlent pas. MyNkap réunit tout cela en un seul endroit clair et fiable.
+          </p>
         </div>
-      </footer>
+      </section>
+
+      {/* Notre objectif */}
+      <section className="py-16 md:py-20 bg-muted border-t border-border">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div className="space-y-4">
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Notre objectif</h2>
+            <p className="text-base text-muted-foreground leading-relaxed">
+              Donner à chacun une vision claire et fidèle de sa situation financière réelle : combien vous possédez, combien vous devez, combien vous pouvez épargner — sans avoir à additionner mentalement plusieurs comptes Mobile Money, un compte bancaire et de l'argent en espèces.
+            </p>
+            <p className="text-base text-muted-foreground leading-relaxed">
+              MyNkap ne déplace pas d'argent réel : c'est un outil de suivi, de budgétisation et d'analyse. Vous gardez le contrôle total de vos comptes existants, MyNkap vous aide simplement à voir clair.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
+              <Wallet className="h-6 w-6 text-primary" />
+              <h3 className="text-sm font-bold">Comptes unifiés</h3>
+              <p className="text-xs text-muted-foreground">Mobile Money, banque et espèces au même endroit.</p>
+            </div>
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
+              <TrendingUp className="h-6 w-6 text-secondary" />
+              <h3 className="text-sm font-bold">Budgets clairs</h3>
+              <p className="text-xs text-muted-foreground">Catégories et plafonds pour garder le cap chaque mois.</p>
+            </div>
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
+              <Sparkles className="h-6 w-6 text-primary" />
+              <h3 className="text-sm font-bold">Assistant IA</h3>
+              <p className="text-xs text-muted-foreground">Des conseils personnalisés basés sur vos vraies données.</p>
+            </div>
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
+              <Shield className="h-6 w-6 text-secondary" />
+              <h3 className="text-sm font-bold">Données protégées</h3>
+              <p className="text-xs text-muted-foreground">Chiffrement et double authentification par défaut.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pour qui */}
+      <section className="py-16 md:py-20 border-t border-border">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Pour qui ?</h2>
+          <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            MyNkap s'adresse à toute personne en Afrique Centrale qui utilise Orange Money, MTN MoMo, un ou plusieurs comptes bancaires, et souhaite enfin suivre ses finances personnelles sans jongler entre plusieurs applications ou tableurs.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 pt-2">
+            {['Salariés', 'Indépendants & commerçants', 'Étudiants', 'Familles'].map((profil) => (
+              <span key={profil} className="px-4 py-2 rounded-full bg-muted border border-border text-sm font-semibold">
+                {profil}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Contact */}
+      <section className="py-16 md:py-20 bg-muted border-t border-border">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Une question ?</h2>
+          <p className="text-base text-muted-foreground leading-relaxed">
+            Notre équipe basée à Yaoundé et Douala vous répond directement sur WhatsApp.
+          </p>
+          <a
+            href={WHATSAPP_LIEN}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2.5 bg-forest-500 hover:bg-forest-600 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-md"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884M20.52 3.449C18.24 1.245 15.24 0 12.05 0 5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.304-1.654a11.888 11.888 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.463-8.452" />
+            </svg>
+            <span>Discuter sur WhatsApp — +237 677 246 900</span>
+          </a>
+        </div>
+      </section>
+
+      <SiteFooter />
+    </div>
+  );
+};
+
+const ContactPage = () => {
+  const [nom, setNom] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [estEnvoye, setEstEnvoye] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // MyNkap n'a pas de service d'envoi d'e-mail pour ce formulaire : le
+    // message est transmis directement via WhatsApp (numéro de contact),
+    // pré-rempli pour que l'utilisateur n'ait plus qu'à appuyer sur envoyer.
+    const texte = `Nouveau message depuis le site MyNkap :\n\nNom : ${nom}\nEmail : ${email}\n\nMessage :\n${message}`;
+    window.open(`${WHATSAPP_LIEN}?text=${encodeURIComponent(texte)}`, '_blank', 'noopener,noreferrer');
+    setEstEnvoye(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
+      <SiteHeader />
+
+      <section className="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
+            <MessageSquare className="h-4 w-4" />
+            <span>Contact</span>
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight">
+            Une question ? <span className="text-primary">Écrivez-nous</span>
+          </h1>
+          <p className="text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto">
+            Remplissez le formulaire ci-dessous : votre message s'ouvre directement dans WhatsApp, prêt à être envoyé à notre équipe.
+          </p>
+        </div>
+      </section>
+
+      <section className="pb-20 md:pb-28">
+        <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-card p-8 rounded-2xl border border-border shadow-lg">
+            {estEnvoye ? (
+              <div className="text-center space-y-4 py-6">
+                <div className="mx-auto w-14 h-14 rounded-full bg-forest-500/10 text-forest-600 dark:text-forest-400 flex items-center justify-center">
+                  <Check className="h-7 w-7" />
+                </div>
+                <h2 className="text-xl font-bold">WhatsApp est en train de s'ouvrir</h2>
+                <p className="text-sm text-muted-foreground">
+                  Un nouvel onglet WhatsApp s'est ouvert avec votre message pré-rempli. Il ne reste plus qu'à appuyer sur envoyer.
+                </p>
+                <button
+                  onClick={() => { setEstEnvoye(false); setNom(''); setEmail(''); setMessage(''); }}
+                  className="text-sm font-bold text-primary hover:underline"
+                >
+                  Envoyer un autre message
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="contact_nom" className="text-sm font-medium">Nom complet</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      id="contact_nom"
+                      type="text"
+                      required
+                      value={nom}
+                      onChange={(e) => setNom(e.target.value)}
+                      placeholder="Votre nom"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="contact_email" className="text-sm font-medium">Adresse e-mail</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      id="contact_email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="vous@exemple.com"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="contact_message" className="text-sm font-medium">Message</label>
+                  <textarea
+                    id="contact_message"
+                    required
+                    rows={5}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Comment pouvons-nous vous aider ?"
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884M20.52 3.449C18.24 1.245 15.24 0 12.05 0 5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.304-1.654a11.888 11.888 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.463-8.452" />
+                  </svg>
+                  <span>Envoyer via WhatsApp</span>
+                </button>
+              </form>
+            )}
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            Vous préférez l'e-mail ? Écrivez-nous à{' '}
+            <a href="mailto:support@mynkap.com" className="font-semibold text-primary hover:underline">support@mynkap.com</a>
+          </p>
+        </div>
+      </section>
+
+      <SiteFooter />
     </div>
   );
 };
@@ -547,7 +883,7 @@ const AuthLayout = ({
 
       <div className={`w-full ${maxWidthClassName}`}>
         <a href="/" className="flex flex-col items-center gap-3 mb-8">
-          <img src="/logo.jpg" alt="MyNkap" className="h-16 w-16 rounded-2xl object-cover shadow-md border border-border" />
+          <img src="/logo.jpg" alt="MyNkap" className="h-20 w-20 rounded-2xl object-cover shadow-md border border-border" />
           <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             MyNkap
           </span>
@@ -817,6 +1153,8 @@ export const AppRoutes: React.FC = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/a-propos" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
