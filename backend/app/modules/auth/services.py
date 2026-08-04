@@ -64,8 +64,8 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
     # budgets.service.creer_categories_par_defaut)
     budgets_service.creer_categories_par_defaut(db, db_client.id_client)
 
-    # 5. Abonnement GRATUIT par défaut (voir plans.service.creer_abonnement_gratuit)
-    plans_service.creer_abonnement_gratuit(db, db_client.id_client)
+    # 5. Essai gratuit de 30 jours, accès complet (voir plans.service.creer_abonnement_essai)
+    plans_service.creer_abonnement_essai(db, db_client.id_client)
 
     db.commit()
     db.refresh(db_client)

@@ -74,6 +74,9 @@ def test_demander_rapport_gratuit_ne_necessite_aucun_palier(client):
 
 def test_demander_rapport_gate_par_palier(client):
     headers = _register_and_login(client, "rapports.gate@example.com")
+    # Le client démarre sur l'essai PREMIUM (30 jours) ; on redescend
+    # explicitement sur GRATUIT pour tester le blocage par palier.
+    client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "GRATUIT"}, headers=headers)
 
     for type_rapport in ("DETTES_EPARGNE", "BILAN_FINANCIER", "PREDICTIONS"):
         reponse = client.post(

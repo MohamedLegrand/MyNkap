@@ -12,6 +12,7 @@ from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
 logger = logging.getLogger(__name__)
 
 DUREE_CYCLE = {"MENSUEL": timedelta(days=30), "ANNUEL": timedelta(days=365)}
+DUREE_ESSAI_GRATUIT = timedelta(days=30)
 
 
 class PlanIntrouvableError(Exception):
@@ -47,12 +48,15 @@ def _obtenir_plan_gratuit(db: Session) -> Plan:
     return db.query(Plan).filter(Plan.nom == "GRATUIT").first()
 
 
+def _obtenir_plan_premium(db: Session) -> Plan:
+    return db.query(Plan).filter(Plan.nom == "PREMIUM").first()
+
+
 def creer_abonnement_gratuit(db: Session, id_client: int) -> Abonnement:
     """
-    Crée l'abonnement GRATUIT par défaut à l'inscription. Pas de commit ici
-    : appelé dans la même transaction SQL que la création du Client (voir
-    auth.services.creer_client), pour que le compte naisse déjà avec un
-    abonnement valide.
+    Crée un abonnement GRATUIT nu. Pas de commit ici : appelée soit comme
+    filet de sécurité pour un client déjà existant sans abonnement (voir
+    obtenir_abonnement_actif), soit à l'échéance d'un essai/plan payant.
     """
     plan_gratuit = _obtenir_plan_gratuit(db)
     abonnement = Abonnement(
@@ -61,6 +65,31 @@ def creer_abonnement_gratuit(db: Session, id_client: int) -> Abonnement:
         statut="ACTIF",
         date_fin=None,
         cycle_facturation=None,
+    )
+    db.add(abonnement)
+    return abonnement
+
+
+def creer_abonnement_essai(db: Session, id_client: int) -> Abonnement:
+    """
+    Essai gratuit de 30 jours à l'inscription : accès complet (plan
+    PREMIUM, JARVIS inclus) sans paiement ni engagement. Pas de commit ici
+    : appelé dans la même transaction SQL que la création du Client (voir
+    auth.services.creer_client), pour que le compte naisse déjà avec un
+    abonnement valide. renouvellement_auto=False car il n'y a aucun
+    paiement à débiter à l'échéance : obtenir_abonnement_actif fait
+    systématiquement redescendre le client vers GRATUIT à la date_fin,
+    jamais vers un plan payant sans paiement réel confirmé.
+    """
+    plan_premium = _obtenir_plan_premium(db)
+    abonnement = Abonnement(
+        id_client=id_client,
+        id_plan=plan_premium.id_plan,
+        statut="ESSAI",
+        date_debut=datetime.utcnow(),
+        date_fin=datetime.utcnow() + DUREE_ESSAI_GRATUIT,
+        cycle_facturation=None,
+        renouvellement_auto=False,
     )
     db.add(abonnement)
     return abonnement

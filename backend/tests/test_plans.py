@@ -31,18 +31,33 @@ def test_lister_plans_est_public(client):
     assert noms == {"GRATUIT", "ESSENTIEL", "PREMIUM"}
 
 
-def test_nouveau_client_a_un_abonnement_gratuit_actif(client):
+def test_nouveau_client_a_un_essai_premium_de_30_jours(client):
     headers = _register_and_login(client, "plans.nouveau@example.com")
     reponse = client.get("/api/v1/abonnement", headers=headers)
     assert reponse.status_code == 200
     body = reponse.json()
-    assert body["plan"]["nom"] == "GRATUIT"
-    assert body["statut"] == "ACTIF"
-    assert body["date_fin"] is None
+    assert body["plan"]["nom"] == "PREMIUM"
+    assert body["statut"] == "ESSAI"
+    assert body["renouvellement_auto"] is False
+    assert body["date_fin"] is not None
+
+    date_fin = datetime.fromisoformat(body["date_fin"])
+    duree_restante = date_fin - datetime.utcnow()
+    # Marge de quelques minutes pour absorber le temps d'exécution du test.
+    assert timedelta(days=29, hours=23) < duree_restante <= timedelta(days=30)
+
+    # L'essai donne un accès complet, y compris JARVIS.
+    assert client.get("/api/v1/dettes", headers=headers).status_code == 200
+    assert client.get("/api/v1/epargne", headers=headers).status_code == 200
+    assert client.get("/api/v1/jarvis/conversations", headers=headers).status_code == 200
 
 
 def test_client_gratuit_est_bloque_sur_les_fonctionnalites_payantes(client):
     headers = _register_and_login(client, "plans.gratuit@example.com")
+    # Le client démarre sur l'essai PREMIUM (30 jours) ; on redescend
+    # explicitement sur GRATUIT pour tester le blocage des fonctionnalités
+    # payantes une fois l'essai terminé.
+    client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "GRATUIT"}, headers=headers)
 
     assert client.get("/api/v1/dettes", headers=headers).status_code == 403
     assert client.get("/api/v1/epargne", headers=headers).status_code == 403
@@ -105,8 +120,9 @@ def test_initier_paiement_cree_un_paiement_pending(client, monkeypatch):
     assert appels["phone_number"] == "237655500393"
     assert appels["operator"] == "orange"
 
-    # Le plan n'a pas encore changé : le paiement n'est pas confirmé.
-    assert client.get("/api/v1/dettes", headers=headers).status_code == 403
+    # Le plan n'a pas encore changé : le paiement n'est pas confirmé (le
+    # client reste sur son essai PREMIUM de départ, pas encore ESSENTIEL).
+    assert client.get("/api/v1/abonnement", headers=headers).json()["plan"]["nom"] != "ESSENTIEL"
 
 
 def test_initier_paiement_sans_telephone_est_refuse(client, monkeypatch):
@@ -193,9 +209,11 @@ def test_verifier_paiements_en_attente_marque_failed_sans_changer_le_plan(client
     paiement = db_session.query(PaiementAbonnement).first()
     assert paiement.statut == "FAILED"
 
+    # Le paiement a échoué : le plan reste inchangé (essai PREMIUM en
+    # cours, jamais basculé vers ESSENTIEL).
     abonnement = client.get("/api/v1/abonnement", headers=headers).json()
-    assert abonnement["plan"]["nom"] == "GRATUIT"
-    assert client.get("/api/v1/dettes", headers=headers).status_code == 403
+    assert abonnement["plan"]["nom"] == "PREMIUM"
+    assert client.get("/api/v1/dettes", headers=headers).status_code == 200
 
 
 def test_verifier_paiements_en_attente_ignore_ceux_toujours_pending(client, db_session, monkeypatch):
