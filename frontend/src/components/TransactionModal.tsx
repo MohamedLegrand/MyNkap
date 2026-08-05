@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, ArrowDownCircle, ArrowUpCircle, Wallet, Tag, FileText, Loader2, AlertTriangle } from 'lucide-react';
+import { X, ArrowDownCircle, ArrowUpCircle, Wallet, Tag, FileText, Calendar, Loader2, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import type { CompteFinancier, Categorie } from '../types';
 
@@ -9,12 +9,25 @@ interface TransactionModalProps {
   onSuccess?: () => void;
 }
 
+// Format YYYY-MM-DD en heure locale (pas toISOString(), qui bascule sur UTC
+// et peut faire retomber sur "hier" pour tout utilisateur à l'est de
+// Greenwich en fin de journée — ce qui inclut l'Afrique Centrale).
+const formatDateLocale = (d: Date): string => {
+  const annee = d.getFullYear();
+  const mois = String(d.getMonth() + 1).padStart(2, '0');
+  const jour = String(d.getDate()).padStart(2, '0');
+  return `${annee}-${mois}-${jour}`;
+};
+
+const AUJOURDHUI = formatDateLocale(new Date());
+
 export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [type, setType] = useState<'DEPENSE' | 'REVENU'>('DEPENSE');
   const [montant, setMontant] = useState('');
   const [idCompte, setIdCompte] = useState('');
   const [idCategorie, setIdCategorie] = useState('');
   const [description, setDescription] = useState('');
+  const [date, setDate] = useState(AUJOURDHUI);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +65,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     // dérivé d'un rendu précédent.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     chargerComptesEtCategories();
+    setDate(AUJOURDHUI);
   }, [isOpen]);
 
   const handleCreerCompte = async (e: React.FormEvent) => {
@@ -111,10 +125,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
           montant: Number(montant),
           type,
           description: description || undefined,
+          date,
         }),
       });
       setMontant('');
       setDescription('');
+      setDate(AUJOURDHUI);
       onSuccess?.();
       onClose();
     } catch (err) {
@@ -251,6 +267,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 />
                 <span className="absolute right-4 top-3.5 text-xs font-black text-muted-foreground uppercase">XAF</span>
               </div>
+            </div>
+
+            {/* Date de l'opération (modifiable pour rattraper une transaction oubliée) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>Date de l'opération</span>
+              </label>
+              <input
+                type="date"
+                required
+                max={AUJOURDHUI}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {date !== AUJOURDHUI && (
+                <p className="text-[11px] text-muted-foreground">
+                  Transaction antidatée — elle sera comptée dans le budget du mois correspondant.
+                </p>
+              )}
             </div>
 
             {/* Compte Source */}
