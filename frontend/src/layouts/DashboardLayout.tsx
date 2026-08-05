@@ -17,6 +17,7 @@ import {
   Crown,
   Sparkles,
   Plus,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
@@ -32,6 +33,7 @@ interface DashboardLayoutProps {
   onOpenUpgradeModal?: () => void;
   plan?: Plan | null;
   abonnement?: Abonnement | null;
+  nombreComptes?: number;
 }
 
 // Nombre de jours restants avant la fin de l'essai gratuit (arrondi au
@@ -54,9 +56,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   onOpenUpgradeModal,
   plan,
   abonnement,
+  nombreComptes = 0,
 }) => {
   const nomPlan = plan?.nom ?? 'GRATUIT';
   const estEnEssai = abonnement?.statut === 'ESSAI' && !!abonnement.date_fin;
+  // Rien à proposer au-dessus de PREMIUM une fois l'essai terminé — le
+  // bouton "upgrade" n'a alors plus de sens (voir plus bas).
+  const dejaAuMaximum = nomPlan === 'PREMIUM' && !estEnEssai;
   const { theme, toggleTheme } = useDarkMode();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
@@ -80,13 +86,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   const navItems = [
     { id: 'overview', label: 'Vue d\'ensemble', icon: LayoutDashboard },
-    { id: 'accounts', label: 'Mes Comptes', icon: Wallet, badge: '4' },
+    { id: 'accounts', label: 'Mes Comptes', icon: Wallet, badge: nombreComptes > 0 ? String(nombreComptes) : undefined },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'budgets', label: 'Budgets & Alertes', icon: PieChart },
     { id: 'savings', label: 'Épargne & Projets', icon: PiggyBank, gate: 'acces_epargne' as const },
     { id: 'debts', label: 'Dettes & Créances', icon: HandCoins, gate: 'acces_dettes' as const },
     { id: 'jarvis', label: 'Assistant JARVIS IA', icon: Bot, isNew: true, gate: 'acces_jarvis' as const },
-    { id: 'reports', label: 'Rapports PDF', icon: FileText, gate: 'acces_rapport' as const },
+    // Pas de `gate` ici : RELEVE_TRANSACTIONS et BILAN_BUDGETAIRE sont
+    // gratuits pour tous les paliers (seuls certains types de rapports,
+    // filtrés à l'intérieur de la page elle-même, sont réservés — voir
+    // TYPES_RAPPORT dans ClientDashboard.tsx). `acces_rapport` n'est encore
+    // activé par aucun plan, gater l'onglet dessus le cacherait pour tout
+    // le monde.
+    { id: 'reports', label: 'Rapports PDF', icon: FileText },
   ];
 
   // Un item sans `gate` est toujours visible ; un item gaté n'apparaît que
@@ -130,13 +142,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <strong className="text-foreground">{joursRestants(abonnement.date_fin)} jour{joursRestants(abonnement.date_fin) > 1 ? 's' : ''}</strong>.
             </p>
           )}
-          <button
-            onClick={onOpenUpgradeModal}
-            className="w-full text-xs font-semibold py-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center justify-center gap-1.5"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span>{estEnEssai ? "Garder l'accès après l'essai" : 'Passer à la vitesse supérieure'}</span>
-          </button>
+          {dejaAuMaximum ? (
+            <p className="text-[11px] font-semibold text-forest-600 dark:text-forest-400 flex items-center justify-center gap-1.5 py-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Toutes les fonctionnalités débloquées</span>
+            </p>
+          ) : (
+            <button
+              onClick={onOpenUpgradeModal}
+              className="w-full text-xs font-semibold py-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span>{estEnEssai ? "Garder l'accès après l'essai" : 'Passer à la vitesse supérieure'}</span>
+            </button>
+          )}
         </div>
 
         {/* Navigation Items */}

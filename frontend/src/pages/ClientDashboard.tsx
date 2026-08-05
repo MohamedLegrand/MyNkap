@@ -17,8 +17,13 @@ import {
   Sparkles,
   ShieldCheck,
   Loader2,
-  Crown,
   Tag,
+  HandCoins,
+  Filter,
+  Ban,
+  Download,
+  FileText,
+  Clock,
 } from 'lucide-react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
@@ -26,6 +31,10 @@ import { PlanUpgradeModal } from '../components/PlanUpgradeModal';
 import { CompteModal } from '../components/CompteModal';
 import { CategorieModal } from '../components/CategorieModal';
 import { BudgetModal } from '../components/BudgetModal';
+import { DetteModal } from '../components/DetteModal';
+import { DetteOperationModal } from '../components/DetteOperationModal';
+import { ObjectifModal } from '../components/ObjectifModal';
+import { ObjectifOperationModal } from '../components/ObjectifOperationModal';
 import { JarvisWidget } from '../components/JarvisWidget';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
@@ -37,6 +46,8 @@ import type {
   Categorie,
   Budget,
   ObjectifEpargne,
+  Dette,
+  Rapport,
 } from '../types';
 
 const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
@@ -55,6 +66,10 @@ export const ClientDashboard: React.FC = () => {
   const [isCompteModalOpen, setIsCompteModalOpen] = useState(false);
   const [isCategorieModalOpen, setIsCategorieModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isDetteModalOpen, setIsDetteModalOpen] = useState(false);
+  const [isObjectifModalOpen, setIsObjectifModalOpen] = useState(false);
+  const [detteOperation, setDetteOperation] = useState<Dette | null>(null);
+  const [objectifOperation, setObjectifOperation] = useState<{ objectif: ObjectifEpargne; operation: 'alimenter' | 'retirer' } | null>(null);
   const client = useAuthStore((state) => state.client);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +81,8 @@ export const ClientDashboard: React.FC = () => {
   const [categories, setCategories] = useState<Categorie[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [objectifsEpargne, setObjectifsEpargne] = useState<ObjectifEpargne[]>([]);
+  const [dettes, setDettes] = useState<Dette[]>([]);
+  const [rapports, setRapports] = useState<Rapport[]>([]);
 
   const chargerAbonnement = useCallback(async () => {
     try {
@@ -98,12 +115,21 @@ export const ClientDashboard: React.FC = () => {
     }
   }, []);
 
+  const chargerRapports = useCallback(async () => {
+    try {
+      setRapports(await api.request<Rapport[]>('/rapports'));
+    } catch {
+      setRapports([]);
+    }
+  }, []);
+
   useEffect(() => {
     // Chargement au montage, pas une synchronisation d'état dérivé.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     chargerDonnees();
     chargerAbonnement();
-  }, [chargerDonnees, chargerAbonnement]);
+    chargerRapports();
+  }, [chargerDonnees, chargerAbonnement, chargerRapports]);
 
   useEffect(() => {
     // Ne tente /epargne que si le forfait y donne accès — évite un 403
@@ -119,6 +145,20 @@ export const ClientDashboard: React.FC = () => {
       .request<ObjectifEpargne[]>('/epargne')
       .then(setObjectifsEpargne)
       .catch(() => setObjectifsEpargne([]));
+  }, [abonnement]);
+
+  useEffect(() => {
+    // Même principe que pour l'épargne juste au-dessus — évite un 403
+    // systématique pour un client sans accès au palier Dettes.
+    if (!abonnement?.plan.acces_dettes) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDettes([]);
+      return;
+    }
+    api
+      .request<Dette[]>('/dettes')
+      .then(setDettes)
+      .catch(() => setDettes([]));
   }, [abonnement]);
 
   const nomCategorie = (idCategorie: number | null) =>
@@ -145,6 +185,7 @@ export const ClientDashboard: React.FC = () => {
       onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
       plan={abonnement?.plan}
       abonnement={abonnement}
+      nombreComptes={comptes.length}
     >
       {/* 1. Bannière de Bienvenue */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-forest-600 to-secondary p-6 sm:p-8 text-white shadow-xl">
@@ -170,16 +211,12 @@ export const ClientDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-white text-primary hover:bg-white/95 font-bold text-xs py-3 px-5 rounded-xl shadow-lg transition-all flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Effectuer transaction</span>
-            </button>
-
-            {abonnement?.plan.acces_jarvis && (
+          {/* La transaction (barre du haut) et l'upgrade (barre latérale) ont
+              chacun un emplacement unique ailleurs dans le dashboard — seule
+              l'action propre à cette bannière (JARVIS) reste ici, pour
+              éviter les boutons redondants à plusieurs endroits de l'écran. */}
+          {abonnement?.plan.acces_jarvis && (
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => document.getElementById('jarvis-widget')?.scrollIntoView({ behavior: 'smooth' })}
                 className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-3 px-5 rounded-xl border border-white/25 backdrop-blur-md transition-all flex items-center gap-2"
@@ -187,16 +224,8 @@ export const ClientDashboard: React.FC = () => {
                 <Bot className="h-4 w-4" />
                 <span>Demander à JARVIS</span>
               </button>
-            )}
-
-            <button
-              onClick={() => setIsUpgradeModalOpen(true)}
-              className="bg-white text-primary hover:bg-white/95 font-bold text-xs py-3 px-5 rounded-xl shadow-lg transition-all flex items-center gap-2"
-            >
-              <Crown className="h-4 w-4" />
-              <span>{abonnement?.plan.nom === 'PREMIUM' ? 'Gérer mon abonnement' : 'Passer Standard / Premium'}</span>
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -281,6 +310,42 @@ export const ClientDashboard: React.FC = () => {
               onOpenCategorieModal={() => setIsCategorieModalOpen(true)}
               onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
             />
+          ) : activeTab === 'transactions' ? (
+            <TransactionsSection
+              transactions={transactions}
+              comptes={comptes}
+              nomCategorie={nomCategorie}
+              nomCompte={nomCompte}
+              onAnnuler={async (id) => {
+                try {
+                  await api.request(`/transactions/${id}/annuler`, { method: 'POST' });
+                  chargerDonnees();
+                } catch (err) {
+                  setLoadError(err instanceof Error ? err.message : "Annulation impossible.");
+                }
+              }}
+            />
+          ) : activeTab === 'savings' ? (
+            <EpargneSection
+              objectifs={objectifsEpargne}
+              onOpenObjectifModal={() => setIsObjectifModalOpen(true)}
+              onAlimenter={(o) => setObjectifOperation({ objectif: o, operation: 'alimenter' })}
+              onRetirer={(o) => setObjectifOperation({ objectif: o, operation: 'retirer' })}
+            />
+          ) : activeTab === 'debts' ? (
+            <DettesSection
+              dettes={dettes}
+              onOpenDetteModal={() => setIsDetteModalOpen(true)}
+              onOperation={(d) => setDetteOperation(d)}
+            />
+          ) : activeTab === 'jarvis' ? (
+            <JarvisWidget />
+          ) : activeTab === 'reports' ? (
+            <RapportsSection
+              rapports={rapports}
+              plan={abonnement?.plan}
+              onGenere={chargerRapports}
+            />
           ) : (
           <>
           {/* 3. Section Grille Principale (2 Colonnes) */}
@@ -350,11 +415,13 @@ export const ClientDashboard: React.FC = () => {
                   <p className="text-sm text-muted-foreground text-center py-6">Aucune transaction pour le moment.</p>
                 ) : (
                   <div className="divide-y divide-border">
-                    {transactionsRecentes.map((tx) => (
+                    {transactionsRecentes.map((tx) => {
+                      const credit = estCredit(tx, transactions);
+                      return (
                       <div key={tx.id_transaction} className="py-3.5 flex items-center justify-between hover:bg-muted/30 px-2 rounded-xl transition-colors">
                         <div className="flex items-center gap-3.5">
-                          <div className={`p-2.5 rounded-xl ${tx.type === 'REVENU' ? 'bg-forest-500/10 text-forest-600' : 'bg-destructive/10 text-destructive'}`}>
-                            {tx.type === 'REVENU' ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                          <div className={`p-2.5 rounded-xl ${credit ? 'bg-forest-500/10 text-forest-600' : 'bg-destructive/10 text-destructive'}`}>
+                            {credit ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                           </div>
 
                           <div>
@@ -369,11 +436,12 @@ export const ClientDashboard: React.FC = () => {
                           </div>
                         </div>
 
-                        <span className={`block text-sm font-black tabular-nums ${tx.type === 'REVENU' ? 'text-forest-600 dark:text-forest-400' : 'text-foreground'}`}>
-                          {tx.type === 'REVENU' ? '+ ' : '- '}{Number(tx.montant).toLocaleString('fr-FR')} XAF
+                        <span className={`block text-sm font-black tabular-nums ${credit ? 'text-forest-600 dark:text-forest-400' : 'text-foreground'}`}>
+                          {credit ? '+ ' : '- '}{Number(tx.montant).toLocaleString('fr-FR')} XAF
                         </span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -507,6 +575,40 @@ export const ClientDashboard: React.FC = () => {
         onClose={() => setIsBudgetModalOpen(false)}
         onSuccess={chargerDonnees}
         categoriesDepense={categories.filter((c) => c.type === 'DEPENSE' && c.est_actif)}
+      />
+
+      {/* Modal de déclaration d'une dette/créance */}
+      <DetteModal
+        isOpen={isDetteModalOpen}
+        onClose={() => setIsDetteModalOpen(false)}
+        onSuccess={() => { setIsDetteModalOpen(false); api.request<Dette[]>('/dettes').then(setDettes).catch(() => {}); chargerDonnees(); }}
+        comptes={comptes}
+      />
+
+      {/* Modal de remboursement/encaissement d'une dette */}
+      <DetteOperationModal
+        isOpen={detteOperation !== null}
+        onClose={() => setDetteOperation(null)}
+        onSuccess={() => { api.request<Dette[]>('/dettes').then(setDettes).catch(() => {}); chargerDonnees(); }}
+        dette={detteOperation}
+        comptes={comptes}
+      />
+
+      {/* Modal de création d'un objectif d'épargne */}
+      <ObjectifModal
+        isOpen={isObjectifModalOpen}
+        onClose={() => setIsObjectifModalOpen(false)}
+        onSuccess={() => { setIsObjectifModalOpen(false); api.request<ObjectifEpargne[]>('/epargne').then(setObjectifsEpargne).catch(() => {}); }}
+      />
+
+      {/* Modal d'alimentation/retrait d'un objectif d'épargne */}
+      <ObjectifOperationModal
+        isOpen={objectifOperation !== null}
+        onClose={() => setObjectifOperation(null)}
+        onSuccess={() => { api.request<ObjectifEpargne[]>('/epargne').then(setObjectifsEpargne).catch(() => {}); chargerDonnees(); }}
+        objectif={objectifOperation?.objectif ?? null}
+        operation={objectifOperation?.operation ?? 'alimenter'}
+        comptes={comptes}
       />
     </DashboardLayout>
   );
@@ -686,6 +788,457 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
             })}
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+interface TransactionsSectionProps {
+  transactions: Transaction[];
+  comptes: CompteFinancier[];
+  nomCategorie: (idCategorie: number | null) => string;
+  nomCompte: (idCompte: number) => string;
+  onAnnuler: (idTransaction: number) => void;
+}
+
+// Signe de l'impact sur le solde par type — reflète IMPACT_PAR_TYPE côté
+// backend (transactions.models). ANNULATION n'y figure pas volontairement :
+// son signe est toujours l'inverse de la transaction qu'elle annule (voir
+// estCredit ci-dessous), jamais une valeur fixe.
+const SIGNE_PAR_TYPE: Partial<Record<Transaction['type'], 1 | -1>> = {
+  DEPENSE: -1,
+  REVENU: 1,
+  DEPOT_INITIAL: 1,
+  REMBOURSEMENT_DETTE: -1,
+  ENCAISSEMENT_CREANCE: 1,
+  DETTE_RECUE: 1,
+  CREANCE_ACCORDEE: -1,
+};
+
+const estCredit = (tx: Transaction, toutes: Transaction[]): boolean => {
+  if (tx.type === 'ANNULATION') {
+    const originale = toutes.find((t) => t.id_transaction === tx.id_transaction_annulee);
+    // Une annulation ne porte jamais sur une autre annulation (voir
+    // TransactionDejaAnnuleeError côté backend) : une seule résolution suffit.
+    return originale ? (SIGNE_PAR_TYPE[originale.type] ?? 1) < 0 : true;
+  }
+  return (SIGNE_PAR_TYPE[tx.type] ?? 1) > 0;
+};
+
+const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions, comptes, nomCategorie, nomCompte, onAnnuler }) => {
+  const [filtreCompte, setFiltreCompte] = useState('');
+  const [filtreType, setFiltreType] = useState('');
+
+  // Une transaction déjà annulée ne doit pas pouvoir l'être une seconde
+  // fois — repéré via id_transaction_annulee des annulations existantes.
+  const idsDejaAnnules = new Set(transactions.map((t) => t.id_transaction_annulee).filter((id): id is number => id !== null));
+
+  const transactionsFiltrees = transactions
+    .filter((t) => !filtreCompte || t.id_compte === Number(filtreCompte))
+    .filter((t) => !filtreType || t.type === filtreType)
+    .sort((a, b) => new Date(b.date_creation).getTime() - new Date(a.date_creation).getTime());
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+          <ArrowUpRight className="h-5 w-5 text-primary" />
+          <span>Transactions</span>
+        </h3>
+        <div className="flex items-center gap-2 text-xs">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          <select
+            value={filtreCompte}
+            onChange={(e) => setFiltreCompte(e.target.value)}
+            className="bg-background border border-border rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">Tous les comptes</option>
+            {comptes.map((c) => (
+              <option key={c.id_compte} value={c.id_compte}>{c.nom}</option>
+            ))}
+          </select>
+          <select
+            value={filtreType}
+            onChange={(e) => setFiltreType(e.target.value)}
+            className="bg-background border border-border rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">Tous les types</option>
+            <option value="DEPENSE">Dépenses</option>
+            <option value="REVENU">Revenus</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-2xl border border-border shadow-sm">
+        {transactionsFiltrees.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-10">Aucune transaction ne correspond.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {transactionsFiltrees.map((tx) => {
+              const peutAnnuler = tx.type !== 'ANNULATION' && !idsDejaAnnules.has(tx.id_transaction);
+              const credit = estCredit(tx, transactions);
+              return (
+                <div key={tx.id_transaction} className="py-3.5 flex items-center justify-between hover:bg-muted/30 px-4 transition-colors">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className={`p-2.5 rounded-xl shrink-0 ${credit ? 'bg-forest-500/10 text-forest-600' : 'bg-destructive/10 text-destructive'}`}>
+                      {credit ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-foreground leading-tight truncate">
+                          {tx.description || nomCategorie(tx.id_categorie)}
+                        </h4>
+                        {tx.est_suspecte && (
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
+                            Suspecte
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                        <span>{nomCompte(tx.id_compte)}</span>
+                        <span>•</span>
+                        <span>{new Date(tx.date).toLocaleDateString('fr-FR')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`block text-sm font-black tabular-nums ${credit ? 'text-forest-600 dark:text-forest-400' : 'text-foreground'}`}>
+                      {credit ? '+ ' : '- '}{Number(tx.montant).toLocaleString('fr-FR')} XAF
+                    </span>
+                    {peutAnnuler && (
+                      <button
+                        onClick={() => onAnnuler(tx.id_transaction)}
+                        title="Annuler cette transaction"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <Ban className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface DettesSectionProps {
+  dettes: Dette[];
+  onOpenDetteModal: () => void;
+  onOperation: (dette: Dette) => void;
+}
+
+const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal, onOperation }) => {
+  const dettesDues = dettes.filter((d) => d.type === 'DETTE');
+  const creances = dettes.filter((d) => d.type === 'CREANCE');
+
+  const renderListe = (liste: Dette[], estDette: boolean) => (
+    liste.length === 0 ? (
+      <p className="text-xs text-muted-foreground text-center py-4">Aucune {estDette ? 'dette' : 'créance'} pour le moment.</p>
+    ) : (
+      <div className="space-y-3">
+        {liste.map((d) => {
+          const montantTotal = Number(d.montant_total);
+          const montantRestant = Number(d.montant_restant);
+          const percent = montantTotal > 0 ? Math.round(((montantTotal - montantRestant) / montantTotal) * 100) : 0;
+          const verrouille = d.statut === 'SOLDE' || d.statut === 'PERTE';
+          return (
+            <div key={d.id_dette} className="p-4 rounded-xl border border-border bg-muted/20 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-foreground truncate">{d.nom}</h4>
+                  {d.personne_impliquee && <span className="text-xs text-muted-foreground">{d.personne_impliquee}</span>}
+                </div>
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                  d.statut === 'SOLDE' ? 'bg-forest-500/10 text-forest-600' : d.statut === 'PERTE' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'
+                }`}>
+                  {d.statut}
+                </span>
+              </div>
+              <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${estDette ? 'bg-destructive' : 'bg-primary'}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  <strong className="text-foreground">{montantRestant.toLocaleString('fr-FR')}</strong> / {montantTotal.toLocaleString('fr-FR')} XAF restant
+                </span>
+                {d.date_echeance && (
+                  <span className="text-muted-foreground">
+                    {d.jours_avant_echeance !== null && d.jours_avant_echeance >= 0
+                      ? `${d.jours_avant_echeance} j restants`
+                      : 'Échéance dépassée'}
+                  </span>
+                )}
+              </div>
+              {!verrouille && (
+                <button
+                  onClick={() => onOperation(d)}
+                  className="w-full mt-1 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
+                >
+                  {estDette ? 'Rembourser' : 'Encaisser'}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    )
+  );
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+          <HandCoins className="h-5 w-5 text-primary" />
+          <span>Dettes & Créances</span>
+        </h3>
+        <button
+          onClick={onOpenDetteModal}
+          className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Déclarer une dette / créance</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-3">
+          <h4 className="text-sm font-bold text-foreground">Mes dettes (je dois)</h4>
+          {renderListe(dettesDues, true)}
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-3">
+          <h4 className="text-sm font-bold text-foreground">Mes créances (on me doit)</h4>
+          {renderListe(creances, false)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface EpargneSectionProps {
+  objectifs: ObjectifEpargne[];
+  onOpenObjectifModal: () => void;
+  onAlimenter: (objectif: ObjectifEpargne) => void;
+  onRetirer: (objectif: ObjectifEpargne) => void;
+}
+
+const EpargneSection: React.FC<EpargneSectionProps> = ({ objectifs, onOpenObjectifModal, onAlimenter, onRetirer }) => (
+  <div className="space-y-4">
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+        <PiggyBank className="h-5 w-5 text-forest-600" />
+        <span>Épargne & Projets</span>
+      </h3>
+      <button
+        onClick={onOpenObjectifModal}
+        className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
+      >
+        <Plus className="h-4 w-4" />
+        <span>Créer un objectif</span>
+      </button>
+    </div>
+
+    {objectifs.length === 0 ? (
+      <div className="p-8 rounded-2xl border border-dashed border-border text-center">
+        <p className="text-sm text-muted-foreground">Aucun objectif d'épargne pour le moment.</p>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {objectifs.map((o) => {
+          const verrouille = o.statut === 'ABANDONNE' || o.statut === 'ATTEINT';
+          return (
+            <div key={o.id_objectif} className="p-4 rounded-2xl border bg-card shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-foreground">{o.nom}</h4>
+                <span className="font-black text-forest-600 dark:text-forest-400 text-sm">{Math.round(o.pourcentage_atteint)}%</span>
+              </div>
+              <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden">
+                <div className="bg-forest-500 h-full rounded-full transition-all" style={{ width: `${Math.min(o.pourcentage_atteint, 100)}%` }} />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Actuel : <strong className="text-foreground">{Number(o.montant_actuel).toLocaleString('fr-FR')}</strong> XAF</span>
+                <span>Cible : {Number(o.montant_cible).toLocaleString('fr-FR')} XAF</span>
+              </div>
+              {o.montant_mensuel_requis !== null && !verrouille && (
+                <p className="text-[11px] text-muted-foreground">
+                  ~{Number(o.montant_mensuel_requis).toLocaleString('fr-FR')} XAF/mois pour atteindre l'objectif à temps.
+                </p>
+              )}
+              {!verrouille && (
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => onAlimenter(o)}
+                    className="flex-1 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
+                  >
+                    Alimenter
+                  </button>
+                  <button
+                    onClick={() => onRetirer(o)}
+                    disabled={o.montant_actuel <= 0}
+                    className="flex-1 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-bold transition-colors disabled:opacity-40"
+                  >
+                    Retirer
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
+
+const TYPES_RAPPORT: { valeur: Rapport['type']; label: string; acces: 'acces_dettes' | 'acces_analyse' | null }[] = [
+  { valeur: 'RELEVE_TRANSACTIONS', label: 'Relevé de transactions', acces: null },
+  { valeur: 'BILAN_BUDGETAIRE', label: 'Bilan budgétaire', acces: null },
+  { valeur: 'DETTES_EPARGNE', label: 'Dettes & Épargne', acces: 'acces_dettes' },
+  { valeur: 'BILAN_FINANCIER', label: 'Bilan financier', acces: 'acces_analyse' },
+  { valeur: 'PREDICTIONS', label: 'Prédictions financières', acces: 'acces_analyse' },
+];
+
+interface RapportsSectionProps {
+  rapports: Rapport[];
+  plan?: { acces_dettes: boolean; acces_analyse: boolean } | null;
+  onGenere: () => void;
+}
+
+const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGenere }) => {
+  // Calculées une seule fois via l'initialiseur paresseux de useState — les
+  // appeler directement dans le corps du composant serait un effet de bord
+  // impur à chaque rendu (Date.now()/new Date()).
+  const [aujourdHui] = useState(() => new Date().toISOString().slice(0, 10));
+  const [type, setType] = useState<Rapport['type']>('RELEVE_TRANSACTIONS');
+  const [periodeDebut, setPeriodeDebut] = useState(() => new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10));
+  const [periodeFin, setPeriodeFin] = useState(() => new Date().toISOString().slice(0, 10));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const typesDisponibles = TYPES_RAPPORT.filter((t) => !t.acces || plan?.[t.acces]);
+
+  const handleGenerer = async () => {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await api.request('/rapports', {
+        method: 'POST',
+        body: JSON.stringify({ type, periode_debut: periodeDebut, periode_fin: periodeFin }),
+      });
+      onGenere();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Génération impossible.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const telecharger = async (rapport: Rapport) => {
+    try {
+      await api.download(`/rapports/${rapport.id_rapport}/telecharger`, `mynkap_${rapport.type.toLowerCase()}_${rapport.id_rapport}.pdf`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Téléchargement impossible.');
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-base font-bold text-foreground flex items-center gap-2 mb-4">
+          <FileText className="h-5 w-5 text-primary" />
+          <span>Générer un rapport PDF</span>
+        </h3>
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Type de rapport</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as Rapport['type'])}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {typesDisponibles.map((t) => (
+                  <option key={t.valeur} value={t.valeur}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Période début</label>
+              <input
+                type="date"
+                value={periodeDebut}
+                max={periodeFin}
+                onChange={(e) => setPeriodeDebut(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Période fin</label>
+              <input
+                type="date"
+                value={periodeFin}
+                min={periodeDebut}
+                max={aujourdHui}
+                onChange={(e) => setPeriodeFin(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+
+          <button
+            onClick={handleGenerer}
+            disabled={isSubmitting}
+            className="w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-sm py-2.5 px-5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            <span>Générer le rapport</span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-base font-bold text-foreground mb-4">Rapports générés</h3>
+        <div className="bg-card rounded-2xl border border-border shadow-sm">
+          {rapports.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-10">Aucun rapport généré pour le moment.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {rapports.map((r) => (
+                <div key={r.id_rapport} className="py-3.5 px-4 flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">
+                      {TYPES_RAPPORT.find((t) => t.valeur === r.type)?.label ?? r.type}
+                    </h4>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(r.periode_debut).toLocaleDateString('fr-FR')} → {new Date(r.periode_fin).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
+                  {r.statut === 'GENERE' ? (
+                    <button
+                      onClick={() => telecharger(r)}
+                      className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center gap-1.5 text-xs font-bold"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      <span>Télécharger</span>
+                    </button>
+                  ) : r.statut === 'ECHEC' ? (
+                    <span className="text-xs font-bold text-destructive">Échec</span>
+                  ) : (
+                    <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 animate-pulse" />
+                      En cours...
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

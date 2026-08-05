@@ -101,4 +101,23 @@ export const api = {
     }
     return response.json();
   },
+
+  // Téléchargement de fichier binaire (ex: rapport PDF) — distinct de
+  // request() qui appelle toujours .json() sur la réponse.
+  async download(endpoint: string, nomFichier: string): Promise<void> {
+    const { accessToken } = useAuthStore.getState();
+    const response = await executerRequete(endpoint, {}, accessToken);
+    if (!response.ok) {
+      throw new Error('Téléchargement impossible.');
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement('a');
+    lien.href = url;
+    lien.download = nomFichier;
+    document.body.appendChild(lien);
+    lien.click();
+    lien.remove();
+    URL.revokeObjectURL(url);
+  },
 };

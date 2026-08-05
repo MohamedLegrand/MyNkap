@@ -31,10 +31,11 @@ export interface Transaction {
   id_categorie: number | null;
   montant: number;
   description: string | null;
-  type: 'DEPENSE' | 'REVENU' | 'DEPOT_INITIAL' | 'ANNULATION' | 'REMBOURSEMENT_DETTE' | 'ENCAISSEMENT_CREANCE';
+  type: 'DEPENSE' | 'REVENU' | 'DEPOT_INITIAL' | 'ANNULATION' | 'REMBOURSEMENT_DETTE' | 'ENCAISSEMENT_CREANCE' | 'DETTE_RECUE' | 'CREANCE_ACCORDEE';
   date: string;
   est_recurrente: boolean;
   est_suspecte: boolean;
+  id_transaction_annulee: number | null;
   date_creation: string;
 }
 
@@ -79,6 +80,32 @@ export interface ObjectifEpargne {
   montant_actuel: number;
   montant_restant: number;
   pourcentage_atteint: number;
+  montant_mensuel_requis: number | null;
+}
+
+export interface Dette {
+  id_dette: number;
+  id_compte: number;
+  nom: string;
+  type: 'DETTE' | 'CREANCE';
+  montant_total: number;
+  montant_rembourse: number;
+  montant_restant: number;
+  personne_impliquee: string | null;
+  date_echeance: string | null;
+  statut: string;
+  jours_avant_echeance: number | null;
+  impact_patrimoine_net: number;
+}
+
+export interface Rapport {
+  id_rapport: number;
+  type: 'RELEVE_TRANSACTIONS' | 'BILAN_BUDGETAIRE' | 'DETTES_EPARGNE' | 'BILAN_FINANCIER' | 'PREDICTIONS';
+  periode_debut: string;
+  periode_fin: string;
+  statut: 'EN_COURS' | 'GENERE' | 'ECHEC';
+  taille: number | null;
+  date_generation: string;
 }
 
 export interface JarvisMessage {
