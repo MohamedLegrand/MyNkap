@@ -96,6 +96,22 @@ def obtenir_paiement(
     return paiement
 
 
+@router.post("/abonnement/notifier-essai", status_code=status.HTTP_204_NO_CONTENT)
+def notifier_essai_actif(
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Confirme par notification que le client bénéficie bien de son essai
+    Premium en cours — appelé depuis le bandeau du tableau de bord."""
+    try:
+        service.notifier_essai_actif(db, client.id_client)
+    except service.EssaiInactifError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Aucun essai Premium en cours sur ce compte.",
+        )
+
+
 @router.post("/abonnement/annuler-renouvellement", response_model=AbonnementOut)
 def annuler_renouvellement(
     db: Session = Depends(get_db),

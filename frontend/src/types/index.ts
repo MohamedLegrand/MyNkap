@@ -83,6 +83,16 @@ export interface ObjectifEpargne {
   montant_mensuel_requis: number | null;
 }
 
+export interface Transfert {
+  id_transfert: number;
+  id_compte_source: number;
+  id_compte_destination: number;
+  montant: number;
+  description: string | null;
+  date: string;
+  date_creation: string;
+}
+
 export interface Dette {
   id_dette: number;
   id_compte: number;
@@ -136,6 +146,27 @@ export interface JarvisConversation {
 
 export interface JarvisConversationDetail extends JarvisConversation {
   messages: JarvisMessage[];
+}
+
+export interface AnalyseFinanciere {
+  id_analyse: number | null;
+  type: 'HABITUDES' | 'TENDANCES' | 'COMPARAISON' | 'COMPORTEMENT';
+  periode_debut: string;
+  periode_fin: string;
+  resultats: Record<string, unknown> | null;
+  score_financier: number | null;
+  date_generation: string;
+}
+
+export interface Prediction {
+  id_prediction: number | null;
+  type: 'DEPENSES_FUTURES' | 'RISQUE_BUDGETAIRE' | 'CAPACITE_EPARGNE';
+  periode_debut: string;
+  periode_fin: string;
+  montant_predit: number | null;
+  niveau_confiance: number | null;
+  recommandations: string | null;
+  date_generation: string;
 }
 
 export interface AppNotification {

@@ -83,7 +83,10 @@ def _moyenne_mensuelle(db: Session, id_client: int, type_transaction: str, refer
     (jamais le mois en cours de `reference`, même quand reference == aujourd'hui)."""
     periodes = _mois_precedents(reference, nb_mois)
     total = sum((_total_transactions(db, id_client, type_transaction, d, f) for d, f in periodes), Decimal("0"))
-    return total / nb_mois if nb_mois else Decimal("0")
+    # Quantize immédiatement : une division Decimal non arrondie peut produire
+    # un développement décimal interminable, illisible une fois interpolé
+    # dans un texte de recommandation ou affiché tel quel côté client.
+    return (total / nb_mois).quantize(Decimal("0.01")) if nb_mois else Decimal("0")
 
 
 def _depenses_par_categorie(db: Session, id_client: int, date_debut: date, date_fin: date) -> Dict[str, Decimal]:

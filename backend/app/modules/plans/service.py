@@ -40,6 +40,10 @@ class PaiementRefuseError(Exception):
     """
 
 
+class EssaiInactifError(Exception):
+    """Le client n'est pas (ou plus) en période d'essai — rien à confirmer."""
+
+
 def lister_plans(db: Session) -> List[Plan]:
     return db.query(Plan).order_by(Plan.prix_mensuel.asc()).all()
 
@@ -124,6 +128,28 @@ def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
         db.refresh(abonnement)
 
     return abonnement
+
+
+def notifier_essai_actif(db: Session, id_client: int) -> None:
+    """
+    Crée une notification confirmant au client qu'il bénéficie bien de
+    l'essai Premium en cours — déclenchée depuis le bouton "Profiter de mes
+    30 jours Premium" du tableau de bord (jamais automatiquement à
+    l'inscription : c'est une confirmation à la demande, pas une alerte
+    système).
+    """
+    abonnement = obtenir_abonnement_actif(db, id_client)
+    if abonnement.statut != "ESSAI" or abonnement.date_fin is None:
+        raise EssaiInactifError()
+
+    jours_restants = max(0, (abonnement.date_fin - datetime.utcnow()).days + 1)
+    notifications_service.creer_notification_client(
+        db,
+        id_client,
+        "ESSAI_PREMIUM_ACTIF",
+        "Accès Premium activé",
+        f"Vous avez bien accès à toutes les fonctionnalités Premium (JARVIS inclus) pendant encore {jours_restants} jour{'s' if jours_restants > 1 else ''}.",
+    )
 
 
 def changer_plan(

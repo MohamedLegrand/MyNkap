@@ -117,6 +117,73 @@ def test_notifications_admin_refusees_a_un_client(client):
     assert client.get("/api/v1/admin/notifications", headers=headers).status_code == 403
 
 
+# --- Suppression (client) ---
+
+def test_supprimer_une_notification_client(client):
+    headers = _register_and_login(client, "notif.supprimer@example.com")
+    notifs_avant = client.get("/api/v1/notifications", headers=headers).json()
+    assert len(notifs_avant) == 2
+    id_notif = notifs_avant[0]["id_notification"]
+
+    reponse = client.delete(f"/api/v1/notifications/{id_notif}", headers=headers)
+    assert reponse.status_code == 204
+
+    notifs_apres = client.get("/api/v1/notifications", headers=headers).json()
+    assert len(notifs_apres) == 1
+    assert all(n["id_notification"] != id_notif for n in notifs_apres)
+
+
+def test_supprimer_notification_dun_autre_client_renvoie_404(client):
+    headers_a = _register_and_login(client, "notif.supprimer.a@example.com")
+    headers_b = _register_and_login(client, "notif.supprimer.b@example.com")
+    id_notif_b = client.get("/api/v1/notifications", headers=headers_b).json()[0]["id_notification"]
+
+    reponse = client.delete(f"/api/v1/notifications/{id_notif_b}", headers=headers_a)
+    assert reponse.status_code == 404
+    # Toujours là côté B : la suppression tentée par A n'a rien touché.
+    assert len(client.get("/api/v1/notifications", headers=headers_b).json()) == 2
+
+
+def test_supprimer_toutes_les_notifications_client(client):
+    headers = _register_and_login(client, "notif.supprimertout@example.com")
+    assert len(client.get("/api/v1/notifications", headers=headers).json()) == 2
+
+    reponse = client.delete("/api/v1/notifications", headers=headers)
+    assert reponse.status_code == 200
+    assert reponse.json()["nb_marquees"] == 2
+    assert client.get("/api/v1/notifications", headers=headers).json() == []
+
+
+# --- Suppression (admin) ---
+
+def test_supprimer_une_notification_admin(client, db_session):
+    admin, admin_headers = _create_admin(db_session, email="notifadmin.suppr@mynkap.cm")
+    _register_and_login(client, "notif.admin.suppr@example.com")  # génère NOUVEAU_CLIENT
+
+    notifs_avant = client.get("/api/v1/admin/notifications", headers=admin_headers).json()
+    assert len(notifs_avant) >= 1
+    id_notif = notifs_avant[0]["id_notification"]
+
+    reponse = client.delete(f"/api/v1/admin/notifications/{id_notif}", headers=admin_headers)
+    assert reponse.status_code == 204
+    assert all(n["id_notification"] != id_notif for n in client.get("/api/v1/admin/notifications", headers=admin_headers).json())
+
+
+def test_supprimer_toutes_les_notifications_admin(client, db_session):
+    admin, admin_headers = _create_admin(db_session, email="notifadmin.supprtout@mynkap.cm")
+    _register_and_login(client, "notif.admin.supprtout@example.com")
+    assert len(client.get("/api/v1/admin/notifications", headers=admin_headers).json()) >= 1
+
+    reponse = client.delete("/api/v1/admin/notifications", headers=admin_headers)
+    assert reponse.status_code == 200
+    assert client.get("/api/v1/admin/notifications", headers=admin_headers).json() == []
+
+
+def test_supprimer_notification_admin_refusee_a_un_client(client):
+    headers = _register_and_login(client, "notif.admin.pasadmin@example.com")
+    assert client.delete("/api/v1/admin/notifications/1", headers=headers).status_code == 403
+
+
 # --- Alerte de budget (80%/100%) ---
 
 def test_alerte_budget_100_cree_une_notification_client(client):

@@ -224,7 +224,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       {/* 3. Zone Principal Admin */}
       <main className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Header Admin Navbar */}
-        <header className="hidden md:flex items-center justify-between h-16 px-8 border-b border-border bg-card/40 backdrop-blur-md sticky top-0 z-20">
+        <header className="hidden md:flex items-center justify-between h-16 px-8 border-b border-border bg-card sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-black text-foreground uppercase tracking-wider">
               {navItems.find(i => i.id === activeTab)?.label || 'Console Admin'}

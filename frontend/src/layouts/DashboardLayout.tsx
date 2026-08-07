@@ -8,6 +8,7 @@ import {
   PiggyBank,
   HandCoins,
   Bot,
+  LineChart,
   FileText,
   Sun,
   Moon,
@@ -92,6 +93,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'savings', label: 'Épargne & Projets', icon: PiggyBank, gate: 'acces_epargne' as const },
     { id: 'debts', label: 'Dettes & Créances', icon: HandCoins, gate: 'acces_dettes' as const },
     { id: 'jarvis', label: 'Assistant JARVIS IA', icon: Bot, isNew: true, gate: 'acces_jarvis' as const },
+    { id: 'analyse', label: 'Analyse & Prédictions', icon: LineChart, gate: 'acces_analyse' as const },
     // Pas de `gate` ici : RELEVE_TRANSACTIONS et BILAN_BUDGETAIRE sont
     // gratuits pour tous les paliers (seuls certains types de rapports,
     // filtrés à l'intérieur de la page elle-même, sont réservés — voir
@@ -292,7 +294,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* 3. Zone de Contenu Principal (Main Section) */}
       <main className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Top Navbar Header */}
-        <header className="hidden md:flex items-center justify-between h-16 px-8 border-b border-border bg-card/40 backdrop-blur-md sticky top-0 z-20">
+        <header className="hidden md:flex items-center justify-between h-16 px-8 border-b border-border bg-card sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-bold text-foreground capitalize tracking-tight">
               {navItems.find(i => i.id === activeTab)?.label || 'Tableau de bord'}

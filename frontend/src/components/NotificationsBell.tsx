@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Check, CheckCheck, Loader2 } from 'lucide-react';
+import { Bell, Settings2, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { formatDateRelative } from '../utils/formatters';
+import { NotificationsPanel } from './NotificationsPanel';
 import type { AppNotification } from '../types';
 
 interface NotificationsBellProps {
@@ -14,6 +15,7 @@ export const NotificationsBell: React.FC<NotificationsBellProps> = ({ basePath }
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [nonLues, setNonLues] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [panelCible, setPanelCible] = useState<number | null | undefined>(undefined);
   const conteneurRef = useRef<HTMLDivElement | null>(null);
 
   const chargerCompteur = () => {
@@ -61,34 +63,11 @@ export const NotificationsBell: React.FC<NotificationsBellProps> = ({ basePath }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const marquerLue = async (notification: AppNotification) => {
-    if (notification.est_lue) return;
-    setNotifications((prev) =>
-      prev.map((n) => (n.id_notification === notification.id_notification ? { ...n, est_lue: true } : n))
-    );
-    setNonLues((prev) => Math.max(0, prev - 1));
-    try {
-      await api.request(`${basePath}/${notification.id_notification}/lire`, { method: 'POST' });
-    } catch {
-      // Pas de rollback visuel pour un simple échec réseau ponctuel — le
-      // prochain chargement du panneau resynchronisera l'état réel.
-    }
-  };
-
-  const marquerToutLu = async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, est_lue: true })));
-    setNonLues(0);
-    try {
-      await api.request(`${basePath}/lire-tout`, { method: 'POST' });
-    } catch {
-      // idem : resynchronisé au prochain chargement.
-    }
-  };
-
   return (
     <div className="relative" ref={conteneurRef}>
       <button
         onClick={() => setIsOpen((prev) => !prev)}
+        aria-label="Notifications"
         className="relative p-2 rounded-xl bg-muted hover:bg-accent text-foreground transition-colors border border-border"
       >
         <Bell className="h-4 w-4 text-muted-foreground" />
@@ -100,21 +79,19 @@ export const NotificationsBell: React.FC<NotificationsBellProps> = ({ basePath }
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-w-[90vw] bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 top-full mt-2 w-72 max-w-[90vw] bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
           <div className="p-3.5 border-b border-border flex items-center justify-between bg-muted/40">
             <h3 className="text-sm font-bold text-foreground">Notifications</h3>
-            {notifications.some((n) => !n.est_lue) && (
-              <button
-                onClick={marquerToutLu}
-                className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1"
-              >
-                <CheckCheck className="h-3.5 w-3.5" />
-                <span>Tout marquer lu</span>
-              </button>
-            )}
+            <button
+              onClick={() => { setPanelCible(null); setIsOpen(false); }}
+              title="Gérer mes notifications"
+              className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+            </button>
           </div>
 
-          <div className="max-h-96 overflow-y-auto divide-y divide-border">
+          <div className="max-h-80 overflow-y-auto divide-y divide-border">
             {isLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -122,31 +99,46 @@ export const NotificationsBell: React.FC<NotificationsBellProps> = ({ basePath }
             ) : notifications.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">Aucune notification pour le moment.</p>
             ) : (
+              // Titres seulement : le contenu complet ne s'affiche que dans
+              // le panneau dédié, ouvert au clic sur une ligne.
               notifications.map((notification) => (
                 <button
                   key={notification.id_notification}
-                  onClick={() => marquerLue(notification)}
-                  className={`w-full text-left p-3.5 flex items-start gap-2.5 hover:bg-muted/40 transition-colors ${
+                  onClick={() => { setPanelCible(notification.id_notification); setIsOpen(false); }}
+                  className={`w-full text-left px-3.5 py-3 flex items-center gap-2.5 hover:bg-muted/40 transition-colors ${
                     notification.est_lue ? '' : 'bg-primary/5'
                   }`}
                 >
                   <span
-                    className={`mt-1 h-2 w-2 rounded-full shrink-0 ${
-                      notification.est_lue ? 'bg-transparent' : 'bg-primary'
-                    }`}
+                    className={`h-2 w-2 rounded-full shrink-0 ${notification.est_lue ? 'bg-transparent' : 'bg-primary'}`}
                   />
-                  <div className="flex-1 min-w-0 space-y-0.5">
-                    <p className="text-xs font-bold text-foreground">{notification.titre}</p>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">{notification.message}</p>
-                    <p className="text-[10px] text-muted-foreground/70">{formatDateRelative(notification.date_creation)}</p>
-                  </div>
-                  {notification.est_lue && <Check className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1" />}
+                  <span className="flex-1 min-w-0 text-xs font-bold text-foreground truncate">{notification.titre}</span>
+                  <span className="text-[10px] text-muted-foreground/70 shrink-0">
+                    {formatDateRelative(notification.date_creation)}
+                  </span>
                 </button>
               ))
             )}
           </div>
+
+          {notifications.length > 0 && (
+            <button
+              onClick={() => { setPanelCible(null); setIsOpen(false); }}
+              className="w-full py-2.5 text-xs font-bold text-primary hover:bg-primary/5 transition-colors border-t border-border"
+            >
+              Gérer mes notifications
+            </button>
+          )}
         </div>
       )}
+
+      <NotificationsPanel
+        isOpen={panelCible !== undefined}
+        onClose={() => setPanelCible(undefined)}
+        basePath={basePath}
+        notificationCiblee={panelCible ?? null}
+        onChange={chargerCompteur}
+      />
     </div>
   );
 };

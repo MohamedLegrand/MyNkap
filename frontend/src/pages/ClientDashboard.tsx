@@ -24,11 +24,14 @@ import {
   Download,
   FileText,
   Clock,
+  Crown,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
 import { PlanUpgradeModal } from '../components/PlanUpgradeModal';
 import { CompteModal } from '../components/CompteModal';
+import { TransfertModal } from '../components/TransfertModal';
 import { CategorieModal } from '../components/CategorieModal';
 import { BudgetModal } from '../components/BudgetModal';
 import { DetteModal } from '../components/DetteModal';
@@ -36,6 +39,7 @@ import { DetteOperationModal } from '../components/DetteOperationModal';
 import { ObjectifModal } from '../components/ObjectifModal';
 import { ObjectifOperationModal } from '../components/ObjectifOperationModal';
 import { JarvisWidget } from '../components/JarvisWidget';
+import { AnalyseSection } from '../components/AnalyseSection';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type {
@@ -59,11 +63,18 @@ const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
 
 const formatMontant = (valeur: number) => `${valeur.toLocaleString('fr-FR')} XAF`;
 
+// Nombre de jours restants avant la fin de l'essai — même principe que
+// DashboardLayout.joursRestants (arrondi au jour supérieur).
+const joursRestantsEssai = (dateFin: string): number =>
+  Math.max(0, Math.ceil((new Date(dateFin).getTime() - Date.now()) / 86_400_000));
+
 export const ClientDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [essaiConfirme, setEssaiConfirme] = useState(false);
   const [isCompteModalOpen, setIsCompteModalOpen] = useState(false);
+  const [isTransfertModalOpen, setIsTransfertModalOpen] = useState(false);
   const [isCategorieModalOpen, setIsCategorieModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isDetteModalOpen, setIsDetteModalOpen] = useState(false);
@@ -200,7 +211,7 @@ export const ClientDashboard: React.FC = () => {
               <span>Compte Certifié • Zone CEMAC (FCFA)</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Bonjour {client?.first_name ?? ''} 👋
+              Bonjour {client?.first_name ?? ''} 
             </h2>
             <p className="text-sm text-white/80 max-w-xl leading-relaxed">
               Voici votre bilan financier consolidé. Votre trésorerie globale s'élève à{' '}
@@ -228,6 +239,50 @@ export const ClientDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Bandeau d'annonce de l'essai Premium 30 jours — l'accès est déjà
+          actif automatiquement dès l'inscription (voir creer_abonnement_essai
+          côté backend) ; ce bandeau ne fait que le mettre clairement en
+          avant, en plus du badge discret de la barre latérale. */}
+      {abonnement?.statut === 'ESSAI' && abonnement.date_fin && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl border border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+              <Crown className="h-5 w-5" />
+            </div>
+            <p className="text-sm text-foreground">
+              <strong className="font-bold">Vous bénéficiez de Premium gratuitement pendant 30 jours</strong> — JARVIS et toutes les fonctionnalités inclus, encore{' '}
+              <strong className="text-primary">
+                {joursRestantsEssai(abonnement.date_fin)} jour{joursRestantsEssai(abonnement.date_fin) > 1 ? 's' : ''}
+              </strong>
+              . Passé ce délai, retour automatique à l'offre Gratuite.
+            </p>
+          </div>
+          <div className="flex flex-col items-center sm:items-end gap-1.5 shrink-0">
+            <button
+              onClick={async () => {
+                try {
+                  await api.request('/abonnement/notifier-essai', { method: 'POST' });
+                  setEssaiConfirme(true);
+                } catch {
+                  // La confirmation est secondaire : un échec réseau ne doit
+                  // pas empêcher d'ouvrir la fenêtre de forfait ci-dessous.
+                }
+                setIsUpgradeModalOpen(true);
+              }}
+              className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-5 rounded-xl shadow-md transition-all whitespace-nowrap"
+            >
+              Profiter de mes 30 jours Premium
+            </button>
+            {essaiConfirme && (
+              <span className="text-[11px] font-semibold text-forest-600 dark:text-forest-400 flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Accès confirmé — notification envoyée
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {loadError && (
         <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center justify-between">
@@ -299,7 +354,11 @@ export const ClientDashboard: React.FC = () => {
           </div>
 
           {activeTab === 'accounts' ? (
-            <ComptesSection comptes={comptes} onOpenCompteModal={() => setIsCompteModalOpen(true)} />
+            <ComptesSection
+              comptes={comptes}
+              onOpenCompteModal={() => setIsCompteModalOpen(true)}
+              onOpenTransfertModal={() => setIsTransfertModalOpen(true)}
+            />
           ) : activeTab === 'budgets' ? (
             <BudgetsSection
               comptes={comptes}
@@ -340,6 +399,8 @@ export const ClientDashboard: React.FC = () => {
             />
           ) : activeTab === 'jarvis' ? (
             <JarvisWidget />
+          ) : activeTab === 'analyse' ? (
+            <AnalyseSection />
           ) : activeTab === 'reports' ? (
             <RapportsSection
               rapports={rapports}
@@ -562,6 +623,14 @@ export const ClientDashboard: React.FC = () => {
         onSuccess={chargerDonnees}
       />
 
+      {/* Modal de transfert entre comptes */}
+      <TransfertModal
+        isOpen={isTransfertModalOpen}
+        onClose={() => setIsTransfertModalOpen(false)}
+        onSuccess={chargerDonnees}
+        comptes={comptes}
+      />
+
       {/* Modal de création d'une catégorie */}
       <CategorieModal
         isOpen={isCategorieModalOpen}
@@ -617,22 +686,37 @@ export const ClientDashboard: React.FC = () => {
 interface ComptesSectionProps {
   comptes: CompteFinancier[];
   onOpenCompteModal: () => void;
+  onOpenTransfertModal: () => void;
 }
 
-const ComptesSection: React.FC<ComptesSectionProps> = ({ comptes, onOpenCompteModal }) => (
+const ComptesSection: React.FC<ComptesSectionProps> = ({ comptes, onOpenCompteModal, onOpenTransfertModal }) => (
   <div className="space-y-4">
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between flex-wrap gap-3">
       <h3 className="text-base font-bold text-foreground flex items-center gap-2">
         <Wallet className="h-5 w-5 text-primary" />
         <span>Mes Comptes Financiers</span>
       </h3>
-      <button
-        onClick={onOpenCompteModal}
-        className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
-      >
-        <Plus className="h-4 w-4" />
-        <span>Créer compte</span>
-      </button>
+      <div className="flex items-center gap-2">
+        {/* Un transfert n'a de sens qu'entre deux comptes existants —
+            camouflé tant qu'il n'y en a pas au moins deux, même principe
+            que Créer catégorie / Définir budget pour les Dettes/Épargne. */}
+        {comptes.length >= 2 && (
+          <button
+            onClick={onOpenTransfertModal}
+            className="bg-muted hover:bg-accent text-foreground font-bold text-xs py-2.5 px-4 rounded-xl border border-border transition-all flex items-center gap-2"
+          >
+            <ArrowRightLeft className="h-4 w-4" />
+            <span>Transférer entre comptes</span>
+          </button>
+        )}
+        <button
+          onClick={onOpenCompteModal}
+          className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Créer compte</span>
+        </button>
+      </div>
     </div>
 
     {comptes.length === 0 ? (

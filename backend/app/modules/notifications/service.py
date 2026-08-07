@@ -143,3 +143,47 @@ def marquer_toutes_lues_admin(db: Session) -> int:
     )
     db.commit()
     return nb
+
+
+def supprimer_client(db: Session, id_notification: int, id_client: int) -> None:
+    notification = (
+        db.query(Notification)
+        .filter(
+            Notification.id_notification == id_notification,
+            Notification.destinataire_type == "CLIENT",
+            Notification.id_utilisateur == id_client,
+        )
+        .first()
+    )
+    if notification is None:
+        raise NotificationIntrouvableError()
+    db.delete(notification)
+    db.commit()
+
+
+def supprimer_toutes_client(db: Session, id_client: int) -> int:
+    nb = (
+        db.query(Notification)
+        .filter(Notification.destinataire_type == "CLIENT", Notification.id_utilisateur == id_client)
+        .delete()
+    )
+    db.commit()
+    return nb
+
+
+def supprimer_admin(db: Session, id_notification: int) -> None:
+    notification = (
+        db.query(Notification)
+        .filter(Notification.id_notification == id_notification, Notification.destinataire_type == "ADMIN")
+        .first()
+    )
+    if notification is None:
+        raise NotificationIntrouvableError()
+    db.delete(notification)
+    db.commit()
+
+
+def supprimer_toutes_admin(db: Session) -> int:
+    nb = db.query(Notification).filter(Notification.destinataire_type == "ADMIN").delete()
+    db.commit()
+    return nb

@@ -49,6 +49,26 @@ def marquer_toutes_mes_notifications_lues(
     return {"nb_marquees": service.marquer_toutes_lues_client(db, client.id_client)}
 
 
+@router.delete("/notifications/{id_notification}", status_code=status.HTTP_204_NO_CONTENT)
+def supprimer_ma_notification(
+    id_notification: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    try:
+        service.supprimer_client(db, id_notification, client.id_client)
+    except service.NotificationIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification introuvable.")
+
+
+@router.delete("/notifications", response_model=MarquerLuesOut)
+def supprimer_toutes_mes_notifications(
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    return {"nb_marquees": service.supprimer_toutes_client(db, client.id_client)}
+
+
 # --- Notifications Admin (diffusées à toute l'équipe) ---
 
 @router.get("/admin/notifications", response_model=List[NotificationOut])
@@ -85,3 +105,23 @@ def marquer_toutes_notifications_admin_lues(
     admin: Administrateur = Depends(get_current_active_admin),
 ):
     return {"nb_marquees": service.marquer_toutes_lues_admin(db)}
+
+
+@router.delete("/admin/notifications/{id_notification}", status_code=status.HTTP_204_NO_CONTENT)
+def supprimer_notification_admin(
+    id_notification: int,
+    db: Session = Depends(get_db),
+    admin: Administrateur = Depends(get_current_active_admin),
+):
+    try:
+        service.supprimer_admin(db, id_notification)
+    except service.NotificationIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification introuvable.")
+
+
+@router.delete("/admin/notifications", response_model=MarquerLuesOut)
+def supprimer_toutes_notifications_admin(
+    db: Session = Depends(get_db),
+    admin: Administrateur = Depends(get_current_active_admin),
+):
+    return {"nb_marquees": service.supprimer_toutes_admin(db)}

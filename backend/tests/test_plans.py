@@ -291,6 +291,25 @@ def test_annuler_renouvellement_garde_lacces_jusqua_la_date_fin(client, db_sessi
     assert client.get("/api/v1/dettes", headers=headers).status_code == 200
 
 
+def test_notifier_essai_cree_une_notification_pendant_lessai(client):
+    # _register_and_login démarre déjà sur l'essai PREMIUM de 30 jours.
+    headers = _register_and_login(client, "plans.notifieressai@example.com")
+
+    reponse = client.post("/api/v1/abonnement/notifier-essai", headers=headers)
+    assert reponse.status_code == 204
+
+    notifications = client.get("/api/v1/notifications", headers=headers).json()
+    assert any(n["type"] == "ESSAI_PREMIUM_ACTIF" for n in notifications)
+
+
+def test_notifier_essai_refuse_hors_essai(client):
+    headers = _register_and_login(client, "plans.notifieressaigratuit@example.com")
+    client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "GRATUIT"}, headers=headers)
+
+    reponse = client.post("/api/v1/abonnement/notifier-essai", headers=headers)
+    assert reponse.status_code == 409
+
+
 def test_creer_abonnement_gratuit_est_idempotent_via_get_or_create(client, db_session):
     """
     obtenir_abonnement_actif crée un abonnement GRATUIT de secours si

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   Sun, Moon, ArrowRight, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
@@ -62,34 +62,34 @@ const SiteHeader = () => {
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo & Brand */}
-        <a href="/" className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3">
           <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-sm border border-border" />
           <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             MyNkap
           </span>
-        </a>
+        </Link>
 
         {/* Desktop Nav Links */}
         <nav className="hidden lg:flex items-center gap-8">
           <a href="/#ia" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Intelligence Artificielle</a>
           <a href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
           <a href="/#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Tarifs</a>
-          <a href="/a-propos" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">À propos</a>
-          <a href="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+          <Link to="/a-propos" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">À propos</Link>
+          <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
         </nav>
 
         {/* CTA & Theme toggle */}
         <div className="hidden lg:flex items-center gap-4">
           <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-          <a href="/login" className="text-sm font-semibold hover:text-primary transition-colors">
+          <Link to="/login" className="text-sm font-semibold hover:text-primary transition-colors">
             Connexion
-          </a>
-          <a
-            href="/register"
+          </Link>
+          <Link
+            to="/register"
             className="bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 px-5 rounded-xl transition-all shadow-sm"
           >
             S'inscrire
-          </a>
+          </Link>
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -112,15 +112,15 @@ const SiteHeader = () => {
           <a href="/#ia" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Intelligence Artificielle</a>
           <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Fonctionnalités</a>
           <a href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Tarifs</a>
-          <a href="/a-propos" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">À propos</a>
-          <a href="/contact" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Contact</a>
+          <Link to="/a-propos" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">À propos</Link>
+          <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Contact</Link>
           <div className="pt-4 border-t border-border flex flex-col gap-3">
-            <a href="/login" className="text-center py-2.5 font-semibold text-sm hover:text-primary transition-colors">
+            <Link to="/login" className="text-center py-2.5 font-semibold text-sm hover:text-primary transition-colors">
               Connexion
-            </a>
-            <a href="/register" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-sm">
+            </Link>
+            <Link to="/register" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-sm">
               S'inscrire
-            </a>
+            </Link>
           </div>
         </div>
       )}
@@ -184,8 +184,8 @@ const SiteFooter = () => (
         <div className="md:col-span-2 space-y-4">
           <h4 className="text-sm font-bold text-foreground">Ressources</h4>
           <ul className="space-y-2 text-xs">
-            <li><a href="/a-propos" className="hover:text-foreground transition-colors">À propos</a></li>
-            <li><a href="/contact" className="hover:text-foreground transition-colors">Contact</a></li>
+            <li><Link to="/a-propos" className="hover:text-foreground transition-colors">À propos</Link></li>
+            <li><Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link></li>
             <li><a href="/#about" className="hover:text-foreground transition-colors">Principes Comptables</a></li>
             <li><a href="#" className="hover:text-foreground transition-colors">Centre d'aide</a></li>
             <li><a href="#" className="hover:text-foreground transition-colors">API Développeurs</a></li>
@@ -578,9 +578,9 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Analyse, Prédictions et JARVIS indisponibles</li>
                 </ul>
               </div>
-              <a href="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
+              <Link to="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
                 Commencer
-              </a>
+              </Link>
             </div>
 
             {/* Plan Essentiel */}
@@ -600,9 +600,9 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Templates de transaction</li>
                 </ul>
               </div>
-              <a href="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
+              <Link to="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
                 Choisir Essentiel
-              </a>
+              </Link>
             </div>
 
             {/* Plan Premium */}
@@ -619,9 +619,9 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Conseils financiers personnalisés</li>
                 </ul>
               </div>
-              <a href="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
+              <Link to="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
                 Choisir Premium
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -882,12 +882,12 @@ const AuthLayout = ({
       </div>
 
       <div className={`w-full ${maxWidthClassName}`}>
-        <a href="/" className="flex flex-col items-center gap-3 mb-8">
+        <Link to="/" className="flex flex-col items-center gap-3 mb-8">
           <img src="/logo.jpg" alt="MyNkap" className="h-20 w-20 rounded-2xl object-cover shadow-md border border-border" />
           <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             MyNkap
           </span>
-        </a>
+        </Link>
 
         <div className="bg-card p-8 rounded-2xl shadow-lg border border-border">
           <h2 className="text-2xl font-bold mb-2 text-center">{title}</h2>
@@ -895,9 +895,9 @@ const AuthLayout = ({
           {children}
         </div>
 
-        <a href="/" className="block text-center text-sm text-muted-foreground hover:text-foreground font-medium mt-6">
+        <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-foreground font-medium mt-6">
           ← Retour à l'accueil
-        </a>
+        </Link>
       </div>
     </div>
   );
@@ -1077,9 +1077,9 @@ const LoginPage = () => {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
-              <a href="/forgot-password" className="text-xs text-secondary hover:underline font-medium">
+              <Link to="/forgot-password" className="text-xs text-secondary hover:underline font-medium">
                 Mot de passe oublié ?
-              </a>
+              </Link>
             </div>
             <PasswordInput
               id="mot_de_passe"
@@ -1105,7 +1105,7 @@ const LoginPage = () => {
 
           <p className="text-center text-sm text-muted-foreground pt-1">
             Pas encore de compte ?{' '}
-            <a href="/register" className="text-secondary hover:underline font-medium">Créer un compte</a>
+            <Link to="/register" className="text-secondary hover:underline font-medium">Créer un compte</Link>
           </p>
 
           <div className="flex items-center gap-3 pt-1">
@@ -1358,7 +1358,7 @@ const RegisterPage = () => {
 
         <p className="text-center text-sm text-muted-foreground pt-1">
           Déjà un compte ?{' '}
-          <a href="/login" className="text-secondary hover:underline font-medium">Se connecter</a>
+          <Link to="/login" className="text-secondary hover:underline font-medium">Se connecter</Link>
         </p>
       </form>
     </AuthLayout>
@@ -1402,9 +1402,9 @@ const ForgotPasswordPage = () => {
             Si un compte existe pour <span className="font-medium text-foreground">{email}</span>, un e-mail de
             réinitialisation vient de lui être envoyé.
           </p>
-          <a href="/login" className="block text-sm text-secondary hover:underline font-medium">
+          <Link to="/login" className="block text-sm text-secondary hover:underline font-medium">
             Retour à la connexion
-          </a>
+          </Link>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -1434,7 +1434,7 @@ const ForgotPasswordPage = () => {
           </button>
 
           <p className="text-center text-sm text-muted-foreground pt-1">
-            <a href="/login" className="text-secondary hover:underline font-medium">Retour à la connexion</a>
+            <Link to="/login" className="text-secondary hover:underline font-medium">Retour à la connexion</Link>
           </p>
         </form>
       )}
@@ -1482,7 +1482,7 @@ const ResetPasswordPage = () => {
       {!token ? (
         <p className="text-sm text-destructive text-center">
           Ce lien de réinitialisation est invalide. Merci de refaire une demande depuis la page{' '}
-          <a href="/forgot-password" className="text-secondary hover:underline font-medium">mot de passe oublié</a>.
+          <Link to="/forgot-password" className="text-secondary hover:underline font-medium">mot de passe oublié</Link>.
         </p>
       ) : isSuccess ? (
         <div className="text-center space-y-4">
