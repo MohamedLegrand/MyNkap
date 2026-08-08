@@ -1,18 +1,39 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
+import type { Categorie } from '../types';
 
 interface CategorieModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  // Présent = mode édition (PUT sur cette catégorie) ; absent/null = création.
+  categorie?: Categorie | null;
 }
 
-export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose, onSuccess, categorie = null }) => {
+  const modeEdition = categorie !== null;
+
   const [nom, setNom] = useState('');
   const [type, setType] = useState<'DEPENSE' | 'REVENU'>('DEPENSE');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Relit la catégorie depuis le serveur à l'ouverture plutôt que de se
+    // fier à la liste locale (potentiellement périmée) — pas une
+    // synchronisation d'état dérivé d'un rendu précédent.
+    if (isOpen && categorie) {
+      api
+        .request<Categorie>(`/categories/${categorie.id_categorie}`)
+        .then((fraiche) => { setNom(fraiche.nom); setType(fraiche.type); })
+        .catch(() => { setNom(categorie.nom); setType(categorie.type); });
+    } else if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNom('');
+      setType('DEPENSE');
+    }
+  }, [isOpen, categorie]);
 
   if (!isOpen) return null;
 
@@ -21,15 +42,15 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
     setError(null);
     setIsSubmitting(true);
     try {
-      await api.request('/categories', {
-        method: 'POST',
-        body: JSON.stringify({ nom, type }),
-      });
-      setNom('');
+      if (modeEdition && categorie) {
+        await api.request(`/categories/${categorie.id_categorie}`, { method: 'PUT', body: JSON.stringify({ nom }) });
+      } else {
+        await api.request('/categories', { method: 'POST', body: JSON.stringify({ nom, type }) });
+      }
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Création de la catégorie impossible.');
+      setError(err instanceof Error ? err.message : `${modeEdition ? 'Modification' : 'Création'} de la catégorie impossible.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -39,7 +60,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">Créer catégorie</h3>
+          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? 'Modifier catégorie' : 'Créer catégorie'}</h3>
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -62,12 +83,15 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Type de catégorie</label>
+            <label className="text-xs font-semibold text-muted-foreground">
+              Type de catégorie{modeEdition && ' (non modifiable)'}
+            </label>
             <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
               <button
                 type="button"
+                disabled={modeEdition}
                 onClick={() => setType('DEPENSE')}
-                className={`py-2.5 rounded-lg text-xs font-bold transition-all ${
+                className={`py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                   type === 'DEPENSE' ? 'bg-destructive text-destructive-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -75,8 +99,9 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
               </button>
               <button
                 type="button"
+                disabled={modeEdition}
                 onClick={() => setType('REVENU')}
-                className={`py-2.5 rounded-lg text-xs font-bold transition-all ${
+                className={`py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                   type === 'REVENU' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -97,7 +122,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
               className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>Créer catégorie</span>
+              <span>{modeEdition ? 'Enregistrer' : 'Créer catégorie'}</span>
             </button>
           </div>
         </form>

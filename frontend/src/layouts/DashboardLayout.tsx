@@ -9,6 +9,7 @@ import {
   HandCoins,
   Bot,
   LineChart,
+  Repeat,
   FileText,
   Sun,
   Moon,
@@ -23,6 +24,7 @@ import {
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
 import { NotificationsBell } from '../components/NotificationsBell';
+import { ProfileSettingsModal } from '../components/ProfileSettingsModal';
 import { useDarkMode } from '../hooks/useDarkMode';
 import type { Plan, Abonnement } from '../types';
 
@@ -71,6 +73,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const refreshToken = useAuthStore((state) => state.refreshToken);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const handleLogout = () => {
     if (refreshToken) {
@@ -94,6 +97,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'debts', label: 'Dettes & Créances', icon: HandCoins, gate: 'acces_dettes' as const },
     { id: 'jarvis', label: 'Assistant JARVIS IA', icon: Bot, isNew: true, gate: 'acces_jarvis' as const },
     { id: 'analyse', label: 'Analyse & Prédictions', icon: LineChart, gate: 'acces_analyse' as const },
+    { id: 'automatisations', label: 'Récurrences & Modèles', icon: Repeat, gate: 'acces_recurrentes' as const },
     // Pas de `gate` ici : RELEVE_TRANSACTIONS et BILAN_BUDGETAIRE sont
     // gratuits pour tous les paliers (seuls certains types de rapports,
     // filtrés à l'intérieur de la page elle-même, sont réservés — voir
@@ -318,8 +322,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {/* Notifications */}
             <NotificationsBell basePath="/notifications" />
 
-            {/* User Profile Info */}
-            <div className="flex items-center gap-3 pl-2">
+            {/* User Profile Info — cliquable pour ouvrir les préférences du profil */}
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Mon profil"
+              className="flex items-center gap-3 pl-2 rounded-xl hover:bg-muted transition-colors py-1 pr-2"
+            >
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary to-secondary text-primary-foreground font-bold flex items-center justify-center shadow-sm">
                 {client?.first_name ? client.first_name[0].toUpperCase() : 'M'}
               </div>
@@ -331,7 +339,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   {client?.email || 'client@mynkap.cm'}
                 </span>
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -340,6 +348,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           {children}
         </div>
       </main>
+
+      <ProfileSettingsModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
     </div>
   );
 };

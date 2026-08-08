@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { X, ShieldCheck, Key, Sliders, CheckCircle2, FileCode, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, ShieldCheck, Key, Sliders, CheckCircle2, FileCode, Loader2, UserCog, Crown, AlertOctagon } from 'lucide-react';
+import { api } from '../services/api';
+import type { AdminClientDetail, AdminTransactionSuspecteDetail, Plan } from '../types';
 
 // --- 1. Modal Créer un Administrateur ---
 interface CreateAdminModalProps {
@@ -202,6 +204,15 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
 }) => {
   const [valeur, setValeur] = useState(initialValue);
 
+  useEffect(() => {
+    // Resynchronise avec la valeur fraîchement chargée à chaque ouverture —
+    // ce composant reste monté en arrière-plan (isOpen ne fait que masquer
+    // son rendu), donc l'état initial de useState ne se remet pas à jour
+    // tout seul quand une nouvelle clé est ouverte.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isOpen) setValeur(initialValue);
+  }, [isOpen, initialValue]);
+
   if (!isOpen) return null;
 
   return (
@@ -320,6 +331,226 @@ export const ViewAuditDetailModal: React.FC<ViewAuditDetailModalProps> = ({ isOp
               {auditItem.donnees_apres ? JSON.stringify(auditItem.donnees_apres, null, 2) : 'null'}
             </pre>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- 5. Modal Détail Client + Forcer un plan d'abonnement ---
+interface ClientDetailModalProps {
+  isOpen: boolean;
+  idClient: number | null;
+  onClose: () => void;
+  onForced: () => void;
+}
+
+const formatXAF2 = (valeur: number) => `${Number(valeur).toLocaleString('fr-FR')} XAF`;
+
+export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, idClient, onClose, onForced }) => {
+  const [detail, setDetail] = useState<AdminClientDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [idPlan, setIdPlan] = useState('');
+  const [statutForce, setStatutForce] = useState<'ESSAI' | 'ACTIF' | 'EXPIRE' | 'ANNULE'>('ACTIF');
+  const [dureeJours, setDureeJours] = useState('30');
+  const [isForcing, setIsForcing] = useState(false);
+  const [messageForcage, setMessageForcage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || idClient === null) return;
+    // Chargement à l'ouverture — pas une synchronisation d'état dérivé.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    setError(null);
+    setMessageForcage(null);
+    Promise.all([
+      api.request<AdminClientDetail>(`/admin/clients/${idClient}`),
+      api.request<Plan[]>('/plans'),
+    ])
+      .then(([d, p]) => {
+        setDetail(d);
+        setPlans(p);
+        if (p.length > 0) setIdPlan(String(p[0].id_plan));
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger ce client.'))
+      .finally(() => setIsLoading(false));
+  }, [isOpen, idClient]);
+
+  if (!isOpen || idClient === null) return null;
+
+  const handleForcer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!idPlan) return;
+    setIsForcing(true);
+    setError(null);
+    setMessageForcage(null);
+    try {
+      await api.request(`/admin/clients/${idClient}/abonnement/forcer`, {
+        method: 'POST',
+        body: JSON.stringify({
+          id_plan: Number(idPlan),
+          statut: statutForce,
+          duree_jours: dureeJours ? Number(dureeJours) : undefined,
+        }),
+      });
+      setMessageForcage('Plan attribué avec succès.');
+      onForced();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Attribution du plan impossible.");
+    } finally {
+      setIsForcing(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
+          <div className="flex items-center gap-2">
+            <UserCog className="h-5 w-5 text-primary" />
+            <h3 className="text-base font-bold">Fiche client détaillée</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          {isLoading ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : !detail ? (
+            <p className="text-sm text-destructive text-center">{error ?? 'Client introuvable.'}</p>
+          ) : (
+            <>
+              <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1 text-xs">
+                <p className="font-bold text-foreground text-sm">{detail.first_name} {detail.last_name}</p>
+                <p className="text-muted-foreground">{detail.email} • {detail.phone}</p>
+                <p className="text-muted-foreground">Client depuis le {new Date(detail.date_creation).toLocaleDateString('fr-FR')}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-xl border border-border">
+                  <p className="text-muted-foreground">Solde principal</p>
+                  <p className="font-black text-foreground text-sm">{formatXAF2(detail.solde_compte_principal)}</p>
+                </div>
+                <div className="p-3 rounded-xl border border-border">
+                  <p className="text-muted-foreground">Plan actuel</p>
+                  <p className="font-black text-primary text-sm">{detail.plan_abonnement}</p>
+                </div>
+                <div className="p-3 rounded-xl border border-border">
+                  <p className="text-muted-foreground">Comptes financiers</p>
+                  <p className="font-black text-foreground text-sm">{detail.nombre_comptes_financiers}</p>
+                </div>
+                <div className="p-3 rounded-xl border border-border">
+                  <p className="text-muted-foreground">Transactions</p>
+                  <p className="font-black text-foreground text-sm">{detail.nombre_transactions}</p>
+                </div>
+                <div className="p-3 rounded-xl border border-border col-span-2">
+                  <p className="text-muted-foreground">Dettes/créances actives</p>
+                  <p className="font-black text-foreground text-sm">{detail.nombre_dettes_actives}</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleForcer} className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Crown className="h-3.5 w-3.5 text-primary" />
+                  <span>Forcer/attribuer un plan (geste commercial, litige)</span>
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={idPlan} onChange={(e) => setIdPlan(e.target.value)} className="bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
+                    {plans.map((p) => <option key={p.id_plan} value={p.id_plan}>{p.nom}</option>)}
+                  </select>
+                  <select value={statutForce} onChange={(e) => setStatutForce(e.target.value as typeof statutForce)} className="bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="ESSAI">ESSAI</option>
+                    <option value="ACTIF">ACTIF</option>
+                    <option value="EXPIRE">EXPIRE</option>
+                    <option value="ANNULE">ANNULE</option>
+                  </select>
+                </div>
+                <input
+                  type="number"
+                  min={1}
+                  value={dureeJours}
+                  onChange={(e) => setDureeJours(e.target.value)}
+                  placeholder="Durée (jours)"
+                  className="w-full bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                {messageForcage && <p className="text-xs font-semibold text-forest-600 dark:text-forest-400">{messageForcage}</p>}
+                <button type="submit" disabled={isForcing} className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50">
+                  {isForcing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <span>Attribuer ce plan</span>
+                </button>
+              </form>
+
+              {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- 6. Modal Détail d'une transaction suspecte (fiche d'investigation) ---
+interface TransactionSuspecteDetailModalProps {
+  isOpen: boolean;
+  idTransaction: number | null;
+  onClose: () => void;
+}
+
+export const TransactionSuspecteDetailModal: React.FC<TransactionSuspecteDetailModalProps> = ({ isOpen, idTransaction, onClose }) => {
+  const [detail, setDetail] = useState<AdminTransactionSuspecteDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || idTransaction === null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    setError(null);
+    api
+      .request<AdminTransactionSuspecteDetail>(`/admin/fraude/transactions/${idTransaction}`)
+      .then(setDetail)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger cette transaction.'))
+      .finally(() => setIsLoading(false));
+  }, [isOpen, idTransaction]);
+
+  if (!isOpen || idTransaction === null) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-card w-full max-w-md rounded-2xl border border-destructive/30 shadow-2xl overflow-hidden">
+        <div className="p-5 border-b border-border flex items-center justify-between bg-destructive/10 shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertOctagon className="h-5 w-5 text-destructive" />
+            <h3 className="text-base font-bold text-destructive">Fiche d'investigation</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-3 text-xs">
+          {isLoading ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : !detail ? (
+            <p className="text-sm text-destructive text-center">{error ?? 'Transaction introuvable.'}</p>
+          ) : (
+            <>
+              <div className="flex justify-between"><span className="text-muted-foreground">Client</span><strong className="text-foreground">{detail.nom_client} ({detail.email_client})</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Compte</span><strong className="text-foreground">{detail.nom_compte}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Catégorie</span><strong className="text-foreground">{detail.nom_categorie ?? '—'}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Montant</span><strong className="text-destructive">{formatXAF2(detail.montant)}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Type</span><strong className="text-foreground">{detail.type}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Date</span><strong className="text-foreground">{new Date(detail.date).toLocaleDateString('fr-FR')}</strong></div>
+              <div className="pt-2 mt-2 border-t border-border flex justify-between"><span className="text-muted-foreground">Solde principal du client</span><strong className="text-foreground">{formatXAF2(detail.solde_compte_principal)}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Transactions totales</span><strong className="text-foreground">{detail.nombre_total_transactions_client}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Dont suspectes</span><strong className="text-destructive">{detail.nombre_transactions_suspectes_client}</strong></div>
+            </>
+          )}
         </div>
       </div>
     </div>

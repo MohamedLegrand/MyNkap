@@ -1,0 +1,343 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Repeat, FileStack, Plus, Loader2, MoreVertical, Pencil, Power, PowerOff, Play, Lock,
+} from 'lucide-react';
+import { api } from '../services/api';
+import { TransactionRecurrenteModal } from './TransactionRecurrenteModal';
+import { TemplateTransactionModal } from './TemplateTransactionModal';
+import type { Categorie, CompteFinancier, TemplateTransaction, TransactionRecurrente } from '../types';
+
+interface AutomatisationsSectionProps {
+  comptesActifs: CompteFinancier[];
+  categories: Categorie[];
+  accesRecurrentes: boolean;
+  accesTemplates: boolean;
+  nomCompte: (idCompte: number) => string;
+  nomCategorie: (idCategorie: number | null) => string;
+  onDataChange: () => void;
+}
+
+const FREQUENCE_LABEL: Record<TransactionRecurrente['frequence'], string> = {
+  HEBDOMADAIRE: 'Chaque semaine',
+  MENSUELLE: 'Chaque mois',
+  TRIMESTRIELLE: 'Chaque trimestre',
+  ANNUELLE: 'Chaque année',
+};
+
+interface ActionMenuItem {
+  label: string;
+  icon: React.ElementType;
+  onClick: () => void;
+  tone?: 'default' | 'destructive' | 'positive';
+}
+
+const MenuActions: React.FC<{ items: ActionMenuItem[]; ariaLabel?: string }> = ({ items, ariaLabel = 'Actions' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button onClick={() => setIsOpen((p) => !p)} aria-label={ariaLabel} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.label}
+                onClick={() => { setIsOpen(false); item.onClick(); }}
+                className={`w-full flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold transition-colors text-left ${
+                  item.tone === 'destructive' ? 'text-destructive hover:bg-destructive/10'
+                  : item.tone === 'positive' ? 'text-forest-600 dark:text-forest-400 hover:bg-forest-500/10'
+                  : 'text-foreground hover:bg-muted'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Verrouille: React.FC<{ titre: string }> = ({ titre }) => (
+  <div className="p-8 rounded-2xl border border-dashed border-border text-center space-y-2">
+    <Lock className="h-6 w-6 mx-auto text-muted-foreground" />
+    <p className="text-sm font-semibold text-foreground">{titre} n'est pas inclus dans votre forfait actuel</p>
+    <p className="text-xs text-muted-foreground">Passez à un forfait supérieur pour débloquer cette fonctionnalité.</p>
+  </div>
+);
+
+export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
+  comptesActifs, categories, accesRecurrentes, accesTemplates, nomCompte, nomCategorie, onDataChange,
+}) => {
+  const [mode, setMode] = useState<'recurrentes' | 'templates'>(accesRecurrentes ? 'recurrentes' : 'templates');
+  const [recurrentes, setRecurrentes] = useState<TransactionRecurrente[]>([]);
+  const [templates, setTemplates] = useState<TemplateTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [isRecurrenceModalOpen, setIsRecurrenceModalOpen] = useState(false);
+  const [recurrenceEnEdition, setRecurrenceEnEdition] = useState<TransactionRecurrente | null>(null);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templateEnEdition, setTemplateEnEdition] = useState<TemplateTransaction | null>(null);
+  const [rejouerEnCours, setRejouerEnCours] = useState<number | null>(null);
+  const [messageRejoue, setMessageRejoue] = useState<string | null>(null);
+
+  const charger = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (mode === 'recurrentes' && accesRecurrentes) {
+        setRecurrentes(await api.request<TransactionRecurrente[]>('/transactions-recurrentes?include_inactifs=true'));
+      } else if (mode === 'templates' && accesTemplates) {
+        setTemplates(await api.request<TemplateTransaction[]>('/templates?include_inactifs=true'));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Chargement impossible.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mode, accesRecurrentes, accesTemplates]);
+
+  useEffect(() => {
+    // Chargement à chaque changement d'onglet — pas une synchronisation
+    // d'état dérivé d'un rendu précédent.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    charger();
+  }, [charger]);
+
+  const toggleActifRecurrence = async (r: TransactionRecurrente) => {
+    try {
+      if (r.est_active) {
+        await api.request(`/transactions-recurrentes/${r.id_transaction_recurrente}`, { method: 'DELETE' });
+      } else {
+        await api.request(`/transactions-recurrentes/${r.id_transaction_recurrente}/reactiver`, { method: 'POST' });
+      }
+      charger();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const toggleActifTemplate = async (t: TemplateTransaction) => {
+    try {
+      if (t.est_actif) {
+        await api.request(`/templates/${t.id_template}`, { method: 'DELETE' });
+      } else {
+        await api.request(`/templates/${t.id_template}/reactiver`, { method: 'POST' });
+      }
+      charger();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const rejouerTemplate = async (t: TemplateTransaction) => {
+    setRejouerEnCours(t.id_template);
+    setMessageRejoue(null);
+    setError(null);
+    try {
+      await api.request(`/templates/${t.id_template}/rejouer`, { method: 'POST' });
+      setMessageRejoue(`"${t.nom}" a été enregistré comme nouvelle transaction.`);
+      charger();
+      onDataChange();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de rejouer ce modèle.');
+    } finally {
+      setRejouerEnCours(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="inline-flex rounded-xl bg-muted p-1 gap-1">
+        <button
+          onClick={() => setMode('recurrentes')}
+          className={`flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg transition-colors ${mode === 'recurrentes' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Repeat className="h-3.5 w-3.5" />
+          <span>Récurrentes</span>
+        </button>
+        <button
+          onClick={() => setMode('templates')}
+          className={`flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg transition-colors ${mode === 'templates' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <FileStack className="h-3.5 w-3.5" />
+          <span>Modèles</span>
+        </button>
+      </div>
+
+      {mode === 'recurrentes' ? (
+        !accesRecurrentes ? (
+          <Verrouille titre="Les transactions récurrentes" />
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Repeat className="h-5 w-5 text-primary" />
+                <span>Transactions récurrentes</span>
+              </h3>
+              <button
+                onClick={() => setIsRecurrenceModalOpen(true)}
+                disabled={comptesActifs.length === 0}
+                className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Planifier</span>
+              </button>
+            </div>
+
+            {error && <p className="text-sm text-destructive text-center">{error}</p>}
+
+            {isLoading ? (
+              <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : recurrentes.length === 0 ? (
+              <div className="p-8 rounded-2xl border border-dashed border-border text-center">
+                <p className="text-sm text-muted-foreground">Aucune transaction récurrente planifiée.</p>
+              </div>
+            ) : (
+              <div className="bg-card rounded-2xl border border-border shadow-sm divide-y divide-border">
+                {recurrentes.map((r) => (
+                  <div key={r.id_transaction_recurrente} className={`p-4 flex items-center justify-between gap-3 ${!r.est_active ? 'opacity-60' : ''}`}>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-foreground truncate">
+                          {r.description || nomCategorie(r.id_categorie)}
+                        </h4>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${r.type === 'DEPENSE' ? 'bg-destructive/10 text-destructive' : 'bg-forest-500/10 text-forest-600'}`}>
+                          {r.type}
+                        </span>
+                        {!r.est_active && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Désactivée</span>}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {nomCompte(r.id_compte)} • {FREQUENCE_LABEL[r.frequence]} • prochaine le {new Date(r.prochaine_execution).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-black text-foreground tabular-nums">{Number(r.montant).toLocaleString('fr-FR')} XAF</span>
+                      <MenuActions
+                        ariaLabel="Actions de la récurrence"
+                        items={[
+                          { label: 'Modifier', icon: Pencil, onClick: () => setRecurrenceEnEdition(r) },
+                          {
+                            label: r.est_active ? 'Désactiver' : 'Réactiver',
+                            icon: r.est_active ? PowerOff : Power,
+                            onClick: () => toggleActifRecurrence(r),
+                            tone: r.est_active ? 'destructive' : 'positive',
+                          },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      ) : !accesTemplates ? (
+        <Verrouille titre="Les modèles de transaction" />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <FileStack className="h-5 w-5 text-primary" />
+              <span>Modèles de transaction</span>
+            </h3>
+            <button
+              onClick={() => setIsTemplateModalOpen(true)}
+              disabled={comptesActifs.length === 0}
+              className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Créer un modèle</span>
+            </button>
+          </div>
+
+          {messageRejoue && <p className="text-sm text-forest-600 dark:text-forest-400 text-center font-semibold">{messageRejoue}</p>}
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+
+          {isLoading ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : templates.length === 0 ? (
+            <div className="p-8 rounded-2xl border border-dashed border-border text-center">
+              <p className="text-sm text-muted-foreground">Aucun modèle de transaction pour le moment.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {templates.map((t) => (
+                <div key={t.id_template} className={`p-4 rounded-2xl border bg-card shadow-sm space-y-2.5 ${!t.est_actif ? 'opacity-60' : ''}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-foreground truncate">{t.nom}</h4>
+                      <span className="text-xs text-muted-foreground">{nomCompte(t.id_compte)} • {nomCategorie(t.id_categorie)}</span>
+                    </div>
+                    <MenuActions
+                      ariaLabel={`Actions modèle ${t.nom}`}
+                      items={[
+                        { label: 'Modifier', icon: Pencil, onClick: () => setTemplateEnEdition(t) },
+                        {
+                          label: t.est_actif ? 'Désactiver' : 'Réactiver',
+                          icon: t.est_actif ? PowerOff : Power,
+                          onClick: () => toggleActifTemplate(t),
+                          tone: t.est_actif ? 'destructive' : 'positive',
+                        },
+                      ]}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={`font-bold ${t.type === 'DEPENSE' ? 'text-destructive' : 'text-forest-600 dark:text-forest-400'}`}>
+                      {Number(t.montant).toLocaleString('fr-FR')} XAF
+                    </span>
+                    <span className="text-muted-foreground">{t.nombre_utilisations} utilisation{t.nombre_utilisations > 1 ? 's' : ''}</span>
+                  </div>
+                  {t.est_actif && (
+                    <button
+                      onClick={() => rejouerTemplate(t)}
+                      disabled={rejouerEnCours === t.id_template}
+                      className="w-full py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      {rejouerEnCours === t.id_template ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                      <span>Rejouer maintenant</span>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <TransactionRecurrenteModal
+        isOpen={isRecurrenceModalOpen || recurrenceEnEdition !== null}
+        onClose={() => { setIsRecurrenceModalOpen(false); setRecurrenceEnEdition(null); }}
+        onSuccess={charger}
+        comptes={comptesActifs}
+        categories={categories}
+        recurrence={recurrenceEnEdition}
+      />
+
+      <TemplateTransactionModal
+        isOpen={isTemplateModalOpen || templateEnEdition !== null}
+        onClose={() => { setIsTemplateModalOpen(false); setTemplateEnEdition(null); }}
+        onSuccess={charger}
+        comptes={comptesActifs}
+        categories={categories}
+        template={templateEnEdition}
+      />
+    </div>
+  );
+};

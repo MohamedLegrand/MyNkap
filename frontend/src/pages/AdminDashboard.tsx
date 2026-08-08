@@ -12,6 +12,10 @@ import {
   Edit,
   TrendingUp,
   Loader2,
+  UserCog,
+  ShieldOff,
+  ShieldCheck,
+  CreditCard,
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { api } from '../services/api';
@@ -20,6 +24,8 @@ import {
   ResetClientPasswordModal,
   EditConfigModal,
   ViewAuditDetailModal,
+  ClientDetailModal,
+  TransactionSuspecteDetailModal,
 } from '../components/AdminModals';
 import type {
   AdminClientListItem,
@@ -30,6 +36,10 @@ import type {
   AdminAbonnementItem,
   AdminTransactionSuspecteItem,
   AdminGlobalKPIs,
+  AuditStatsResponse,
+  AdminAbonnementOverview,
+  AdminPaiementItem,
+  AdminFraudeOverview,
 } from '../types';
 
 interface Paginated<T> {
@@ -56,6 +66,10 @@ export const AdminDashboard: React.FC = () => {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLogDetail | null>(null);
 
+  const [idClientDetail, setIdClientDetail] = useState<number | null>(null);
+  const [idTransactionDetail, setIdTransactionDetail] = useState<number | null>(null);
+  const [modeSubscriptions, setModeSubscriptions] = useState<'abonnements' | 'paiements'>('abonnements');
+
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -64,9 +78,13 @@ export const AdminDashboard: React.FC = () => {
   const [clients, setClients] = useState<AdminClientListItem[]>([]);
   const [admins, setAdmins] = useState<AdminListItem[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogListItem[]>([]);
+  const [auditStats, setAuditStats] = useState<AuditStatsResponse | null>(null);
   const [configs, setConfigs] = useState<ConfigItem[]>([]);
   const [subscriptions, setSubscriptions] = useState<AdminAbonnementItem[]>([]);
+  const [subscriptionsOverview, setSubscriptionsOverview] = useState<AdminAbonnementOverview | null>(null);
+  const [paiements, setPaiements] = useState<AdminPaiementItem[]>([]);
   const [fraudTransactions, setFraudTransactions] = useState<AdminTransactionSuspecteItem[]>([]);
+  const [fraudOverview, setFraudOverview] = useState<AdminFraudeOverview | null>(null);
 
   const fetchAdminKPIs = useCallback(async () => {
     try {
@@ -97,8 +115,12 @@ export const AdminDashboard: React.FC = () => {
 
   const fetchAuditLogs = useCallback(async () => {
     try {
-      const res = await api.request<Paginated<AuditLogListItem>>('/admin/audit');
-      setAuditLogs(res.items);
+      const [logs, stats] = await Promise.all([
+        api.request<Paginated<AuditLogListItem>>('/admin/audit'),
+        api.request<AuditStatsResponse>('/admin/audit/stats'),
+      ]);
+      setAuditLogs(logs.items);
+      setAuditStats(stats);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de charger l'audit.");
     }
@@ -115,17 +137,41 @@ export const AdminDashboard: React.FC = () => {
 
   const fetchSubscriptions = useCallback(async () => {
     try {
-      const res = await api.request<Paginated<AdminAbonnementItem>>('/admin/abonnements');
+      const [res, overview, paiementsRes] = await Promise.all([
+        api.request<Paginated<AdminAbonnementItem>>('/admin/abonnements'),
+        api.request<AdminAbonnementOverview>('/admin/abonnements/overview'),
+        api.request<Paginated<AdminPaiementItem>>('/admin/paiements'),
+      ]);
       setSubscriptions(res.items);
+      setSubscriptionsOverview(overview);
+      setPaiements(paiementsRes.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Impossible de charger les abonnements.');
     }
   }, []);
 
+  const handleValiderPaiementManuel = async (idPaiement: number) => {
+    if (!window.confirm('Valider manuellement ce paiement et appliquer le plan correspondant au client ?')) return;
+    try {
+      const paiement = await api.request<AdminPaiementItem>(`/admin/paiements/${idPaiement}/valider-manuel`, {
+        method: 'POST',
+        body: JSON.stringify({ raison: 'Validation manuelle par un administrateur' }),
+      });
+      setPaiements((prev) => prev.map((p) => (p.id_paiement === idPaiement ? paiement : p)));
+      fetchSubscriptions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Validation impossible.');
+    }
+  };
+
   const fetchFraudTransactions = useCallback(async () => {
     try {
-      const res = await api.request<Paginated<AdminTransactionSuspecteItem>>('/admin/fraude/transactions');
+      const [res, overview] = await Promise.all([
+        api.request<Paginated<AdminTransactionSuspecteItem>>('/admin/fraude/transactions'),
+        api.request<AdminFraudeOverview>('/admin/fraude/overview'),
+      ]);
       setFraudTransactions(res.items);
+      setFraudOverview(overview);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Impossible de charger la surveillance anti-fraude.');
     }
@@ -209,6 +255,19 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleToggleAdminStatus = async (id: number, currentlyActive: boolean) => {
+    const raison = currentlyActive ? window.prompt('Raison de la suspension (facultatif) :') ?? undefined : undefined;
+    try {
+      const admin = await api.request<AdminListItem>(`/admin/admins/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ est_actif: !currentlyActive, raison }),
+      });
+      setAdmins((prev) => prev.map((a) => (a.id_administrateur === id ? admin : a)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Changement de statut impossible.');
+    }
+  };
+
   // Actions Audit (Module 3)
   const handleInspectAuditLog = async (log: AuditLogListItem) => {
     try {
@@ -221,6 +280,18 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // Actions Config (Module 4)
+  const handleOuvrirEditionConfig = async (cle: string) => {
+    // Relit la valeur fraîche depuis le serveur avant édition, plutôt que
+    // de se fier à la liste locale (potentiellement périmée).
+    try {
+      const fraiche = await api.request<ConfigItem>(`/admin/config/${cle}`);
+      setTargetConfig({ key: fraiche.cle, val: fraiche.valeur, type: fraiche.type, description: fraiche.description });
+      setIsEditConfigOpen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de charger ce paramètre.');
+    }
+  };
+
   const handleSaveConfig = async (newVal: string) => {
     if (!targetConfig) return;
     try {
@@ -379,6 +450,13 @@ export const AdminDashboard: React.FC = () => {
                     </td>
                     <td className="p-4 text-right space-x-2">
                       <button
+                        onClick={() => setIdClientDetail(c.id_client)}
+                        className="p-1.5 rounded-lg bg-muted hover:bg-accent text-foreground border border-border text-[11px] font-bold inline-flex items-center gap-1"
+                      >
+                        <UserCog className="h-3 w-3" />
+                        <span>Détails</span>
+                      </button>
+                      <button
                         onClick={() => handleToggleClientStatus(c.id_client, c.est_actif)}
                         className={`p-1.5 rounded-lg border text-[11px] font-bold ${
                           c.est_actif ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-forest-500/10 text-forest-600 border-forest-500/20'
@@ -456,12 +534,21 @@ export const AdminDashboard: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-right space-x-2">
                       <button
                         onClick={() => handleUpdateAdminLevel(a.id_administrateur, a.niveau_acces)}
                         className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[11px] font-bold border border-primary/20"
                       >
                         Changer Rôle
+                      </button>
+                      <button
+                        onClick={() => handleToggleAdminStatus(a.id_administrateur, a.est_actif)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1 ${
+                          a.est_actif ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-forest-500/10 text-forest-600 border-forest-500/20'
+                        }`}
+                      >
+                        {a.est_actif ? <ShieldOff className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
+                        <span>{a.est_actif ? 'Suspendre' : 'Réactiver'}</span>
                       </button>
                     </td>
                   </tr>
@@ -482,6 +569,25 @@ export const AdminDashboard: React.FC = () => {
               <p className="text-xs text-muted-foreground">Historique inaltérable de toutes les actions sur la plateforme</p>
             </div>
           </div>
+
+          {auditStats && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase">Total d'événements tracés</span>
+                <p className="text-3xl font-black text-primary tabular-nums mt-1">{auditStats.total_logs}</p>
+              </div>
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase mb-2 block">Actions les plus fréquentes</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {auditStats.repartition_actions.slice(0, 6).map((a) => (
+                    <span key={a.action} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-primary/10 text-primary">
+                      {a.action} <span className="text-muted-foreground">×{a.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
@@ -551,10 +657,7 @@ export const AdminDashboard: React.FC = () => {
                 <div className="pt-2 flex items-center justify-between border-t border-border">
                   <span className="font-mono text-sm font-black text-primary">{cfg.valeur}</span>
                   <button
-                    onClick={() => {
-                      setTargetConfig({ key: cfg.cle, val: cfg.valeur, type: cfg.type, description: cfg.description });
-                      setIsEditConfigOpen(true);
-                    }}
+                    onClick={() => handleOuvrirEditionConfig(cfg.cle)}
                     className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-bold flex items-center gap-1"
                   >
                     <Edit className="h-3.5 w-3.5" />
@@ -578,37 +681,121 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
-                <tr>
-                  <th className="p-4">Client</th>
-                  <th className="p-4">Plan Tarifaire</th>
-                  <th className="p-4">Statut</th>
-                  <th className="p-4">Cycle</th>
-                  <th className="p-4">Période</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border font-medium">
-                {subscriptions.map((sub) => (
-                  <tr key={sub.id_abonnement} className="hover:bg-muted/30">
-                    <td className="p-4 font-bold text-foreground">{sub.email_client}</td>
-                    <td className="p-4 font-bold text-primary">{sub.nom_plan}</td>
-                    <td className="p-4">
-                      <span className="inline-flex items-center gap-1 bg-forest-500/10 text-forest-600 font-bold px-2 py-0.5 rounded-full text-[10px]">
-                        {sub.statut}
-                      </span>
-                    </td>
-                    <td className="p-4 text-muted-foreground">{sub.cycle_facturation ?? '—'}</td>
-                    <td className="p-4 text-muted-foreground">
-                      {new Date(sub.date_debut).toLocaleDateString('fr-FR')} ➔ {sub.date_fin ? new Date(sub.date_fin).toLocaleDateString('fr-FR') : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {subscriptions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun abonnement.</p>}
+          {subscriptionsOverview && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase">Total abonnés</span>
+                <p className="text-2xl font-black text-primary tabular-nums mt-1">{subscriptionsOverview.total_abonnes}</p>
+              </div>
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase">Chiffre d'affaires</span>
+                <p className="text-2xl font-black text-secondary tabular-nums mt-1">{formatXAF(subscriptionsOverview.chiffre_affaires_total)}</p>
+              </div>
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Par plan</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {subscriptionsOverview.repartition_plans.map((p) => (
+                    <span key={p.nom_plan} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-primary/10 text-primary">
+                      {p.nom_plan} ×{p.nombre_abonnes}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="inline-flex rounded-xl bg-muted p-1 gap-1">
+            <button
+              onClick={() => setModeSubscriptions('abonnements')}
+              className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'abonnements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Abonnements
+            </button>
+            <button
+              onClick={() => setModeSubscriptions('paiements')}
+              className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'paiements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Paiements
+            </button>
           </div>
+
+          {modeSubscriptions === 'abonnements' ? (
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
+                  <tr>
+                    <th className="p-4">Client</th>
+                    <th className="p-4">Plan Tarifaire</th>
+                    <th className="p-4">Statut</th>
+                    <th className="p-4">Cycle</th>
+                    <th className="p-4">Période</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-medium">
+                  {subscriptions.map((sub) => (
+                    <tr key={sub.id_abonnement} className="hover:bg-muted/30">
+                      <td className="p-4 font-bold text-foreground">{sub.email_client}</td>
+                      <td className="p-4 font-bold text-primary">{sub.nom_plan}</td>
+                      <td className="p-4">
+                        <span className="inline-flex items-center gap-1 bg-forest-500/10 text-forest-600 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                          {sub.statut}
+                        </span>
+                      </td>
+                      <td className="p-4 text-muted-foreground">{sub.cycle_facturation ?? '—'}</td>
+                      <td className="p-4 text-muted-foreground">
+                        {new Date(sub.date_debut).toLocaleDateString('fr-FR')} ➔ {sub.date_fin ? new Date(sub.date_fin).toLocaleDateString('fr-FR') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {subscriptions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun abonnement.</p>}
+            </div>
+          ) : (
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
+                  <tr>
+                    <th className="p-4">Client</th>
+                    <th className="p-4">Plan demandé</th>
+                    <th className="p-4">Montant</th>
+                    <th className="p-4">Référence</th>
+                    <th className="p-4">Statut</th>
+                    <th className="p-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-medium">
+                  {paiements.map((p) => (
+                    <tr key={p.id_paiement} className="hover:bg-muted/30">
+                      <td className="p-4 font-bold text-foreground">{p.email_client}</td>
+                      <td className="p-4 text-primary font-bold">{p.nom_plan_demande} ({p.cycle_facturation})</td>
+                      <td className="p-4 font-black">{formatXAF(p.montant)}</td>
+                      <td className="p-4 font-mono text-[11px] text-muted-foreground">{p.reference_hrpay}</td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
+                          p.statut === 'SUCCESS' ? 'bg-forest-500/10 text-forest-600' : p.statut === 'FAILED' ? 'bg-destructive/10 text-destructive' : 'bg-amber-500/10 text-amber-600'
+                        }`}>
+                          {p.statut}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        {p.statut === 'PENDING' && (
+                          <button
+                            onClick={() => handleValiderPaiementManuel(p.id_paiement)}
+                            className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[11px] font-bold border border-primary/20 inline-flex items-center gap-1"
+                          >
+                            <CreditCard className="h-3 w-3" />
+                            <span>Valider manuellement</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {paiements.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun paiement.</p>}
+            </div>
+          )}
         </div>
       )}
 
@@ -625,6 +812,23 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
+          {fraudOverview && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase">Transactions suspectes</span>
+                <p className="text-2xl font-black text-destructive tabular-nums mt-1">{fraudOverview.total_transactions_suspectes}</p>
+              </div>
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase">Clients concernés</span>
+                <p className="text-2xl font-black text-primary tabular-nums mt-1">{fraudOverview.nombre_clients_concernes}</p>
+              </div>
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase">Montant à risque</span>
+                <p className="text-2xl font-black text-destructive tabular-nums mt-1">{formatXAF(fraudOverview.montant_total_suspect)}</p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-card rounded-2xl border border-destructive/30 overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
               <thead className="bg-destructive/10 border-b border-destructive/20 text-destructive uppercase font-bold text-[10px]">
@@ -639,7 +843,7 @@ export const AdminDashboard: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-border font-medium">
                 {fraudTransactions.map((tx) => (
-                  <tr key={tx.id_transaction} className="hover:bg-destructive/5">
+                  <tr key={tx.id_transaction} className="hover:bg-destructive/5 cursor-pointer" onClick={() => setIdTransactionDetail(tx.id_transaction)}>
                     <td className="p-4 font-mono font-bold">#{tx.id_transaction}</td>
                     <td className="p-4 font-bold text-foreground">{tx.email_client}</td>
                     <td className="p-4">{tx.description ?? tx.nom_categorie ?? '—'}</td>
@@ -647,7 +851,7 @@ export const AdminDashboard: React.FC = () => {
                     <td className="p-4 text-muted-foreground">{new Date(tx.date_creation).toLocaleString('fr-FR')}</td>
                     <td className="p-4 text-right">
                       <button
-                        onClick={() => handleToggleFraudStatus(tx.id_transaction, tx.est_suspecte)}
+                        onClick={(e) => { e.stopPropagation(); handleToggleFraudStatus(tx.id_transaction, tx.est_suspecte); }}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
                           tx.est_suspecte ? 'bg-forest-500/10 text-forest-600 border border-forest-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
                         }`}
@@ -702,6 +906,19 @@ export const AdminDashboard: React.FC = () => {
           donnees_apres: selectedAuditLog.donnees_apres,
         } : null}
         onClose={() => setIsAuditModalOpen(false)}
+      />
+
+      <ClientDetailModal
+        isOpen={idClientDetail !== null}
+        idClient={idClientDetail}
+        onClose={() => setIdClientDetail(null)}
+        onForced={fetchClients}
+      />
+
+      <TransactionSuspecteDetailModal
+        isOpen={idTransactionDetail !== null}
+        idTransaction={idTransactionDetail}
+        onClose={() => setIdTransactionDetail(null)}
       />
     </AdminLayout>
   );

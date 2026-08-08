@@ -93,6 +93,34 @@ export interface Transfert {
   date_creation: string;
 }
 
+export interface TransactionRecurrente {
+  id_transaction_recurrente: number;
+  id_compte: number;
+  id_categorie: number;
+  montant: number;
+  type: 'DEPENSE' | 'REVENU';
+  description: string | null;
+  frequence: 'HEBDOMADAIRE' | 'MENSUELLE' | 'TRIMESTRIELLE' | 'ANNUELLE';
+  prochaine_execution: string;
+  date_fin: string | null;
+  est_active: boolean;
+  date_creation: string;
+}
+
+export interface TemplateTransaction {
+  id_template: number;
+  id_compte: number;
+  id_categorie: number;
+  nom: string;
+  montant: number;
+  type: 'DEPENSE' | 'REVENU';
+  description: string | null;
+  nombre_utilisations: number;
+  est_actif: boolean;
+  date_creation: string;
+  date_modification: string;
+}
+
 export interface Dette {
   id_dette: number;
   id_compte: number;
@@ -316,4 +344,59 @@ export interface AdminGlobalKPIs {
     montant_total_suspect: number;
     total_audit_logs: number;
   };
+}
+
+export interface AdminClientDetail {
+  id_client: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  est_actif: boolean;
+  date_creation: string;
+  date_modification: string;
+  solde_compte_principal: number;
+  nombre_comptes_financiers: number;
+  nombre_transactions: number;
+  nombre_dettes_actives: number;
+  plan_abonnement: string;
+}
+
+export interface AuditStatsResponse {
+  total_logs: number;
+  repartition_actions: { action: string; count: number }[];
+}
+
+export interface AdminAbonnementOverview {
+  total_abonnes: number;
+  repartition_plans: { nom_plan: string; nombre_abonnes: number }[];
+  repartition_statuts: { statut: string; count: number }[];
+  chiffre_affaires_total: number;
+}
+
+export interface AdminPaiementItem {
+  id_paiement: number;
+  id_client: number;
+  email_client: string;
+  nom_plan_demande: string;
+  cycle_facturation: string;
+  montant: number;
+  devise: string;
+  reference_hrpay: string;
+  statut: 'PENDING' | 'SUCCESS' | 'FAILED';
+  date_creation: string;
+  date_confirmation: string | null;
+}
+
+export interface AdminFraudeOverview {
+  total_transactions_suspectes: number;
+  nombre_clients_concernes: number;
+  montant_total_suspect: number;
+  repartition_par_type: { type: string; count: number }[];
+}
+
+export interface AdminTransactionSuspecteDetail extends AdminTransactionSuspecteItem {
+  nombre_total_transactions_client: number;
+  nombre_transactions_suspectes_client: number;
+  solde_compte_principal: number;
 }

@@ -2,13 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Crown, Check, Loader2, Smartphone, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
-import type { Plan, PaiementAbonnement } from '../types';
+import type { Plan, PaiementAbonnement, Abonnement } from '../types';
 
 interface PlanUpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
   planActuel?: string;
+  abonnement?: Abonnement | null;
 }
 
 const LABEL_PLAN: Record<string, string> = {
@@ -28,7 +29,7 @@ const FEATURES_PAR_PLAN: Record<string, string[]> = {
 
 type Etape = 'choix' | 'paiement' | 'attente' | 'succes' | 'echec';
 
-export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onClose, onSuccess, planActuel }) => {
+export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onClose, onSuccess, planActuel, abonnement }) => {
   const client = useAuthStore((state) => state.client);
 
   const [etape, setEtape] = useState<Etape>('choix');
@@ -42,6 +43,8 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
   const [operator, setOperator] = useState<'orange' | 'mtn'>('orange');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paiement, setPaiement] = useState<PaiementAbonnement | null>(null);
+  const [isSubmittingGestion, setIsSubmittingGestion] = useState(false);
+  const [gestionMessage, setGestionMessage] = useState<string | null>(null);
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -60,6 +63,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
     setEtape('choix');
     setError(null);
     setPaiement(null);
+    setGestionMessage(null);
     setPhone(client?.phone ?? '');
     setIsLoadingPlans(true);
     api
@@ -132,6 +136,36 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
   const handleClose = () => {
     arreterPolling();
     onClose();
+  };
+
+  const handleRevenirGratuit = async () => {
+    if (!window.confirm('Revenir immédiatement au forfait Gratuit ? Vous perdrez l\'accès aux fonctionnalités payantes tout de suite.')) return;
+    setIsSubmittingGestion(true);
+    setError(null);
+    try {
+      await api.request('/abonnement/changer-plan', { method: 'POST', body: JSON.stringify({ nom_plan: 'GRATUIT' }) });
+      onSuccess?.();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de changer de forfait.');
+    } finally {
+      setIsSubmittingGestion(false);
+    }
+  };
+
+  const handleAnnulerRenouvellement = async () => {
+    setIsSubmittingGestion(true);
+    setError(null);
+    setGestionMessage(null);
+    try {
+      await api.request('/abonnement/annuler-renouvellement', { method: 'POST' });
+      setGestionMessage('Le renouvellement automatique a été désactivé. Votre accès reste actif jusqu\'à la fin de la période déjà payée.');
+      onSuccess?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Action impossible.');
+    } finally {
+      setIsSubmittingGestion(false);
+    }
   };
 
   return (
@@ -230,6 +264,33 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
                 >
                   Continuer — {montant.toLocaleString('fr-FR')} XAF / {cycle === 'MENSUEL' ? 'mois' : 'an'}
                 </button>
+
+                {planActuel && planActuel !== 'GRATUIT' && (
+                  <div className="pt-4 mt-1 border-t border-border space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Gérer mon abonnement actuel</p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      {abonnement?.renouvellement_auto && abonnement.statut === 'ACTIF' && (
+                        <button
+                          type="button"
+                          onClick={handleAnnulerRenouvellement}
+                          disabled={isSubmittingGestion}
+                          className="flex-1 py-2.5 px-3 rounded-xl border border-border text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                        >
+                          Ne pas renouveler{abonnement.date_fin && ` (accès jusqu'au ${new Date(abonnement.date_fin).toLocaleDateString('fr-FR')})`}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleRevenirGratuit}
+                        disabled={isSubmittingGestion}
+                        className="flex-1 py-2.5 px-3 rounded-xl border border-destructive/30 text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      >
+                        Revenir au forfait Gratuit
+                      </button>
+                    </div>
+                    {gestionMessage && <p className="text-xs text-forest-600 dark:text-forest-400 text-center">{gestionMessage}</p>}
+                  </div>
+                )}
               </>
             )
           )}

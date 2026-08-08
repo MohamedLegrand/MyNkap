@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Wallet,
   TrendingUp,
@@ -26,6 +26,12 @@ import {
   Clock,
   Crown,
   ArrowRightLeft,
+  MoreVertical,
+  Pencil,
+  RefreshCw,
+  Power,
+  PowerOff,
+  X,
 } from 'lucide-react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
@@ -39,6 +45,8 @@ import { DetteOperationModal } from '../components/DetteOperationModal';
 import { ObjectifModal } from '../components/ObjectifModal';
 import { ObjectifOperationModal } from '../components/ObjectifOperationModal';
 import { JarvisWidget } from '../components/JarvisWidget';
+import { TransactionDetailModal } from '../components/TransactionDetailModal';
+import { AutomatisationsSection } from '../components/AutomatisationsSection';
 import { AnalyseSection } from '../components/AnalyseSection';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
@@ -52,6 +60,7 @@ import type {
   ObjectifEpargne,
   Dette,
   Rapport,
+  Transfert,
 } from '../types';
 
 const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
@@ -74,13 +83,18 @@ export const ClientDashboard: React.FC = () => {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [essaiConfirme, setEssaiConfirme] = useState(false);
   const [isCompteModalOpen, setIsCompteModalOpen] = useState(false);
+  const [compteEnEdition, setCompteEnEdition] = useState<CompteFinancier | null>(null);
+  const [compteActionError, setCompteActionError] = useState<string | null>(null);
   const [isTransfertModalOpen, setIsTransfertModalOpen] = useState(false);
   const [isCategorieModalOpen, setIsCategorieModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [categorieEnEdition, setCategorieEnEdition] = useState<Categorie | null>(null);
+  const [budgetEnEdition, setBudgetEnEdition] = useState<Budget | null>(null);
+  const [transactionDetailId, setTransactionDetailId] = useState<number | null>(null);
   const [isDetteModalOpen, setIsDetteModalOpen] = useState(false);
   const [isObjectifModalOpen, setIsObjectifModalOpen] = useState(false);
   const [detteOperation, setDetteOperation] = useState<Dette | null>(null);
-  const [objectifOperation, setObjectifOperation] = useState<{ objectif: ObjectifEpargne; operation: 'alimenter' | 'retirer' } | null>(null);
+  const [objectifOperation, setObjectifOperation] = useState<{ objectif: ObjectifEpargne; operation: 'alimenter' | 'retirer' | 'abandonner' } | null>(null);
   const client = useAuthStore((state) => state.client);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -94,6 +108,10 @@ export const ClientDashboard: React.FC = () => {
   const [objectifsEpargne, setObjectifsEpargne] = useState<ObjectifEpargne[]>([]);
   const [dettes, setDettes] = useState<Dette[]>([]);
   const [rapports, setRapports] = useState<Rapport[]>([]);
+  const [transferts, setTransferts] = useState<Transfert[]>([]);
+  const [transfertDetailId, setTransfertDetailId] = useState<number | null>(null);
+  const [transfertDetail, setTransfertDetail] = useState<Transfert | null>(null);
+  const [isLoadingTransfertDetail, setIsLoadingTransfertDetail] = useState(false);
 
   const chargerAbonnement = useCallback(async () => {
     try {
@@ -109,10 +127,15 @@ export const ClientDashboard: React.FC = () => {
     try {
       const [cp, listeComptes, listeTransactions, listeCategories, listeBudgets] = await Promise.all([
         api.request<ComptePrincipal>('/comptes/principal'),
-        api.request<CompteFinancier[]>('/comptes'),
+        // include_inactifs=true : les comptes désactivés restent visibles
+        // dans "Mes Comptes" (badge + bouton Réactiver) plutôt que de
+        // disparaître silencieusement après une désactivation.
+        api.request<CompteFinancier[]>('/comptes?include_inactifs=true'),
         api.request<Transaction[]>('/transactions'),
-        api.request<Categorie[]>('/categories'),
-        api.request<Budget[]>('/budgets'),
+        // Idem catégories/budgets : les éléments désactivés restent visibles
+        // (badge + Réactiver) dans l'onglet Budgets & Alertes.
+        api.request<Categorie[]>('/categories?include_inactifs=true'),
+        api.request<Budget[]>('/budgets?include_inactifs=true'),
       ]);
       setComptePrincipal(cp);
       setComptes(listeComptes);
@@ -172,9 +195,103 @@ export const ClientDashboard: React.FC = () => {
       .catch(() => setDettes([]));
   }, [abonnement]);
 
+  useEffect(() => {
+    // Chargé seulement en visitant "Mes Comptes" — pas de gating de plan
+    // ici (les transferts sont gratuits), donc pas besoin de dépendre de
+    // l'abonnement comme épargne/dettes ci-dessus.
+    if (activeTab !== 'accounts') return;
+    api
+      .request<Transfert[]>('/transferts')
+      .then(setTransferts)
+      .catch(() => setTransferts([]));
+  }, [activeTab]);
+
+  useEffect(() => {
+    // Relit le transfert depuis le serveur à l'ouverture de son détail —
+    // pas une synchronisation d'état dérivé.
+    if (transfertDetailId === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTransfertDetail(null);
+      return;
+    }
+    setIsLoadingTransfertDetail(true);
+    api
+      .request<Transfert>(`/transferts/${transfertDetailId}`)
+      .then(setTransfertDetail)
+      .catch(() => setTransfertDetail(null))
+      .finally(() => setIsLoadingTransfertDetail(false));
+  }, [transfertDetailId]);
+
   const nomCategorie = (idCategorie: number | null) =>
     categories.find((c) => c.id_categorie === idCategorie)?.nom ?? 'Non catégorisé';
   const nomCompte = (idCompte: number) => comptes.find((c) => c.id_compte === idCompte)?.nom ?? '—';
+  const peutAnnulerTransaction = (id: number) => {
+    const tx = transactions.find((t) => t.id_transaction === id);
+    if (!tx || tx.type === 'ANNULATION') return false;
+    return !transactions.some((t) => t.id_transaction_annulee === id);
+  };
+
+  const toggleActifCategorie = async (categorie: Categorie) => {
+    setLoadError(null);
+    try {
+      if (categorie.est_actif) {
+        await api.request(`/categories/${categorie.id_categorie}`, { method: 'DELETE' });
+      } else {
+        await api.request(`/categories/${categorie.id_categorie}/reactiver`, { method: 'POST' });
+      }
+      chargerDonnees();
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const toggleActifBudget = async (budget: Budget) => {
+    setLoadError(null);
+    try {
+      if (budget.est_actif) {
+        await api.request(`/budgets/${budget.id_budget}`, { method: 'DELETE' });
+      } else {
+        await api.request(`/budgets/${budget.id_budget}/reactiver`, { method: 'POST' });
+      }
+      chargerDonnees();
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const marquerDettePerte = async (dette: Dette) => {
+    if (!window.confirm(`Confirmer que "${dette.nom}" est irrécouvrable ? Cette action est définitive.`)) return;
+    try {
+      await api.request(`/dettes/${dette.id_dette}/marquer-perte`, { method: 'POST' });
+      api.request<Dette[]>('/dettes').then(setDettes).catch(() => {});
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const reconcilierCompte = async (compte: CompteFinancier) => {
+    setCompteActionError(null);
+    try {
+      await api.request(`/comptes/${compte.id_compte}/reconcilier`, { method: 'POST' });
+      chargerDonnees();
+    } catch (err) {
+      setCompteActionError(err instanceof Error ? err.message : 'Réconciliation impossible.');
+    }
+  };
+
+  const toggleActifCompte = async (compte: CompteFinancier) => {
+    setCompteActionError(null);
+    try {
+      if (compte.est_actif) {
+        await api.request(`/comptes/${compte.id_compte}`, { method: 'DELETE' });
+      } else {
+        await api.request(`/comptes/${compte.id_compte}/reactiver`, { method: 'POST' });
+      }
+      chargerDonnees();
+    } catch (err) {
+      setCompteActionError(err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
 
   const transactionsRecentes = [...transactions]
     .sort((a, b) => new Date(b.date_creation).getTime() - new Date(a.date_creation).getTime())
@@ -187,6 +304,12 @@ export const ClientDashboard: React.FC = () => {
     .filter((t) => t.type === 'DEPENSE')
     .reduce((total, t) => total + Number(t.montant), 0);
   const totalEpargne = objectifsEpargne.reduce((total, o) => total + Number(o.montant_actuel), 0);
+  // "Mes Comptes" affiche aussi les comptes désactivés (badge + Réactiver) ;
+  // partout ailleurs (totaux, sélecteurs de transfert/dette/épargne), seuls
+  // les comptes actifs ont un sens. Même principe pour les budgets dans
+  // l'aperçu "Vue d'ensemble".
+  const comptesActifs = comptes.filter((c) => c.est_actif);
+  const budgetsActifs = budgets.filter((b) => b.est_actif);
 
   return (
     <DashboardLayout
@@ -196,7 +319,7 @@ export const ClientDashboard: React.FC = () => {
       onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
       plan={abonnement?.plan}
       abonnement={abonnement}
-      nombreComptes={comptes.length}
+      nombreComptes={comptesActifs.length}
     >
       {/* 1. Bannière de Bienvenue */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-forest-600 to-secondary p-6 sm:p-8 text-white shadow-xl">
@@ -218,7 +341,7 @@ export const ClientDashboard: React.FC = () => {
               <strong className="text-white underline decoration-white/40">
                 {comptePrincipal ? formatMontant(Number(comptePrincipal.solde_total)) : '—'}
               </strong>{' '}
-              répartis sur {comptes.length} compte{comptes.length > 1 ? 's' : ''} actif{comptes.length > 1 ? 's' : ''}.
+              répartis sur {comptesActifs.length} compte{comptesActifs.length > 1 ? 's' : ''} actif{comptesActifs.length > 1 ? 's' : ''}.
             </p>
           </div>
 
@@ -356,18 +479,29 @@ export const ClientDashboard: React.FC = () => {
           {activeTab === 'accounts' ? (
             <ComptesSection
               comptes={comptes}
+              transferts={transferts}
+              nomCompte={nomCompte}
               onOpenCompteModal={() => setIsCompteModalOpen(true)}
               onOpenTransfertModal={() => setIsTransfertModalOpen(true)}
+              onEditCompte={(c) => setCompteEnEdition(c)}
+              onReconcilierCompte={reconcilierCompte}
+              onToggleActifCompte={toggleActifCompte}
+              onOpenTransfertDetail={(id) => setTransfertDetailId(id)}
+              actionError={compteActionError}
             />
           ) : activeTab === 'budgets' ? (
             <BudgetsSection
-              comptes={comptes}
+              comptes={comptesActifs}
               categories={categories}
               budgets={budgets}
               nomCategorie={nomCategorie}
               onGoToAccounts={() => setActiveTab('accounts')}
               onOpenCategorieModal={() => setIsCategorieModalOpen(true)}
               onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+              onEditCategorie={setCategorieEnEdition}
+              onToggleActifCategorie={toggleActifCategorie}
+              onEditBudget={setBudgetEnEdition}
+              onToggleActifBudget={toggleActifBudget}
             />
           ) : activeTab === 'transactions' ? (
             <TransactionsSection
@@ -383,6 +517,7 @@ export const ClientDashboard: React.FC = () => {
                   setLoadError(err instanceof Error ? err.message : "Annulation impossible.");
                 }
               }}
+              onOpenDetail={(id) => setTransactionDetailId(id)}
             />
           ) : activeTab === 'savings' ? (
             <EpargneSection
@@ -390,17 +525,29 @@ export const ClientDashboard: React.FC = () => {
               onOpenObjectifModal={() => setIsObjectifModalOpen(true)}
               onAlimenter={(o) => setObjectifOperation({ objectif: o, operation: 'alimenter' })}
               onRetirer={(o) => setObjectifOperation({ objectif: o, operation: 'retirer' })}
+              onAbandonner={(o) => setObjectifOperation({ objectif: o, operation: 'abandonner' })}
             />
           ) : activeTab === 'debts' ? (
             <DettesSection
               dettes={dettes}
               onOpenDetteModal={() => setIsDetteModalOpen(true)}
               onOperation={(d) => setDetteOperation(d)}
+              onMarquerPerte={marquerDettePerte}
             />
           ) : activeTab === 'jarvis' ? (
             <JarvisWidget />
           ) : activeTab === 'analyse' ? (
             <AnalyseSection />
+          ) : activeTab === 'automatisations' ? (
+            <AutomatisationsSection
+              comptesActifs={comptesActifs}
+              categories={categories}
+              accesRecurrentes={abonnement?.plan.acces_recurrentes ?? false}
+              accesTemplates={abonnement?.plan.acces_templates ?? false}
+              nomCompte={nomCompte}
+              nomCategorie={nomCategorie}
+              onDataChange={chargerDonnees}
+            />
           ) : activeTab === 'reports' ? (
             <RapportsSection
               rapports={rapports}
@@ -422,7 +569,7 @@ export const ClientDashboard: React.FC = () => {
                   </h3>
                 </div>
 
-                {comptes.length === 0 ? (
+                {comptesActifs.length === 0 ? (
                   <div className="p-6 rounded-2xl border border-dashed border-border text-center space-y-2">
                     <p className="text-sm text-muted-foreground">Vous n'avez encore aucun compte financier.</p>
                     <button
@@ -434,7 +581,7 @@ export const ClientDashboard: React.FC = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {comptes.map((acc) => (
+                    {comptesActifs.map((acc) => (
                       <div
                         key={acc.id_compte}
                         className="p-4 rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all space-y-3"
@@ -522,11 +669,11 @@ export const ClientDashboard: React.FC = () => {
                   </h3>
                 </div>
 
-                {budgets.length === 0 ? (
+                {budgetsActifs.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-4">Aucun budget défini pour le moment.</p>
                 ) : (
                   <div className="space-y-4">
-                    {budgets.map((b) => {
+                    {budgetsActifs.map((b) => {
                       const percent = Math.round(b.pourcentage_utilise);
                       const color = b.est_depasse ? 'bg-destructive' : percent >= 80 ? 'bg-amber-500' : 'bg-primary';
                       return (
@@ -614,13 +761,15 @@ export const ClientDashboard: React.FC = () => {
         onClose={() => setIsUpgradeModalOpen(false)}
         onSuccess={chargerAbonnement}
         planActuel={abonnement?.plan.nom}
+        abonnement={abonnement}
       />
 
-      {/* Modal de création d'un compte financier */}
+      {/* Modal de création/modification d'un compte financier */}
       <CompteModal
-        isOpen={isCompteModalOpen}
-        onClose={() => setIsCompteModalOpen(false)}
+        isOpen={isCompteModalOpen || compteEnEdition !== null}
+        onClose={() => { setIsCompteModalOpen(false); setCompteEnEdition(null); }}
         onSuccess={chargerDonnees}
+        compte={compteEnEdition}
       />
 
       {/* Modal de transfert entre comptes */}
@@ -628,22 +777,25 @@ export const ClientDashboard: React.FC = () => {
         isOpen={isTransfertModalOpen}
         onClose={() => setIsTransfertModalOpen(false)}
         onSuccess={chargerDonnees}
-        comptes={comptes}
+        comptes={comptesActifs}
       />
 
-      {/* Modal de création d'une catégorie */}
+      {/* Modal de création/modification d'une catégorie */}
       <CategorieModal
-        isOpen={isCategorieModalOpen}
-        onClose={() => setIsCategorieModalOpen(false)}
+        isOpen={isCategorieModalOpen || categorieEnEdition !== null}
+        onClose={() => { setIsCategorieModalOpen(false); setCategorieEnEdition(null); }}
         onSuccess={chargerDonnees}
+        categorie={categorieEnEdition}
       />
 
-      {/* Modal de définition d'un budget */}
+      {/* Modal de définition/modification d'un budget */}
       <BudgetModal
-        isOpen={isBudgetModalOpen}
-        onClose={() => setIsBudgetModalOpen(false)}
+        isOpen={isBudgetModalOpen || budgetEnEdition !== null}
+        onClose={() => { setIsBudgetModalOpen(false); setBudgetEnEdition(null); }}
         onSuccess={chargerDonnees}
         categoriesDepense={categories.filter((c) => c.type === 'DEPENSE' && c.est_actif)}
+        budget={budgetEnEdition}
+        nomCategorie={nomCategorie}
       />
 
       {/* Modal de déclaration d'une dette/créance */}
@@ -651,7 +803,7 @@ export const ClientDashboard: React.FC = () => {
         isOpen={isDetteModalOpen}
         onClose={() => setIsDetteModalOpen(false)}
         onSuccess={() => { setIsDetteModalOpen(false); api.request<Dette[]>('/dettes').then(setDettes).catch(() => {}); chargerDonnees(); }}
-        comptes={comptes}
+        comptes={comptesActifs}
       />
 
       {/* Modal de remboursement/encaissement d'une dette */}
@@ -660,7 +812,7 @@ export const ClientDashboard: React.FC = () => {
         onClose={() => setDetteOperation(null)}
         onSuccess={() => { api.request<Dette[]>('/dettes').then(setDettes).catch(() => {}); chargerDonnees(); }}
         dette={detteOperation}
-        comptes={comptes}
+        comptes={comptesActifs}
       />
 
       {/* Modal de création d'un objectif d'épargne */}
@@ -677,77 +829,245 @@ export const ClientDashboard: React.FC = () => {
         onSuccess={() => { api.request<ObjectifEpargne[]>('/epargne').then(setObjectifsEpargne).catch(() => {}); chargerDonnees(); }}
         objectif={objectifOperation?.objectif ?? null}
         operation={objectifOperation?.operation ?? 'alimenter'}
-        comptes={comptes}
+        comptes={comptesActifs}
       />
+
+      {/* Détail d'une transaction (avec gestion de la suspicion) */}
+      <TransactionDetailModal
+        isOpen={transactionDetailId !== null}
+        onClose={() => setTransactionDetailId(null)}
+        onChange={chargerDonnees}
+        idTransaction={transactionDetailId}
+        nomCategorie={nomCategorie}
+        nomCompte={nomCompte}
+        peutAnnuler={transactionDetailId !== null && peutAnnulerTransaction(transactionDetailId)}
+        onAnnuler={async (id) => {
+          try {
+            await api.request(`/transactions/${id}/annuler`, { method: 'POST' });
+            chargerDonnees();
+          } catch (err) {
+            setLoadError(err instanceof Error ? err.message : 'Annulation impossible.');
+          }
+        }}
+      />
+
+      {/* Détail d'un transfert entre comptes */}
+      {transfertDetailId !== null && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
+              <h3 className="text-lg font-bold tracking-tight">Détail du transfert</h3>
+              <button onClick={() => setTransfertDetailId(null)} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {isLoadingTransfertDetail ? (
+              <div className="flex justify-center py-14">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : !transfertDetail ? (
+              <p className="p-6 text-sm text-destructive text-center">Transfert introuvable.</p>
+            ) : (
+              <div className="p-6 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">De</span><strong className="text-foreground">{nomCompte(transfertDetail.id_compte_source)}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Vers</span><strong className="text-foreground">{nomCompte(transfertDetail.id_compte_destination)}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Montant</span><strong className="text-foreground">{formatMontant(Number(transfertDetail.montant))}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Date</span><strong className="text-foreground">{new Date(transfertDetail.date).toLocaleDateString('fr-FR')}</strong></div>
+                {transfertDetail.description && (
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Description</span><strong className="text-foreground text-right">{transfertDetail.description}</strong></div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };
 
 interface ComptesSectionProps {
   comptes: CompteFinancier[];
+  transferts: Transfert[];
+  nomCompte: (idCompte: number) => string;
   onOpenCompteModal: () => void;
   onOpenTransfertModal: () => void;
+  onEditCompte: (compte: CompteFinancier) => void;
+  onReconcilierCompte: (compte: CompteFinancier) => void;
+  onToggleActifCompte: (compte: CompteFinancier) => void;
+  onOpenTransfertDetail: (idTransfert: number) => void;
+  actionError: string | null;
 }
 
-const ComptesSection: React.FC<ComptesSectionProps> = ({ comptes, onOpenCompteModal, onOpenTransfertModal }) => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between flex-wrap gap-3">
-      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-        <Wallet className="h-5 w-5 text-primary" />
-        <span>Mes Comptes Financiers</span>
-      </h3>
-      <div className="flex items-center gap-2">
-        {/* Un transfert n'a de sens qu'entre deux comptes existants —
-            camouflé tant qu'il n'y en a pas au moins deux, même principe
-            que Créer catégorie / Définir budget pour les Dettes/Épargne. */}
-        {comptes.length >= 2 && (
-          <button
-            onClick={onOpenTransfertModal}
-            className="bg-muted hover:bg-accent text-foreground font-bold text-xs py-2.5 px-4 rounded-xl border border-border transition-all flex items-center gap-2"
-          >
-            <ArrowRightLeft className="h-4 w-4" />
-            <span>Transférer entre comptes</span>
-          </button>
-        )}
-        <button
-          onClick={onOpenCompteModal}
-          className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Créer compte</span>
-        </button>
-      </div>
-    </div>
+interface ActionMenuItem {
+  label: string;
+  icon: React.ElementType;
+  onClick: () => void;
+  tone?: 'default' | 'destructive' | 'positive';
+}
 
-    {comptes.length === 0 ? (
-      <div className="p-6 rounded-2xl border border-dashed border-border text-center space-y-2">
-        <p className="text-sm text-muted-foreground">Vous n'avez encore aucun compte financier.</p>
+// Menu d'actions générique (kebab) réutilisé pour les comptes, catégories,
+// budgets, transactions récurrentes et templates — évite de dupliquer le
+// pattern d'ouverture/fermeture au clic extérieur à chaque section.
+const MenuActions: React.FC<{ items: ActionMenuItem[]; ariaLabel?: string }> = ({ items, ariaLabel = 'Actions' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={ariaLabel}
+        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.label}
+                onClick={() => { setIsOpen(false); item.onClick(); }}
+                className={`w-full flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold transition-colors text-left ${
+                  item.tone === 'destructive'
+                    ? 'text-destructive hover:bg-destructive/10'
+                    : item.tone === 'positive'
+                    ? 'text-forest-600 dark:text-forest-400 hover:bg-forest-500/10'
+                    : 'text-foreground hover:bg-muted'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ComptesSection: React.FC<ComptesSectionProps> = ({
+  comptes, transferts, nomCompte, onOpenCompteModal, onOpenTransfertModal, onEditCompte, onReconcilierCompte, onToggleActifCompte,
+  onOpenTransfertDetail, actionError,
+}) => {
+  const comptesActifs = comptes.filter((c) => c.est_actif);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-primary" />
+          <span>Mes Comptes Financiers</span>
+        </h3>
+        <div className="flex items-center gap-2">
+          {/* Un transfert n'a de sens qu'entre deux comptes actifs existants —
+              camouflé tant qu'il n'y en a pas au moins deux, même principe
+              que Créer catégorie / Définir budget pour les Dettes/Épargne. */}
+          {comptesActifs.length >= 2 && (
+            <button
+              onClick={onOpenTransfertModal}
+              className="bg-muted hover:bg-accent text-foreground font-bold text-xs py-2.5 px-4 rounded-xl border border-border transition-all flex items-center gap-2"
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              <span>Transférer entre comptes</span>
+            </button>
+          )}
+          <button
+            onClick={onOpenCompteModal}
+            className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Créer compte</span>
+          </button>
+        </div>
       </div>
-    ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {comptes.map((acc) => (
-          <div key={acc.id_compte} className="p-4 rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl text-xs font-bold bg-primary/10 text-primary">
-                  {ICONS_PAR_TYPE_COMPTE[acc.type] ?? <Wallet className="h-4 w-4" />}
+
+      {actionError && <p className="text-sm text-destructive text-center">{actionError}</p>}
+
+      {comptes.length === 0 ? (
+        <div className="p-6 rounded-2xl border border-dashed border-border text-center space-y-2">
+          <p className="text-sm text-muted-foreground">Vous n'avez encore aucun compte financier.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {comptes.map((acc) => (
+            <div
+              key={acc.id_compte}
+              className={`p-4 rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all space-y-3 ${!acc.est_actif ? 'opacity-60' : ''}`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 rounded-xl text-xs font-bold bg-primary/10 text-primary shrink-0">
+                    {ICONS_PAR_TYPE_COMPTE[acc.type] ?? <Wallet className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-foreground leading-tight truncate">{acc.nom}</h4>
+                    <span className="text-[11px] text-muted-foreground leading-tight">
+                      {acc.type}{!acc.est_actif && ' • Désactivé'}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-foreground leading-tight">{acc.nom}</h4>
-                  <span className="text-[11px] text-muted-foreground leading-tight">{acc.type}</span>
-                </div>
+                <MenuActions
+                  ariaLabel="Actions du compte"
+                  items={[
+                    { label: 'Modifier', icon: Pencil, onClick: () => onEditCompte(acc) },
+                    ...(acc.est_actif ? [{ label: 'Réconcilier le solde', icon: RefreshCw, onClick: () => onReconcilierCompte(acc) }] : []),
+                    {
+                      label: acc.est_actif ? 'Désactiver' : 'Réactiver',
+                      icon: acc.est_actif ? PowerOff : Power,
+                      onClick: () => onToggleActifCompte(acc),
+                      tone: acc.est_actif ? 'destructive' : 'positive',
+                    },
+                  ]}
+                />
+              </div>
+              <div className="pt-1 flex items-baseline justify-between border-t border-border/40">
+                <span className="text-xs font-medium text-muted-foreground">Solde</span>
+                <span className="text-lg font-black text-foreground tabular-nums">{formatMontant(Number(acc.solde))}</span>
               </div>
             </div>
-            <div className="pt-1 flex items-baseline justify-between border-t border-border/40">
-              <span className="text-xs font-medium text-muted-foreground">Solde</span>
-              <span className="text-lg font-black text-foreground tabular-nums">{formatMontant(Number(acc.solde))}</span>
-            </div>
+          ))}
+        </div>
+      )}
+
+      {transferts.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-primary" />
+            <span>Historique des transferts</span>
+          </h3>
+          <div className="bg-card rounded-2xl border border-border shadow-sm divide-y divide-border">
+            {transferts.map((t) => (
+              <button
+                key={t.id_transfert}
+                onClick={() => onOpenTransfertDetail(t.id_transfert)}
+                className="w-full py-3 px-4 flex items-center justify-between hover:bg-muted/30 transition-colors text-left"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground truncate">
+                    {nomCompte(t.id_compte_source)} <ArrowRightLeft className="h-3 w-3 inline mx-1 text-muted-foreground" /> {nomCompte(t.id_compte_destination)}
+                  </p>
+                  <span className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString('fr-FR')}</span>
+                </div>
+                <span className="text-sm font-black text-foreground tabular-nums shrink-0">{formatMontant(Number(t.montant))}</span>
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
-    )}
-  </div>
-);
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface BudgetsSectionProps {
   comptes: CompteFinancier[];
@@ -757,6 +1077,10 @@ interface BudgetsSectionProps {
   onGoToAccounts: () => void;
   onOpenCategorieModal: () => void;
   onOpenBudgetModal: () => void;
+  onEditCategorie: (categorie: Categorie) => void;
+  onToggleActifCategorie: (categorie: Categorie) => void;
+  onEditBudget: (budget: Budget) => void;
+  onToggleActifBudget: (budget: Budget) => void;
 }
 
 const BudgetsSection: React.FC<BudgetsSectionProps> = ({
@@ -767,6 +1091,10 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
   onGoToAccounts,
   onOpenCategorieModal,
   onOpenBudgetModal,
+  onEditCategorie,
+  onToggleActifCategorie,
+  onEditBudget,
+  onToggleActifBudget,
 }) => {
   if (comptes.length === 0) {
     return (
@@ -808,13 +1136,27 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
             {categories.map((c) => (
               <span
                 key={c.id_categorie}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${
-                  c.type === 'DEPENSE'
+                className={`text-xs font-semibold pl-3 pr-1.5 py-1.5 rounded-full border flex items-center gap-1.5 ${
+                  !c.est_actif
+                    ? 'bg-muted text-muted-foreground border-border opacity-60'
+                    : c.type === 'DEPENSE'
                     ? 'bg-destructive/10 text-destructive border-destructive/20'
                     : 'bg-forest-500/10 text-forest-600 dark:text-forest-400 border-forest-500/20'
                 }`}
               >
-                {c.nom}
+                {c.nom}{!c.est_actif && ' • Désactivée'}
+                <MenuActions
+                  ariaLabel={`Actions catégorie ${c.nom}`}
+                  items={[
+                    { label: 'Modifier', icon: Pencil, onClick: () => onEditCategorie(c) },
+                    {
+                      label: c.est_actif ? 'Désactiver' : 'Réactiver',
+                      icon: c.est_actif ? PowerOff : Power,
+                      onClick: () => onToggleActifCategorie(c),
+                      tone: c.est_actif ? 'destructive' : 'positive',
+                    },
+                  ]}
+                />
               </span>
             ))}
           </div>
@@ -843,25 +1185,41 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
           <div className="space-y-4">
             {budgets.map((b) => {
               const percent = Math.round(b.pourcentage_utilise);
-              const color = b.est_depasse ? 'bg-destructive' : percent >= 80 ? 'bg-amber-500' : 'bg-primary';
+              const color = !b.est_actif ? 'bg-muted-foreground/40' : b.est_depasse ? 'bg-destructive' : percent >= 80 ? 'bg-amber-500' : 'bg-primary';
               return (
-                <div key={b.id_budget} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-foreground">{nomCategorie(b.id_categorie)}</span>
-                    <span className="text-muted-foreground">
-                      <strong className="text-foreground">{Number(b.montant_depense).toLocaleString('fr-FR')}</strong> / {Number(b.montant_limite).toLocaleString('fr-FR')} XAF
+                <div key={b.id_budget} className={`space-y-1.5 ${!b.est_actif ? 'opacity-60' : ''}`}>
+                  <div className="flex justify-between items-center text-xs font-semibold gap-2">
+                    <span className="text-foreground">
+                      {nomCategorie(b.id_categorie)}{!b.est_actif && ' • Désactivé'}
                     </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-muted-foreground">
+                        <strong className="text-foreground">{Number(b.montant_depense).toLocaleString('fr-FR')}</strong> / {Number(b.montant_limite).toLocaleString('fr-FR')} XAF
+                      </span>
+                      <MenuActions
+                        ariaLabel={`Actions budget ${nomCategorie(b.id_categorie)}`}
+                        items={[
+                          { label: 'Modifier le plafond', icon: Pencil, onClick: () => onEditBudget(b) },
+                          {
+                            label: b.est_actif ? 'Désactiver' : 'Réactiver',
+                            icon: b.est_actif ? PowerOff : Power,
+                            onClick: () => onToggleActifBudget(b),
+                            tone: b.est_actif ? 'destructive' : 'positive',
+                          },
+                        ]}
+                      />
+                    </div>
                   </div>
                   <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden">
                     <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${Math.min(percent, 100)}%` }} />
                   </div>
-                  {b.est_depasse && (
+                  {b.est_actif && b.est_depasse && (
                     <p className="text-[11px] font-bold text-destructive flex items-center gap-1 pt-0.5">
                       <AlertTriangle className="h-3 w-3" />
                       <span>Budget dépassé ({percent}%) !</span>
                     </p>
                   )}
-                  {!b.est_depasse && percent >= 80 && (
+                  {b.est_actif && !b.est_depasse && percent >= 80 && (
                     <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-0.5">
                       <AlertTriangle className="h-3 w-3" />
                       <span>Attention : seuil de 80% dépassé !</span>
@@ -883,6 +1241,7 @@ interface TransactionsSectionProps {
   nomCategorie: (idCategorie: number | null) => string;
   nomCompte: (idCompte: number) => string;
   onAnnuler: (idTransaction: number) => void;
+  onOpenDetail: (idTransaction: number) => void;
 }
 
 // Signe de l'impact sur le solde par type — reflète IMPACT_PAR_TYPE côté
@@ -909,7 +1268,7 @@ const estCredit = (tx: Transaction, toutes: Transaction[]): boolean => {
   return (SIGNE_PAR_TYPE[tx.type] ?? 1) > 0;
 };
 
-const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions, comptes, nomCategorie, nomCompte, onAnnuler }) => {
+const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions, comptes, nomCategorie, nomCompte, onAnnuler, onOpenDetail }) => {
   const [filtreCompte, setFiltreCompte] = useState('');
   const [filtreType, setFiltreType] = useState('');
 
@@ -962,7 +1321,11 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
               const peutAnnuler = tx.type !== 'ANNULATION' && !idsDejaAnnules.has(tx.id_transaction);
               const credit = estCredit(tx, transactions);
               return (
-                <div key={tx.id_transaction} className="py-3.5 flex items-center justify-between hover:bg-muted/30 px-4 transition-colors">
+                <div
+                  key={tx.id_transaction}
+                  onClick={() => onOpenDetail(tx.id_transaction)}
+                  className="py-3.5 flex items-center justify-between hover:bg-muted/30 px-4 transition-colors cursor-pointer"
+                >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div className={`p-2.5 rounded-xl shrink-0 ${credit ? 'bg-forest-500/10 text-forest-600' : 'bg-destructive/10 text-destructive'}`}>
                       {credit ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
@@ -992,7 +1355,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
                     </span>
                     {peutAnnuler && (
                       <button
-                        onClick={() => onAnnuler(tx.id_transaction)}
+                        onClick={(e) => { e.stopPropagation(); onAnnuler(tx.id_transaction); }}
                         title="Annuler cette transaction"
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                       >
@@ -1014,9 +1377,10 @@ interface DettesSectionProps {
   dettes: Dette[];
   onOpenDetteModal: () => void;
   onOperation: (dette: Dette) => void;
+  onMarquerPerte: (dette: Dette) => void;
 }
 
-const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal, onOperation }) => {
+const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal, onOperation, onMarquerPerte }) => {
   const dettesDues = dettes.filter((d) => d.type === 'DETTE');
   const creances = dettes.filter((d) => d.type === 'CREANCE');
 
@@ -1059,12 +1423,26 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
                 )}
               </div>
               {!verrouille && (
-                <button
-                  onClick={() => onOperation(d)}
-                  className="w-full mt-1 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
-                >
-                  {estDette ? 'Rembourser' : 'Encaisser'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onOperation(d)}
+                    className="flex-1 mt-1 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
+                  >
+                    {estDette ? 'Rembourser' : 'Encaisser'}
+                  </button>
+                  {/* Seule une créance peut être classée irrécouvrable (voir
+                      TypeOperationIncompatibleError côté backend) — jamais
+                      une dette que le client doit lui-même. */}
+                  {!estDette && (
+                    <button
+                      onClick={() => onMarquerPerte(d)}
+                      title="Marquer comme perte (créance irrécouvrable)"
+                      className="mt-1 py-2 px-3 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-bold transition-colors"
+                    >
+                      Perte
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           );
@@ -1108,9 +1486,10 @@ interface EpargneSectionProps {
   onOpenObjectifModal: () => void;
   onAlimenter: (objectif: ObjectifEpargne) => void;
   onRetirer: (objectif: ObjectifEpargne) => void;
+  onAbandonner: (objectif: ObjectifEpargne) => void;
 }
 
-const EpargneSection: React.FC<EpargneSectionProps> = ({ objectifs, onOpenObjectifModal, onAlimenter, onRetirer }) => (
+const EpargneSection: React.FC<EpargneSectionProps> = ({ objectifs, onOpenObjectifModal, onAlimenter, onRetirer, onAbandonner }) => (
   <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h3 className="text-base font-bold text-foreground flex items-center gap-2">
@@ -1167,6 +1546,13 @@ const EpargneSection: React.FC<EpargneSectionProps> = ({ objectifs, onOpenObject
                   >
                     Retirer
                   </button>
+                  <button
+                    onClick={() => onAbandonner(o)}
+                    title="Abandonner cet objectif"
+                    className="py-2 px-3 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-bold transition-colors"
+                  >
+                    Abandonner
+                  </button>
                 </div>
               )}
             </div>
@@ -1201,6 +1587,22 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
   const [periodeFin, setPeriodeFin] = useState(() => new Date().toISOString().slice(0, 10));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statutsAJour, setStatutsAJour] = useState<Record<number, Rapport>>({});
+  const [idEnActualisation, setIdEnActualisation] = useState<number | null>(null);
+
+  const rapportsAffiches = rapports.map((r) => statutsAJour[r.id_rapport] ?? r);
+
+  const actualiserStatut = async (idRapport: number) => {
+    setIdEnActualisation(idRapport);
+    try {
+      const frais = await api.request<Rapport>(`/rapports/${idRapport}`);
+      setStatutsAJour((prev) => ({ ...prev, [idRapport]: frais }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Actualisation impossible.');
+    } finally {
+      setIdEnActualisation(null);
+    }
+  };
 
   const typesDisponibles = TYPES_RAPPORT.filter((t) => !t.acces || plan?.[t.acces]);
 
@@ -1288,11 +1690,11 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
       <div>
         <h3 className="text-base font-bold text-foreground mb-4">Rapports générés</h3>
         <div className="bg-card rounded-2xl border border-border shadow-sm">
-          {rapports.length === 0 ? (
+          {rapportsAffiches.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">Aucun rapport généré pour le moment.</p>
           ) : (
             <div className="divide-y divide-border">
-              {rapports.map((r) => (
+              {rapportsAffiches.map((r) => (
                 <div key={r.id_rapport} className="py-3.5 px-4 flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-bold text-foreground">
@@ -1300,6 +1702,7 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
                     </h4>
                     <span className="text-xs text-muted-foreground">
                       {new Date(r.periode_debut).toLocaleDateString('fr-FR')} → {new Date(r.periode_fin).toLocaleDateString('fr-FR')}
+                      {r.taille !== null && ` • ${Math.round(r.taille / 1024)} Ko`}
                     </span>
                   </div>
                   {r.statut === 'GENERE' ? (
@@ -1313,10 +1716,15 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
                   ) : r.statut === 'ECHEC' ? (
                     <span className="text-xs font-bold text-destructive">Échec</span>
                   ) : (
-                    <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 animate-pulse" />
-                      En cours...
-                    </span>
+                    <button
+                      onClick={() => actualiserStatut(r.id_rapport)}
+                      disabled={idEnActualisation === r.id_rapport}
+                      title="Actualiser le statut"
+                      className="text-xs font-bold text-muted-foreground hover:text-foreground flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {idEnActualisation === r.id_rapport ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5 animate-pulse" />}
+                      <span>En cours... actualiser</span>
+                    </button>
                   )}
                 </div>
               ))}

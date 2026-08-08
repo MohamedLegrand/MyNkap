@@ -440,6 +440,35 @@ const RENDUS_ANALYSE: Record<TypeAnalyse, React.FC<{ resultats: Record<string, u
 
 const niveauConfianceCouleur = (niveau: number) => (niveau >= 0.7 ? PALETTE[0] : niveau >= 0.4 ? PALETTE[2] : PALETTE[6]);
 
+const GraphiqueHistoriqueScore: React.FC<{ historique: AnalyseFinanciere[]; scoreActuel: number | null }> = ({ historique, scoreActuel }) => {
+  const donnees = [
+    ...[...historique].reverse().map((a) => ({
+      label: formatMoisCourt(a.periode_debut),
+      score: a.score_financier ?? 0,
+      estimation: false,
+    })),
+    { label: 'Ce mois-ci', score: scoreActuel ?? 0, estimation: true },
+  ];
+
+  return (
+    <CarteGraphique titre="Évolution du score financier">
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+          <XAxis dataKey="label" tick={AXE_STYLE} />
+          <YAxis domain={[0, 100]} tick={AXE_STYLE} />
+          <Tooltip formatter={(value: unknown) => `${value} / 100`} {...STYLE_TOOLTIP} />
+          <Bar dataKey="score" radius={[6, 6, 0, 0]} isAnimationActive={false}>
+            {donnees.map((d) => (
+              <Cell key={d.label} fill={d.estimation ? PALETTE[1] : PALETTE[4]} fillOpacity={d.estimation ? 1 : 0.65} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </CarteGraphique>
+  );
+};
+
 const GraphiqueHistoriquePrediction: React.FC<{ historique: Prediction[]; estimationActuelle: Prediction }> = ({
   historique, estimationActuelle,
 }) => {
@@ -613,6 +642,7 @@ export const AnalyseSection: React.FC = () => {
   const [analyse, setAnalyse] = useState<AnalyseFinanciere | null>(null);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [historiquePrediction, setHistoriquePrediction] = useState<Prediction[]>([]);
+  const [historiqueAnalyse, setHistoriqueAnalyse] = useState<AnalyseFinanciere[]>([]);
   const [budgetsRisque, setBudgetsRisque] = useState<Budget[]>([]);
   const [categoriesRisque, setCategoriesRisque] = useState<Categorie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -641,6 +671,17 @@ export const AnalyseSection: React.FC = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     charger();
   }, [charger]);
+
+  useEffect(() => {
+    // Historique des snapshots mensuels de l'analyse — chargé séparément de
+    // l'analyse courante (source différente), jamais une synchronisation
+    // d'état dérivé d'un rendu précédent.
+    if (mode !== 'analyse') return;
+    api
+      .request<AnalyseFinanciere[]>(`/analyse/${typeAnalyse}/historique`)
+      .then(setHistoriqueAnalyse)
+      .catch(() => setHistoriqueAnalyse([]));
+  }, [mode, typeAnalyse]);
 
   useEffect(() => {
     // Données complémentaires pour les graphiques des prédictions — chargées
@@ -738,7 +779,14 @@ export const AnalyseSection: React.FC = () => {
           <button onClick={charger} className="font-bold underline shrink-0 ml-3">Réessayer</button>
         </div>
       ) : mode === 'analyse' ? (
-        analyse && RenduActif && <RenduActif key={analyse.type} resultats={analyse.resultats ?? {}} />
+        analyse && RenduActif && (
+          <div className="space-y-4">
+            <RenduActif key={analyse.type} resultats={analyse.resultats ?? {}} />
+            {historiqueAnalyse.length > 0 && (
+              <GraphiqueHistoriqueScore historique={historiqueAnalyse} scoreActuel={analyse.score_financier} />
+            )}
+          </div>
+        )
       ) : (
         prediction && (
           <RenduPrediction

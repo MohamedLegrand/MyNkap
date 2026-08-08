@@ -18,6 +18,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
   const [idCompte, setIdCompte] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detteFraiche, setDetteFraiche] = useState<Dette | null>(null);
 
   useEffect(() => {
     if (isOpen && comptes.length > 0 && !idCompte) {
@@ -27,10 +28,23 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, comptes]);
 
+  useEffect(() => {
+    // Relit le montant restant depuis le serveur à l'ouverture plutôt que de
+    // se fier à la liste locale (potentiellement périmée depuis un autre
+    // onglet/appareil) — pas une synchronisation d'état dérivé.
+    if (isOpen && dette) {
+      api.request<Dette>(`/dettes/${dette.id_dette}`).then(setDetteFraiche).catch(() => {});
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDetteFraiche(null);
+    }
+  }, [isOpen, dette]);
+
   if (!isOpen || !dette) return null;
 
-  const estDette = dette.type === 'DETTE';
-  const endpoint = estDette ? `/dettes/${dette.id_dette}/rembourser` : `/dettes/${dette.id_dette}/encaisser`;
+  const detteAffichee = detteFraiche ?? dette;
+  const estDette = detteAffichee.type === 'DETTE';
+  const endpoint = estDette ? `/dettes/${detteAffichee.id_dette}/rembourser` : `/dettes/${detteAffichee.id_dette}/encaisser`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +70,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">{estDette ? 'Rembourser' : 'Encaisser'} — {dette.nom}</h3>
+          <h3 className="text-lg font-bold tracking-tight">{estDette ? 'Rembourser' : 'Encaisser'} — {detteAffichee.nom}</h3>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -64,7 +78,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <p className="text-xs text-muted-foreground">
-            Restant à {estDette ? 'rembourser' : 'encaisser'} : <strong className="text-foreground">{Number(dette.montant_restant).toLocaleString('fr-FR')} XAF</strong>
+            Restant à {estDette ? 'rembourser' : 'encaisser'} : <strong className="text-foreground">{Number(detteAffichee.montant_restant).toLocaleString('fr-FR')} XAF</strong>
           </p>
 
           <div className="space-y-1.5">
@@ -73,7 +87,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
               type="number"
               required
               min={1}
-              max={dette.montant_restant}
+              max={detteAffichee.montant_restant}
               placeholder="ex: 10000"
               value={montant}
               onChange={(e) => setMontant(e.target.value)}
