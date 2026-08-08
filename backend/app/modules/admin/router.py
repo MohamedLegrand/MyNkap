@@ -21,6 +21,8 @@ from app.modules.admin.schemas import (
     AdminListItem,
     AdminPaiementItem,
     AdminPaiementListResponse,
+    AdminPlanCreate,
+    AdminPlanUpdate,
     AdminResetPasswordResponse,
     AdminStatusUpdate,
     AdminTransactionSuspecteDetail,
@@ -37,6 +39,7 @@ from app.modules.admin.schemas import (
 from app.modules.auth.dependencies import get_current_active_admin
 from app.modules.auth.models import Administrateur, Client
 from app.modules.auth.schemas import AdminOut, ClientOut
+from app.modules.plans.schemas import PlanOut
 
 router = APIRouter(prefix="/admin", tags=["Administration"])
 
@@ -334,6 +337,81 @@ def update_config(
     return service.modifier_config_admin(
         db, admin=current_admin, cle=cle, payload=payload, request=request
     )
+
+# --- Endpoints Gestion des Plans Tarifaires ---
+
+@router.get(
+    "/plans",
+    response_model=List[PlanOut],
+    summary="Lister le catalogue des plans tarifaires (Admin)"
+)
+def list_plans_admin(
+    current_admin: Administrateur = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Retourne l'ensemble des plans tarifaires, y compris ceux non listés publiquement.
+    Réservé aux administrateurs.
+    """
+    return service.lister_plans_admin(db)
+
+@router.post(
+    "/plans",
+    response_model=PlanOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Créer un nouveau plan tarifaire (Admin)"
+)
+def create_plan(
+    payload: AdminPlanCreate,
+    request: Request,
+    current_admin: Administrateur = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Crée une nouvelle offre commerciale (nom, tarifs, accès fonctionnels).
+    Réservé aux administrateurs de niveau 2 minimum.
+    Tracé dans l'AuditLog.
+    """
+    return service.creer_plan_admin(db, admin=current_admin, payload=payload, request=request)
+
+@router.put(
+    "/plans/{id_plan}",
+    response_model=PlanOut,
+    summary="Modifier un plan tarifaire existant (Admin)"
+)
+def update_plan(
+    id_plan: int,
+    payload: AdminPlanUpdate,
+    request: Request,
+    current_admin: Administrateur = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Modifie la tarification ou les accès fonctionnels d'un plan (le nom des
+    plans système GRATUIT/ESSENTIEL/PREMIUM ne peut pas être changé).
+    Réservé aux administrateurs de niveau 2 minimum.
+    Tracé dans l'AuditLog.
+    """
+    return service.modifier_plan_admin(db, admin=current_admin, id_plan=id_plan, payload=payload, request=request)
+
+@router.delete(
+    "/plans/{id_plan}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Supprimer un plan tarifaire (Admin)"
+)
+def delete_plan(
+    id_plan: int,
+    request: Request,
+    current_admin: Administrateur = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Supprime un plan n'ayant plus aucun abonné ni historique de paiement.
+    Les plans système (GRATUIT, ESSENTIEL, PREMIUM) ne peuvent jamais être supprimés.
+    Réservé aux administrateurs de niveau 2 minimum.
+    Tracé dans l'AuditLog.
+    """
+    service.supprimer_plan_admin(db, admin=current_admin, id_plan=id_plan, request=request)
 
 # --- Endpoints Gestion des Abonnements & Paiements ---
 

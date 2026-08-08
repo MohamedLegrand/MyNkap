@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { Categorie } from '../types';
+import { ICONES_CATEGORIE } from '../utils/categorieIcons';
+import { COULEURS_CATEGORIE, COULEUR_CATEGORIE_PAR_DEFAUT } from '../utils/categorieColors';
+
+const ICONE_PAR_DEFAUT = 'more-horizontal';
 
 interface CategorieModalProps {
   isOpen: boolean;
@@ -16,6 +20,8 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
 
   const [nom, setNom] = useState('');
   const [type, setType] = useState<'DEPENSE' | 'REVENU'>('DEPENSE');
+  const [icone, setIcone] = useState(ICONE_PAR_DEFAUT);
+  const [couleur, setCouleur] = useState(COULEUR_CATEGORIE_PAR_DEFAUT);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,12 +32,24 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
     if (isOpen && categorie) {
       api
         .request<Categorie>(`/categories/${categorie.id_categorie}`)
-        .then((fraiche) => { setNom(fraiche.nom); setType(fraiche.type); })
-        .catch(() => { setNom(categorie.nom); setType(categorie.type); });
+        .then((fraiche) => {
+          setNom(fraiche.nom);
+          setType(fraiche.type);
+          setIcone(fraiche.icone || ICONE_PAR_DEFAUT);
+          setCouleur(fraiche.couleur || COULEUR_CATEGORIE_PAR_DEFAUT);
+        })
+        .catch(() => {
+          setNom(categorie.nom);
+          setType(categorie.type);
+          setIcone(categorie.icone || ICONE_PAR_DEFAUT);
+          setCouleur(categorie.couleur || COULEUR_CATEGORIE_PAR_DEFAUT);
+        });
     } else if (isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setNom('');
       setType('DEPENSE');
+      setIcone(ICONE_PAR_DEFAUT);
+      setCouleur(COULEUR_CATEGORIE_PAR_DEFAUT);
     }
   }, [isOpen, categorie]);
 
@@ -43,9 +61,9 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
     setIsSubmitting(true);
     try {
       if (modeEdition && categorie) {
-        await api.request(`/categories/${categorie.id_categorie}`, { method: 'PUT', body: JSON.stringify({ nom }) });
+        await api.request(`/categories/${categorie.id_categorie}`, { method: 'PUT', body: JSON.stringify({ nom, icone, couleur }) });
       } else {
-        await api.request('/categories', { method: 'POST', body: JSON.stringify({ nom, type }) });
+        await api.request('/categories', { method: 'POST', body: JSON.stringify({ nom, type, icone, couleur }) });
       }
       onSuccess?.();
       onClose();
@@ -107,6 +125,45 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
               >
                 Revenu
               </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground">Icône</label>
+            <div className="grid grid-cols-7 gap-2 max-h-40 overflow-y-auto p-1">
+              {Object.entries(ICONES_CATEGORIE).map(([slug, Icon]) => (
+                <button
+                  key={slug}
+                  type="button"
+                  title={slug}
+                  onClick={() => setIcone(slug)}
+                  className={`aspect-square rounded-xl flex items-center justify-center border transition-all ${
+                    icone === slug
+                      ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/40'
+                      : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground">Couleur</label>
+            <div className="flex flex-wrap gap-2 p-1">
+              {COULEURS_CATEGORIE.map((c) => (
+                <button
+                  key={c.valeur}
+                  type="button"
+                  title={c.label}
+                  onClick={() => setCouleur(c.valeur)}
+                  className={`h-8 w-8 rounded-full transition-all ${
+                    couleur === c.valeur ? 'ring-2 ring-offset-2 ring-offset-card ring-foreground' : 'hover:scale-110'
+                  }`}
+                  style={{ backgroundColor: c.valeur }}
+                />
+              ))}
             </div>
           </div>
 

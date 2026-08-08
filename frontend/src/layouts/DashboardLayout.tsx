@@ -18,13 +18,13 @@ import {
   X,
   Crown,
   Sparkles,
-  Plus,
   CheckCircle2,
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { ProfileSettingsModal } from '../components/ProfileSettingsModal';
+import { JarvisFloatingBubble } from '../components/JarvisFloatingBubble';
 import { useDarkMode } from '../hooks/useDarkMode';
 import type { Plan, Abonnement } from '../types';
 
@@ -32,7 +32,6 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
-  onOpenTransactionModal?: () => void;
   onOpenUpgradeModal?: () => void;
   plan?: Plan | null;
   abonnement?: Abonnement | null;
@@ -55,7 +54,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   activeTab = 'overview',
   onTabChange,
-  onOpenTransactionModal,
   onOpenUpgradeModal,
   plan,
   abonnement,
@@ -303,22 +301,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <h1 className="text-lg font-bold text-foreground capitalize tracking-tight">
               {navItems.find(i => i.id === activeTab)?.label || 'Tableau de bord'}
             </h1>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-              Zone Afrique Centrale (XAF)
-            </span>
           </div>
 
           <div className="flex items-center gap-4">
-            <button
-              onClick={onOpenTransactionModal}
-              className="bg-primary hover:bg-primary/95 text-primary-foreground font-semibold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Effectuer transaction</span>
-            </button>
-
-            <div className="h-5 w-[1px] bg-border" />
-
             {/* Notifications */}
             <NotificationsBell basePath="/notifications" />
 
@@ -350,6 +335,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       </main>
 
       <ProfileSettingsModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+
+      {/* Bulle flottante JARVIS : accessible en permanence sur tous les onglets,
+          sauf ceux où le widget complet est déjà affiché en ligne (page dédiée
+          "Assistant JARVIS IA" et "Vue d'ensemble"), pour éviter deux widgets
+          superposés au même endroit de l'écran. */}
+      {plan?.acces_jarvis && activeTab !== 'jarvis' && activeTab !== 'overview' && <JarvisFloatingBubble />}
     </div>
   );
 };

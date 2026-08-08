@@ -32,7 +32,7 @@ def test_crud_categorie(client):
     # 1. Création de catégorie
     response = client.post(
         "/api/v1/categories",
-        json={"nom": "Abonnements", "type": "DEPENSE", "icone": "utensils", "couleur": "red"},
+        json={"nom": "Abonnements", "type": "DEPENSE", "icone": "utensils", "couleur": "#F97316"},
         headers=headers
     )
     assert response.status_code == 201
@@ -76,12 +76,12 @@ def test_modifier_categorie(client):
 
     modifiee = client.put(
         f"/api/v1/categories/{categorie['id_categorie']}",
-        json={"nom": "Sport & Fitness", "couleur": "#00FF00"},
+        json={"nom": "Sport & Fitness", "couleur": "#84CC16"},
         headers=headers,
     )
     assert modifiee.status_code == 200
     assert modifiee.json()["nom"] == "Sport & Fitness"
-    assert modifiee.json()["couleur"] == "#00FF00"
+    assert modifiee.json()["couleur"] == "#84CC16"
 
     # Renommer vers un nom déjà pris (même type) est refusé
     conflit = client.put(
@@ -90,6 +90,42 @@ def test_modifier_categorie(client):
         headers=headers,
     )
     assert conflit.status_code == 400
+
+
+def test_icone_et_couleur_de_categorie_limitees_a_une_liste_blanche(client):
+    """
+    icone/couleur ne sont pas du texte libre : seules les valeurs du
+    catalogue fermé (voir budgets.schemas.ICONES_CATEGORIE/COULEURS_CATEGORIE)
+    sont acceptées, pour empêcher qu'un client n'y injecte une valeur
+    arbitraire (nom de composant, chemin, code CSS/HTML...).
+    """
+    headers = _register_and_login(client, "cat.icone.securite@example.com")
+
+    # Icône hors catalogue -> 422
+    res_icone = client.post(
+        "/api/v1/categories",
+        json={"nom": "Test Sécu", "type": "DEPENSE", "icone": "<script>alert(1)</script>"},
+        headers=headers,
+    )
+    assert res_icone.status_code == 422
+
+    # Couleur hors catalogue -> 422
+    res_couleur = client.post(
+        "/api/v1/categories",
+        json={"nom": "Test Sécu 2", "type": "DEPENSE", "couleur": "javascript:alert(1)"},
+        headers=headers,
+    )
+    assert res_couleur.status_code == 422
+
+    # Une valeur du catalogue reste acceptée
+    res_ok = client.post(
+        "/api/v1/categories",
+        json={"nom": "Test Sécu 3", "type": "DEPENSE", "icone": "sparkles", "couleur": "#254E2A"},
+        headers=headers,
+    )
+    assert res_ok.status_code == 201
+    assert res_ok.json()["icone"] == "sparkles"
+    assert res_ok.json()["couleur"] == "#254E2A"
 
 
 def test_desactiver_categorie_bloque_son_usage_futur_mais_pas_lhistorique(client):

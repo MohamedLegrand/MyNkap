@@ -14,8 +14,6 @@ import {
   Phone,
   Building2,
   Coins,
-  Sparkles,
-  ShieldCheck,
   Loader2,
   Tag,
   HandCoins,
@@ -48,6 +46,7 @@ import { JarvisWidget } from '../components/JarvisWidget';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { AutomatisationsSection } from '../components/AutomatisationsSection';
 import { AnalyseSection } from '../components/AnalyseSection';
+import { CategorieBadge } from '../components/CategorieBadge';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type {
@@ -224,6 +223,8 @@ export const ClientDashboard: React.FC = () => {
 
   const nomCategorie = (idCategorie: number | null) =>
     categories.find((c) => c.id_categorie === idCategorie)?.nom ?? 'Non catégorisé';
+  const categorieParId = (idCategorie: number | null) =>
+    categories.find((c) => c.id_categorie === idCategorie);
   const nomCompte = (idCompte: number) => comptes.find((c) => c.id_compte === idCompte)?.nom ?? '—';
   const peutAnnulerTransaction = (id: number) => {
     const tx = transactions.find((t) => t.id_transaction === id);
@@ -304,6 +305,8 @@ export const ClientDashboard: React.FC = () => {
     .filter((t) => t.type === 'DEPENSE')
     .reduce((total, t) => total + Number(t.montant), 0);
   const totalEpargne = objectifsEpargne.reduce((total, o) => total + Number(o.montant_actuel), 0);
+  const dettesActives = dettes.filter((d) => d.type === 'DETTE' && d.statut !== 'SOLDE' && d.statut !== 'PERTE');
+  const totalDettesDues = dettesActives.reduce((total, d) => total + Number(d.montant_restant), 0);
   // "Mes Comptes" affiche aussi les comptes désactivés (badge + Réactiver) ;
   // partout ailleurs (totaux, sélecteurs de transfert/dette/épargne), seuls
   // les comptes actifs ont un sens. Même principe pour les budgets dans
@@ -315,7 +318,6 @@ export const ClientDashboard: React.FC = () => {
     <DashboardLayout
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      onOpenTransactionModal={() => setIsModalOpen(true)}
       onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
       plan={abonnement?.plan}
       abonnement={abonnement}
@@ -323,22 +325,14 @@ export const ClientDashboard: React.FC = () => {
     >
       {/* 1. Bannière de Bienvenue */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-forest-600 to-secondary p-6 sm:p-8 text-white shadow-xl">
-        <div className="absolute right-0 top-0 translate-x-12 -translate-y-6 opacity-10 pointer-events-none">
-          <Sparkles className="h-96 w-96 text-white" />
-        </div>
-
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Compte Certifié • Zone CEMAC (FCFA)</span>
-            </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
               Bonjour {client?.first_name ?? ''} 
             </h2>
             <p className="text-sm text-white/80 max-w-xl leading-relaxed">
               Voici votre bilan financier consolidé. Votre trésorerie globale s'élève à{' '}
-              <strong className="text-white underline decoration-white/40">
+              <strong className="text-violet-300 font-black text-base">
                 {comptePrincipal ? formatMontant(Number(comptePrincipal.solde_total)) : '—'}
               </strong>{' '}
               répartis sur {comptesActifs.length} compte{comptesActifs.length > 1 ? 's' : ''} actif{comptesActifs.length > 1 ? 's' : ''}.
@@ -420,16 +414,16 @@ export const ClientDashboard: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* 2. Cartes Métriques "Hero" (4 colonnes) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* 2. Cartes Métriques "Hero" */}
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${abonnement?.plan.acces_dettes ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Solde Total Agrégé</span>
-                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <div className="p-2 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
                   <Wallet className="h-5 w-5" />
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-black tracking-tight text-primary tabular-nums">
+              <p className="text-2xl sm:text-3xl font-black tracking-tight text-violet-600 dark:text-violet-400 tabular-nums">
                 {comptePrincipal ? Number(comptePrincipal.solde_total).toLocaleString('fr-FR') : '—'}{' '}
                 <span className="text-xs font-bold text-muted-foreground">XAF</span>
               </p>
@@ -438,11 +432,11 @@ export const ClientDashboard: React.FC = () => {
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Revenus (Historique)</span>
-                <div className="p-2 rounded-xl bg-secondary/10 text-secondary">
+                <div className="p-2 rounded-xl bg-forest-500/10 text-forest-600 dark:text-forest-400">
                   <TrendingUp className="h-5 w-5" />
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-black tracking-tight text-secondary tabular-nums">
+              <p className="text-2xl sm:text-3xl font-black tracking-tight text-forest-600 dark:text-forest-400 tabular-nums">
                 {revenusDuMois.toLocaleString('fr-FR')} <span className="text-xs font-bold text-muted-foreground">XAF</span>
               </p>
             </div>
@@ -462,18 +456,36 @@ export const ClientDashboard: React.FC = () => {
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Réserves Épargne</span>
-                <div className="p-2 rounded-xl bg-forest-500/10 text-forest-600 dark:text-forest-400">
+                <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
                   <PiggyBank className="h-5 w-5" />
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-black tracking-tight text-foreground tabular-nums">
+              <p className="text-2xl sm:text-3xl font-black tracking-tight text-orange-600 dark:text-orange-400 tabular-nums">
                 {totalEpargne.toLocaleString('fr-FR')} <span className="text-xs font-bold text-muted-foreground">XAF</span>
               </p>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-forest-600 dark:text-forest-400">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 dark:text-orange-400">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 <span>{objectifsEpargne.length} objectif{objectifsEpargne.length > 1 ? 's' : ''}</span>
               </div>
             </div>
+
+            {abonnement?.plan.acces_dettes && (
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-3">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Dettes en Cours</span>
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <HandCoins className="h-5 w-5" />
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black tracking-tight text-blue-600 dark:text-blue-400 tabular-nums">
+                  {totalDettesDues.toLocaleString('fr-FR')} <span className="text-xs font-bold text-muted-foreground">XAF</span>
+                </p>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  <HandCoins className="h-3.5 w-3.5" />
+                  <span>{dettesActives.length} dette{dettesActives.length > 1 ? 's' : ''} active{dettesActives.length > 1 ? 's' : ''}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {activeTab === 'accounts' ? (
@@ -518,6 +530,8 @@ export const ClientDashboard: React.FC = () => {
                 }
               }}
               onOpenDetail={(id) => setTransactionDetailId(id)}
+              onOpenTransactionModal={() => setIsModalOpen(true)}
+              categorieParId={categorieParId}
             />
           ) : activeTab === 'savings' ? (
             <EpargneSection
@@ -1144,6 +1158,7 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
                     : 'bg-forest-500/10 text-forest-600 dark:text-forest-400 border-forest-500/20'
                 }`}
               >
+                <CategorieBadge icone={c.icone} couleur={c.couleur} size="sm" />
                 {c.nom}{!c.est_actif && ' • Désactivée'}
                 <MenuActions
                   ariaLabel={`Actions catégorie ${c.nom}`}
@@ -1242,6 +1257,8 @@ interface TransactionsSectionProps {
   nomCompte: (idCompte: number) => string;
   onAnnuler: (idTransaction: number) => void;
   onOpenDetail: (idTransaction: number) => void;
+  onOpenTransactionModal: () => void;
+  categorieParId: (idCategorie: number | null) => Categorie | undefined;
 }
 
 // Signe de l'impact sur le solde par type — reflète IMPACT_PAR_TYPE côté
@@ -1268,7 +1285,7 @@ const estCredit = (tx: Transaction, toutes: Transaction[]): boolean => {
   return (SIGNE_PAR_TYPE[tx.type] ?? 1) > 0;
 };
 
-const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions, comptes, nomCategorie, nomCompte, onAnnuler, onOpenDetail }) => {
+const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions, comptes, nomCategorie, nomCompte, onAnnuler, onOpenDetail, onOpenTransactionModal, categorieParId }) => {
   const [filtreCompte, setFiltreCompte] = useState('');
   const [filtreType, setFiltreType] = useState('');
 
@@ -1288,7 +1305,14 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
           <ArrowUpRight className="h-5 w-5 text-primary" />
           <span>Transactions</span>
         </h3>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-3 text-xs">
+          <button
+            onClick={onOpenTransactionModal}
+            className="bg-primary hover:bg-primary/95 text-primary-foreground font-semibold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Effectuer transaction</span>
+          </button>
           <Filter className="h-3.5 w-3.5 text-muted-foreground" />
           <select
             value={filtreCompte}
@@ -1320,6 +1344,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
             {transactionsFiltrees.map((tx) => {
               const peutAnnuler = tx.type !== 'ANNULATION' && !idsDejaAnnules.has(tx.id_transaction);
               const credit = estCredit(tx, transactions);
+              const categorieTx = categorieParId(tx.id_categorie);
               return (
                 <div
                   key={tx.id_transaction}
@@ -1327,9 +1352,13 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
                   className="py-3.5 flex items-center justify-between hover:bg-muted/30 px-4 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className={`p-2.5 rounded-xl shrink-0 ${credit ? 'bg-forest-500/10 text-forest-600' : 'bg-destructive/10 text-destructive'}`}>
-                      {credit ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
-                    </div>
+                    {categorieTx ? (
+                      <CategorieBadge icone={categorieTx.icone} couleur={categorieTx.couleur} />
+                    ) : (
+                      <div className={`p-2.5 rounded-xl shrink-0 ${credit ? 'bg-forest-500/10 text-forest-600' : 'bg-destructive/10 text-destructive'}`}>
+                        {credit ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h4 className="text-sm font-bold text-foreground leading-tight truncate">

@@ -28,6 +28,8 @@ from app.modules.admin.schemas import (
     AdminListItem,
     AdminPaiementItem,
     AdminPaiementListResponse,
+    AdminPlanCreate,
+    AdminPlanUpdate,
     AdminResetPasswordResponse,
     AdminSecuriteKPIs,
     AdminStatusUpdate,
@@ -667,6 +669,225 @@ def modifier_config_admin(
     )
 
     return _format_config_item(config_maj)
+
+# --- Services de Gestion des Plans Tarifaires ---
+
+# Noms de plans dont dépend la logique métier (inscription, essai gratuit,
+# retour au gratuit, souscription payante — voir plans.service et
+# plans.schemas.InitierPaiementRequest) : les renommer ou les supprimer
+# casserait ces flux, donc c'est bloqué ici.
+PLANS_SYSTEME = {"GRATUIT", "ESSENTIEL", "PREMIUM"}
+
+def lister_plans_admin(db: Session) -> List[Plan]:
+    """
+    Catalogue complet des plans tarifaires pour l'espace administrateur
+    (contrairement à GET /plans, pas de restriction : usage interne).
+    """
+    return db.query(Plan).order_by(Plan.prix_mensuel.asc()).all()
+
+def creer_plan_admin(
+    db: Session,
+    admin: Administrateur,
+    payload: AdminPlanCreate,
+    request: Optional[Request] = None,
+) -> Plan:
+    """
+    Crée un nouveau plan tarifaire (offre commerciale additionnelle).
+    Garde-fous : Réservé aux administrateurs niveau 2+.
+    Tracé dans l'AuditLog.
+    """
+    if admin.niveau_acces < 2:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : droits insuffisants pour créer un plan (niveau 2 minimum requis)."
+        )
+
+    nom = payload.nom.strip().upper()
+    if not nom:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Le nom du plan est requis.")
+
+    if db.query(Plan).filter(Plan.nom == nom).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Un plan nommé '{nom}' existe déjà."
+        )
+
+    plan = Plan(
+        nom=nom,
+        prix_mensuel=payload.prix_mensuel,
+        prix_annuel=payload.prix_annuel,
+        devise=payload.devise,
+        acces_dettes=payload.acces_dettes,
+        acces_epargne=payload.acces_epargne,
+        acces_recurrentes=payload.acces_recurrentes,
+        acces_templates=payload.acces_templates,
+        acces_analyse=payload.acces_analyse,
+        acces_jarvis=payload.acces_jarvis,
+        acces_rapport=payload.acces_rapport,
+    )
+    db.add(plan)
+    db.commit()
+    db.refresh(plan)
+
+    enregistrer_action(
+        db,
+        id_utilisateur=admin.id_administrateur,
+        action="ADMIN_CREER_PLAN",
+        ressource="PLAN",
+        id_ressource=plan.id_plan,
+        donnees_avant=None,
+        donnees_apres={"nom": plan.nom, "prix_mensuel": str(plan.prix_mensuel), "prix_annuel": str(plan.prix_annuel)},
+        request=request,
+    )
+
+    return plan
+
+def modifier_plan_admin(
+    db: Session,
+    admin: Administrateur,
+    id_plan: int,
+    payload: AdminPlanUpdate,
+    request: Optional[Request] = None,
+) -> Plan:
+    """
+    Modifie la tarification ou les accès fonctionnels d'un plan existant.
+    Garde-fous : Réservé aux administrateurs niveau 2+. Le nom d'un plan
+    système (GRATUIT, ESSENTIEL, PREMIUM) ne peut pas être changé.
+    Tracé dans l'AuditLog.
+    """
+    if admin.niveau_acces < 2:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : droits insuffisants pour modifier un plan (niveau 2 minimum requis)."
+        )
+
+    plan = db.query(Plan).filter(Plan.id_plan == id_plan).first()
+    if plan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan introuvable.")
+
+    donnees_avant = {
+        "nom": plan.nom,
+        "prix_mensuel": str(plan.prix_mensuel),
+        "prix_annuel": str(plan.prix_annuel),
+        "devise": plan.devise,
+        "acces_dettes": plan.acces_dettes,
+        "acces_epargne": plan.acces_epargne,
+        "acces_recurrentes": plan.acces_recurrentes,
+        "acces_templates": plan.acces_templates,
+        "acces_analyse": plan.acces_analyse,
+        "acces_jarvis": plan.acces_jarvis,
+        "acces_rapport": plan.acces_rapport,
+    }
+
+    if payload.nom is not None:
+        nouveau_nom = payload.nom.strip().upper()
+        if nouveau_nom != plan.nom:
+            if plan.nom in PLANS_SYSTEME:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Le plan système '{plan.nom}' ne peut pas être renommé : son nom est utilisé par l'inscription et le paiement des abonnements."
+                )
+            if db.query(Plan).filter(Plan.nom == nouveau_nom, Plan.id_plan != id_plan).first():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Un plan nommé '{nouveau_nom}' existe déjà."
+                )
+            plan.nom = nouveau_nom
+
+    for champ in (
+        "prix_mensuel", "prix_annuel", "devise", "acces_dettes", "acces_epargne",
+        "acces_recurrentes", "acces_templates", "acces_analyse", "acces_jarvis", "acces_rapport",
+    ):
+        valeur = getattr(payload, champ)
+        if valeur is not None:
+            setattr(plan, champ, valeur)
+
+    db.commit()
+    db.refresh(plan)
+
+    enregistrer_action(
+        db,
+        id_utilisateur=admin.id_administrateur,
+        action="ADMIN_MODIFIER_PLAN",
+        ressource="PLAN",
+        id_ressource=plan.id_plan,
+        donnees_avant=donnees_avant,
+        donnees_apres={
+            "nom": plan.nom,
+            "prix_mensuel": str(plan.prix_mensuel),
+            "prix_annuel": str(plan.prix_annuel),
+            "devise": plan.devise,
+            "acces_dettes": plan.acces_dettes,
+            "acces_epargne": plan.acces_epargne,
+            "acces_recurrentes": plan.acces_recurrentes,
+            "acces_templates": plan.acces_templates,
+            "acces_analyse": plan.acces_analyse,
+            "acces_jarvis": plan.acces_jarvis,
+            "acces_rapport": plan.acces_rapport,
+        },
+        request=request,
+    )
+
+    return plan
+
+def supprimer_plan_admin(
+    db: Session,
+    admin: Administrateur,
+    id_plan: int,
+    request: Optional[Request] = None,
+) -> None:
+    """
+    Supprime un plan tarifaire n'ayant plus aucun abonné ni historique de
+    paiement. Garde-fous : Réservé aux administrateurs niveau 2+. Un plan
+    système (GRATUIT, ESSENTIEL, PREMIUM) ne peut jamais être supprimé.
+    Tracé dans l'AuditLog.
+    """
+    if admin.niveau_acces < 2:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : droits insuffisants pour supprimer un plan (niveau 2 minimum requis)."
+        )
+
+    plan = db.query(Plan).filter(Plan.id_plan == id_plan).first()
+    if plan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan introuvable.")
+
+    if plan.nom in PLANS_SYSTEME:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Le plan système '{plan.nom}' ne peut pas être supprimé : il est requis par l'inscription et le paiement des abonnements."
+        )
+
+    nb_abonnes = db.query(func.count(Abonnement.id_abonnement)).filter(Abonnement.id_plan == id_plan).scalar() or 0
+    if nb_abonnes > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Impossible de supprimer ce plan : {nb_abonnes} client(s) y sont actuellement abonné(s)."
+        )
+
+    nb_paiements = db.query(func.count(PaiementAbonnement.id_paiement)).filter(
+        PaiementAbonnement.id_plan_demande == id_plan
+    ).scalar() or 0
+    if nb_paiements > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Impossible de supprimer ce plan : il est référencé par un historique de paiements."
+        )
+
+    donnees_avant = {"nom": plan.nom, "prix_mensuel": str(plan.prix_mensuel), "prix_annuel": str(plan.prix_annuel)}
+    db.delete(plan)
+    db.commit()
+
+    enregistrer_action(
+        db,
+        id_utilisateur=admin.id_administrateur,
+        action="ADMIN_SUPPRIMER_PLAN",
+        ressource="PLAN",
+        id_ressource=id_plan,
+        donnees_avant=donnees_avant,
+        donnees_apres=None,
+        request=request,
+    )
 
 # --- Services de Gestion des Abonnements & Paiements ---
 

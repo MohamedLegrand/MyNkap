@@ -140,6 +140,33 @@ class ConfigUpdate(BaseModel):
     type: Optional[str] = Field("STRING", description="Type de la donnée : STRING, INT, BOOL, JSON")
     description: Optional[str] = Field(None, description="Description facultative du paramètre")
 
+# --- Schémas pour la Gestion des Plans Tarifaires ---
+class AdminPlanCreate(BaseModel):
+    nom: str = Field(..., min_length=2, max_length=50)
+    prix_mensuel: Decimal = Decimal("0")
+    prix_annuel: Decimal = Decimal("0")
+    devise: str = "XAF"
+    acces_dettes: bool = False
+    acces_epargne: bool = False
+    acces_recurrentes: bool = False
+    acces_templates: bool = False
+    acces_analyse: bool = False
+    acces_jarvis: bool = False
+    acces_rapport: bool = False
+
+class AdminPlanUpdate(BaseModel):
+    nom: Optional[str] = Field(None, min_length=2, max_length=50)
+    prix_mensuel: Optional[Decimal] = None
+    prix_annuel: Optional[Decimal] = None
+    devise: Optional[str] = None
+    acces_dettes: Optional[bool] = None
+    acces_epargne: Optional[bool] = None
+    acces_recurrentes: Optional[bool] = None
+    acces_templates: Optional[bool] = None
+    acces_analyse: Optional[bool] = None
+    acces_jarvis: Optional[bool] = None
+    acces_rapport: Optional[bool] = None
+
 # --- Schémas pour la Gestion des Abonnements & Paiements ---
 class PlanCountItem(BaseModel):
     nom_plan: str

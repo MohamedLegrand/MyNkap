@@ -494,6 +494,221 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
   );
 };
 
+// --- 6bis. Modal Créer/Modifier un Plan Tarifaire ---
+interface PlanFormData {
+  nom: string;
+  prix_mensuel: number;
+  prix_annuel: number;
+  devise: string;
+  acces_dettes: boolean;
+  acces_epargne: boolean;
+  acces_recurrentes: boolean;
+  acces_templates: boolean;
+  acces_analyse: boolean;
+  acces_jarvis: boolean;
+  acces_rapport: boolean;
+}
+
+interface PlanModalProps {
+  isOpen: boolean;
+  plan: Plan | null; // null = création d'un nouveau plan
+  onClose: () => void;
+  onSubmit: (data: PlanFormData) => Promise<void>;
+}
+
+// Ces 3 noms sont figés côté backend (inscription, essai gratuit, retour au
+// gratuit, souscription payante) : les renommer casserait ces flux — voir
+// admin.service.PLANS_SYSTEME.
+const PLANS_SYSTEME = ['GRATUIT', 'ESSENTIEL', 'PREMIUM'];
+
+const ACCES_OPTIONS: { key: keyof PlanFormData; label: string }[] = [
+  { key: 'acces_dettes', label: 'Dettes & Créances' },
+  { key: 'acces_epargne', label: 'Épargne & Projets' },
+  { key: 'acces_recurrentes', label: 'Transactions récurrentes' },
+  { key: 'acces_templates', label: 'Modèles de transaction' },
+  { key: 'acces_analyse', label: 'Analyse & Prédictions' },
+  { key: 'acces_jarvis', label: 'Assistant JARVIS IA' },
+  { key: 'acces_rapport', label: 'Rapports PDF' },
+];
+
+const ACCES_VIDES = {
+  acces_dettes: false,
+  acces_epargne: false,
+  acces_recurrentes: false,
+  acces_templates: false,
+  acces_analyse: false,
+  acces_jarvis: false,
+  acces_rapport: false,
+};
+
+export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onSubmit }) => {
+  const [nom, setNom] = useState('');
+  const [prixMensuel, setPrixMensuel] = useState('0');
+  const [prixAnnuel, setPrixAnnuel] = useState('0');
+  const [devise, setDevise] = useState('XAF');
+  const [acces, setAcces] = useState(ACCES_VIDES);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Resynchronise à chaque ouverture — ce composant reste monté en
+    // arrière-plan entre deux ouvertures (voir EditConfigModal ci-dessus).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setError(null);
+    if (plan) {
+      setNom(plan.nom);
+      setPrixMensuel(String(plan.prix_mensuel));
+      setPrixAnnuel(String(plan.prix_annuel));
+      setDevise(plan.devise);
+      setAcces({
+        acces_dettes: plan.acces_dettes,
+        acces_epargne: plan.acces_epargne,
+        acces_recurrentes: plan.acces_recurrentes,
+        acces_templates: plan.acces_templates,
+        acces_analyse: plan.acces_analyse,
+        acces_jarvis: plan.acces_jarvis,
+        acces_rapport: plan.acces_rapport,
+      });
+    } else {
+      setNom('');
+      setPrixMensuel('0');
+      setPrixAnnuel('0');
+      setDevise('XAF');
+      setAcces(ACCES_VIDES);
+    }
+  }, [isOpen, plan]);
+
+  if (!isOpen) return null;
+
+  const estPlanSysteme = plan ? PLANS_SYSTEME.includes(plan.nom) : false;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({
+        nom,
+        prix_mensuel: Number(prixMensuel) || 0,
+        prix_annuel: Number(prixAnnuel) || 0,
+        devise,
+        ...acces,
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Opération impossible.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
+          <div className="flex items-center gap-2">
+            <Crown className="h-5 w-5 text-primary" />
+            <h3 className="text-base font-bold">{plan ? 'Modifier le plan' : 'Créer un plan tarifaire'}</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">Nom du plan</label>
+            <input
+              type="text"
+              required
+              disabled={estPlanSysteme}
+              value={nom}
+              onChange={(e) => setNom(e.target.value.toUpperCase())}
+              placeholder="ex: ENTREPRISE"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-60"
+            />
+            {estPlanSysteme && (
+              <p className="text-[10px] text-muted-foreground">Plan système : le nom ne peut pas être modifié (utilisé par l'inscription et le paiement).</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">Prix mensuel</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                required
+                value={prixMensuel}
+                onChange={(e) => setPrixMensuel(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">Prix annuel</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                required
+                value={prixAnnuel}
+                onChange={(e) => setPrixAnnuel(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">Devise</label>
+            <input
+              type="text"
+              required
+              value={devise}
+              onChange={(e) => setDevise(e.target.value.toUpperCase())}
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-muted-foreground">Accès fonctionnels inclus</span>
+            <div className="grid grid-cols-2 gap-2">
+              {ACCES_OPTIONS.map((opt) => (
+                <label key={opt.key} className="flex items-center gap-2 text-xs font-medium p-2 rounded-lg border border-border cursor-pointer hover:bg-muted/50">
+                  <input
+                    type="checkbox"
+                    checked={acces[opt.key]}
+                    onChange={(e) => setAcces((prev) => ({ ...prev, [opt.key]: e.target.checked }))}
+                    className="accent-primary"
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-destructive">{error}</p>}
+
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted">
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>{plan ? 'Enregistrer' : 'Créer le plan'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // --- 6. Modal Détail d'une transaction suspecte (fiche d'investigation) ---
 interface TransactionSuspecteDetailModalProps {
   isOpen: boolean;

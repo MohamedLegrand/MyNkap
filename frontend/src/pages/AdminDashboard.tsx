@@ -16,6 +16,8 @@ import {
   ShieldOff,
   ShieldCheck,
   CreditCard,
+  Trash2,
+  Crown,
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { api } from '../services/api';
@@ -26,6 +28,7 @@ import {
   ViewAuditDetailModal,
   ClientDetailModal,
   TransactionSuspecteDetailModal,
+  PlanModal,
 } from '../components/AdminModals';
 import type {
   AdminClientListItem,
@@ -40,6 +43,7 @@ import type {
   AdminAbonnementOverview,
   AdminPaiementItem,
   AdminFraudeOverview,
+  Plan,
 } from '../types';
 
 interface Paginated<T> {
@@ -68,7 +72,10 @@ export const AdminDashboard: React.FC = () => {
 
   const [idClientDetail, setIdClientDetail] = useState<number | null>(null);
   const [idTransactionDetail, setIdTransactionDetail] = useState<number | null>(null);
-  const [modeSubscriptions, setModeSubscriptions] = useState<'abonnements' | 'paiements'>('abonnements');
+  const [modeSubscriptions, setModeSubscriptions] = useState<'abonnements' | 'paiements' | 'plans'>('abonnements');
+
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [planEnEdition, setPlanEnEdition] = useState<Plan | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -83,6 +90,7 @@ export const AdminDashboard: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<AdminAbonnementItem[]>([]);
   const [subscriptionsOverview, setSubscriptionsOverview] = useState<AdminAbonnementOverview | null>(null);
   const [paiements, setPaiements] = useState<AdminPaiementItem[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [fraudTransactions, setFraudTransactions] = useState<AdminTransactionSuspecteItem[]>([]);
   const [fraudOverview, setFraudOverview] = useState<AdminFraudeOverview | null>(null);
 
@@ -137,18 +145,68 @@ export const AdminDashboard: React.FC = () => {
 
   const fetchSubscriptions = useCallback(async () => {
     try {
-      const [res, overview, paiementsRes] = await Promise.all([
+      const [res, overview, paiementsRes, plansRes] = await Promise.all([
         api.request<Paginated<AdminAbonnementItem>>('/admin/abonnements'),
         api.request<AdminAbonnementOverview>('/admin/abonnements/overview'),
         api.request<Paginated<AdminPaiementItem>>('/admin/paiements'),
+        api.request<Plan[]>('/admin/plans'),
       ]);
       setSubscriptions(res.items);
       setSubscriptionsOverview(overview);
       setPaiements(paiementsRes.items);
+      setPlans(plansRes);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Impossible de charger les abonnements.');
     }
   }, []);
+
+  const handleOuvrirCreationPlan = () => {
+    setPlanEnEdition(null);
+    setIsPlanModalOpen(true);
+  };
+
+  const handleOuvrirEditionPlan = (plan: Plan) => {
+    setPlanEnEdition(plan);
+    setIsPlanModalOpen(true);
+  };
+
+  const handleSubmitPlan = async (data: {
+    nom: string;
+    prix_mensuel: number;
+    prix_annuel: number;
+    devise: string;
+    acces_dettes: boolean;
+    acces_epargne: boolean;
+    acces_recurrentes: boolean;
+    acces_templates: boolean;
+    acces_analyse: boolean;
+    acces_jarvis: boolean;
+    acces_rapport: boolean;
+  }) => {
+    if (planEnEdition) {
+      const updated = await api.request<Plan>(`/admin/plans/${planEnEdition.id_plan}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+      setPlans((prev) => prev.map((p) => (p.id_plan === updated.id_plan ? updated : p)));
+    } else {
+      const created = await api.request<Plan>('/admin/plans', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      setPlans((prev) => [...prev, created]);
+    }
+  };
+
+  const handleDeletePlan = async (plan: Plan) => {
+    if (!window.confirm(`Supprimer définitivement le plan "${plan.nom}" ? Cette action est irréversible.`)) return;
+    try {
+      await api.request(`/admin/plans/${plan.id_plan}`, { method: 'DELETE' });
+      setPlans((prev) => prev.filter((p) => p.id_plan !== plan.id_plan));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Suppression impossible.');
+    }
+  };
 
   const handleValiderPaiementManuel = async (idPaiement: number) => {
     if (!window.confirm('Valider manuellement ce paiement et appliquer le plan correspondant au client ?')) return;
@@ -704,22 +762,102 @@ export const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          <div className="inline-flex rounded-xl bg-muted p-1 gap-1">
-            <button
-              onClick={() => setModeSubscriptions('abonnements')}
-              className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'abonnements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Abonnements
-            </button>
-            <button
-              onClick={() => setModeSubscriptions('paiements')}
-              className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'paiements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Paiements
-            </button>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="inline-flex rounded-xl bg-muted p-1 gap-1">
+              <button
+                onClick={() => setModeSubscriptions('abonnements')}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'abonnements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Abonnements
+              </button>
+              <button
+                onClick={() => setModeSubscriptions('paiements')}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'paiements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Paiements
+              </button>
+              <button
+                onClick={() => setModeSubscriptions('plans')}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'plans' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Plans Tarifaires
+              </button>
+            </div>
+
+            {modeSubscriptions === 'plans' && (
+              <button
+                onClick={handleOuvrirCreationPlan}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Nouveau plan</span>
+              </button>
+            )}
           </div>
 
-          {modeSubscriptions === 'abonnements' ? (
+          {modeSubscriptions === 'plans' ? (
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
+                  <tr>
+                    <th className="p-4">Plan</th>
+                    <th className="p-4">Prix mensuel</th>
+                    <th className="p-4">Prix annuel</th>
+                    <th className="p-4">Accès inclus</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-medium">
+                  {plans.map((p) => (
+                    <tr key={p.id_plan} className="hover:bg-muted/30">
+                      <td className="p-4 font-black text-primary flex items-center gap-1.5">
+                        <Crown className="h-3.5 w-3.5" />
+                        <span>{p.nom}</span>
+                      </td>
+                      <td className="p-4 font-bold text-foreground">{formatXAF(p.prix_mensuel)}</td>
+                      <td className="p-4 font-bold text-foreground">{formatXAF(p.prix_annuel)}</td>
+                      <td className="p-4">
+                        <div className="flex flex-wrap gap-1">
+                          {[
+                            p.acces_dettes && 'Dettes',
+                            p.acces_epargne && 'Épargne',
+                            p.acces_recurrentes && 'Récurrentes',
+                            p.acces_templates && 'Modèles',
+                            p.acces_analyse && 'Analyse',
+                            p.acces_jarvis && 'JARVIS',
+                            p.acces_rapport && 'Rapports',
+                          ].filter(Boolean).map((label) => (
+                            <span key={label as string} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOuvrirEditionPlan(p)}
+                            title="Modifier ce plan"
+                            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlan(p)}
+                            title="Supprimer ce plan"
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {plans.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun plan tarifaire.</p>}
+            </div>
+          ) : modeSubscriptions === 'abonnements' ? (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
@@ -881,6 +1019,13 @@ export const AdminDashboard: React.FC = () => {
         onClose={() => setIsResetPasswordOpen(false)}
         onConfirm={handleConfirmResetPassword}
         tempPasswordResult={resetPasswordResult}
+      />
+
+      <PlanModal
+        isOpen={isPlanModalOpen}
+        plan={planEnEdition}
+        onClose={() => setIsPlanModalOpen(false)}
+        onSubmit={handleSubmitPlan}
       />
 
       <EditConfigModal

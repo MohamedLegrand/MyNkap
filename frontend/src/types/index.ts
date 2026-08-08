@@ -209,7 +209,9 @@ export interface AppNotification {
 
 export interface Plan {
   id_plan: number;
-  nom: 'GRATUIT' | 'ESSENTIEL' | 'PREMIUM';
+  // Les 3 plans système (GRATUIT/ESSENTIEL/PREMIUM) sont figés côté backend,
+  // mais un admin peut créer des plans additionnels avec un nom libre.
+  nom: string;
   prix_mensuel: number;
   prix_annuel: number;
   devise: string;
