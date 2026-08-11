@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, L
 import {
   Sun, Moon, ArrowRight, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
-  HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff, Wallet,
+  HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff, Wallet, RefreshCw,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../services/api';
@@ -499,6 +499,79 @@ const LandingPage = () => {
                 <p className="text-xs text-muted-foreground">Chaque objectif d'épargne possède un compte d'épargne dédié créé automatiquement.</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5bis. Feature Section: Tontines & Épargne Collective */}
+      <section id="tontines" className="py-20 md:py-28 bg-background transition-colors duration-200 border-t border-border scroll-mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+
+            {/* Left Column (Content) */}
+            <div className="lg:col-span-7 space-y-6 text-left order-last lg:order-first">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold uppercase tracking-wide">
+                <Sparkles className="h-3.5 w-3.5" />
+                Nouveau
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+                Vos <span className="text-secondary">tontines</span> enfin organisées, sans jamais toucher à votre argent
+              </h2>
+              <p className="text-base text-muted-foreground leading-relaxed">
+                MyNkap ne détient jamais l'argent de votre tontine ou njangi — l'argent continue de circuler entre vous, comme toujours. L'application se charge simplement de ce qui est fastidieux à tenir à la main : qui a cotisé, à qui c'est le tour, et quand.
+              </p>
+
+              <ul className="space-y-3.5">
+                {[
+                  "Rotation des tours générée automatiquement selon l'ordre des membres",
+                  "Suivi des cotisations versées, tour par tour",
+                  "Calendrier des échéances hebdomadaires ou mensuelles",
+                  "Historique complet conservé, même après la clôture d'un tour",
+                ].map((item, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-sm">
+                    <div className="p-1 bg-secondary/10 text-secondary rounded-full">
+                      <Check className="h-4 w-4" />
+                    </div>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Right Column (Visuel statique de la rotation) */}
+            <div className="lg:col-span-5 flex justify-center">
+              <div className="w-full max-w-sm bg-card rounded-2xl border border-border shadow-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-secondary" />
+                    <span className="font-bold text-sm">Tontine du quartier</span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary">ACTIVE</span>
+                </div>
+                <div className="p-3 rounded-xl bg-secondary/5 border border-secondary/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 text-secondary" />
+                    <span className="text-xs font-semibold">Tour 2/5 — Awa</span>
+                  </div>
+                  <span className="text-xs font-black text-secondary">25 000 XAF</span>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { nom: 'Biyick', ok: true },
+                    { nom: 'Chantal', ok: true },
+                    { nom: 'Awa', ok: false },
+                    { nom: 'Junior', ok: false },
+                  ].map((m) => (
+                    <div key={m.nom} className="flex items-center gap-2 text-xs">
+                      <div className={`h-2 w-2 rounded-full ${m.ok ? 'bg-forest-500' : 'bg-muted-foreground/30'}`} />
+                      <span className={m.ok ? 'text-foreground font-semibold' : 'text-muted-foreground'}>{m.nom}</span>
+                      <span className="ml-auto text-muted-foreground">{m.ok ? 'Versé' : 'En attente'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>

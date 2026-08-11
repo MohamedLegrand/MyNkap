@@ -28,6 +28,7 @@ class DetteOut(BaseModel):
     statut: str
     jours_avant_echeance: Optional[int]
     impact_patrimoine_net: Decimal
+    est_actif: bool
     date_creation: datetime
     date_modification: datetime
 

@@ -30,6 +30,8 @@ import {
   Power,
   PowerOff,
   X,
+  Trash2,
+  Users,
 } from 'lucide-react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
@@ -47,6 +49,8 @@ import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { AutomatisationsSection } from '../components/AutomatisationsSection';
 import { AnalyseSection } from '../components/AnalyseSection';
 import { CategorieBadge } from '../components/CategorieBadge';
+import { TontineModal } from '../components/TontineModal';
+import { TontineDetailModal } from '../components/TontineDetailModal';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type {
@@ -60,6 +64,7 @@ import type {
   Dette,
   Rapport,
   Transfert,
+  Tontine,
 } from '../types';
 
 const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
@@ -92,6 +97,8 @@ export const ClientDashboard: React.FC = () => {
   const [transactionDetailId, setTransactionDetailId] = useState<number | null>(null);
   const [isDetteModalOpen, setIsDetteModalOpen] = useState(false);
   const [isObjectifModalOpen, setIsObjectifModalOpen] = useState(false);
+  const [isTontineModalOpen, setIsTontineModalOpen] = useState(false);
+  const [idTontineDetail, setIdTontineDetail] = useState<number | null>(null);
   const [detteOperation, setDetteOperation] = useState<Dette | null>(null);
   const [objectifOperation, setObjectifOperation] = useState<{ objectif: ObjectifEpargne; operation: 'alimenter' | 'retirer' | 'abandonner' } | null>(null);
   const client = useAuthStore((state) => state.client);
@@ -106,6 +113,7 @@ export const ClientDashboard: React.FC = () => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [objectifsEpargne, setObjectifsEpargne] = useState<ObjectifEpargne[]>([]);
   const [dettes, setDettes] = useState<Dette[]>([]);
+  const [tontines, setTontines] = useState<Tontine[]>([]);
   const [rapports, setRapports] = useState<Rapport[]>([]);
   const [transferts, setTransferts] = useState<Transfert[]>([]);
   const [transfertDetailId, setTransfertDetailId] = useState<number | null>(null);
@@ -194,6 +202,21 @@ export const ClientDashboard: React.FC = () => {
       .catch(() => setDettes([]));
   }, [abonnement]);
 
+  const fetchTontines = useCallback(() => {
+    api
+      .request<Tontine[]>('/tontines')
+      .then(setTontines)
+      .catch(() => setTontines([]));
+  }, []);
+
+  useEffect(() => {
+    // Chargé seulement en visitant l'onglet Tontines (pas nécessaire ailleurs
+    // dans le dashboard, contrairement aux dettes) — même garde-fou de plan
+    // que les effets ci-dessus.
+    if (activeTab !== 'tontines' || !abonnement?.plan.acces_tontine) return;
+    fetchTontines();
+  }, [activeTab, abonnement, fetchTontines]);
+
   useEffect(() => {
     // Chargé seulement en visitant "Mes Comptes" — pas de gating de plan
     // ici (les transferts sont gratuits), donc pas besoin de dépendre de
@@ -267,6 +290,16 @@ export const ClientDashboard: React.FC = () => {
       api.request<Dette[]>('/dettes').then(setDettes).catch(() => {});
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const supprimerDette = async (dette: Dette) => {
+    if (!window.confirm(`Supprimer définitivement "${dette.nom}" de la liste ? Son historique de transactions reste conservé.`)) return;
+    try {
+      await api.request(`/dettes/${dette.id_dette}`, { method: 'DELETE' });
+      setDettes((prev) => prev.filter((d) => d.id_dette !== dette.id_dette));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Suppression impossible.');
     }
   };
 
@@ -547,6 +580,13 @@ export const ClientDashboard: React.FC = () => {
               onOpenDetteModal={() => setIsDetteModalOpen(true)}
               onOperation={(d) => setDetteOperation(d)}
               onMarquerPerte={marquerDettePerte}
+              onSupprimer={supprimerDette}
+            />
+          ) : activeTab === 'tontines' ? (
+            <TontinesSection
+              tontines={tontines}
+              onOpenTontineModal={() => setIsTontineModalOpen(true)}
+              onOpenDetail={(id) => setIdTontineDetail(id)}
             />
           ) : activeTab === 'jarvis' ? (
             <JarvisWidget />
@@ -827,6 +867,21 @@ export const ClientDashboard: React.FC = () => {
         onSuccess={() => { api.request<Dette[]>('/dettes').then(setDettes).catch(() => {}); chargerDonnees(); }}
         dette={detteOperation}
         comptes={comptesActifs}
+      />
+
+      {/* Modal de création d'une tontine */}
+      <TontineModal
+        isOpen={isTontineModalOpen}
+        onClose={() => setIsTontineModalOpen(false)}
+        onSuccess={fetchTontines}
+      />
+
+      {/* Modal de détail/gestion d'une tontine (tours, cotisations) */}
+      <TontineDetailModal
+        isOpen={idTontineDetail !== null}
+        idTontine={idTontineDetail}
+        onClose={() => setIdTontineDetail(null)}
+        onChange={fetchTontines}
       />
 
       {/* Modal de création d'un objectif d'épargne */}
@@ -1407,9 +1462,10 @@ interface DettesSectionProps {
   onOpenDetteModal: () => void;
   onOperation: (dette: Dette) => void;
   onMarquerPerte: (dette: Dette) => void;
+  onSupprimer: (dette: Dette) => void;
 }
 
-const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal, onOperation, onMarquerPerte }) => {
+const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal, onOperation, onMarquerPerte, onSupprimer }) => {
   const dettesDues = dettes.filter((d) => d.type === 'DETTE');
   const creances = dettes.filter((d) => d.type === 'CREANCE');
 
@@ -1473,6 +1529,21 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
                   )}
                 </div>
               )}
+              {/* Suppression réservée aux dettes/créances déjà SOLDE : une
+                  dette encore en cours (ou classée PERTE) représente ou a
+                  représenté un mouvement réel, elle reste affichée — voir
+                  DetteNonSoldeeError côté backend. L'historique des
+                  transactions liées est conservé après suppression. */}
+              {d.statut === 'SOLDE' && (
+                <button
+                  onClick={() => onSupprimer(d)}
+                  title="Supprimer définitivement de la liste"
+                  className="w-full mt-1 py-2 rounded-lg bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Supprimer</span>
+                </button>
+              )}
             </div>
           );
         })}
@@ -1509,6 +1580,74 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
     </div>
   );
 };
+
+interface TontinesSectionProps {
+  tontines: Tontine[];
+  onOpenTontineModal: () => void;
+  onOpenDetail: (idTontine: number) => void;
+}
+
+const STATUT_TONTINE_BADGE: Record<string, string> = {
+  ACTIVE: 'bg-primary/10 text-primary border-primary/20',
+  TERMINEE: 'bg-forest-500/10 text-forest-600 dark:text-forest-400 border-forest-500/20',
+  ANNULEE: 'bg-muted text-muted-foreground border-border',
+};
+
+const TontinesSection: React.FC<TontinesSectionProps> = ({ tontines, onOpenTontineModal, onOpenDetail }) => (
+  <div className="space-y-4">
+    <div className="flex items-center justify-between">
+      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+        <Users className="h-5 w-5 text-primary" />
+        <span>Tontines</span>
+      </h3>
+      <button
+        onClick={onOpenTontineModal}
+        className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
+      >
+        <Plus className="h-4 w-4" />
+        <span>Créer une tontine</span>
+      </button>
+    </div>
+
+    {tontines.length === 0 ? (
+      <div className="bg-card rounded-2xl border border-dashed border-border p-10 text-center space-y-2">
+        <Users className="h-8 w-8 text-muted-foreground mx-auto" />
+        <p className="text-sm text-muted-foreground">Aucune tontine pour le moment.</p>
+        <p className="text-xs text-muted-foreground">
+          MyNkap garde uniquement la trace des cotisations et des tours — l'argent circule entre vous, en dehors de l'application.
+        </p>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {tontines.map((t) => (
+          <button
+            key={t.id_tontine}
+            onClick={() => onOpenDetail(t.id_tontine)}
+            className="text-left bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all space-y-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h4 className="text-sm font-bold text-foreground truncate">{t.nom}</h4>
+              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border shrink-0 ${STATUT_TONTINE_BADGE[t.statut]}`}>
+                {t.statut}
+              </span>
+            </div>
+            <div className="space-y-1 text-xs">
+              <p className="text-muted-foreground">
+                <strong className="text-foreground">{t.nombre_membres}</strong> membres • {t.frequence === 'HEBDOMADAIRE' ? 'hebdomadaire' : 'mensuelle'}
+              </p>
+              <p className="text-muted-foreground">
+                Cagnotte : <strong className="text-primary">{Number(t.montant_total_par_tour).toLocaleString('fr-FR')} XAF</strong>
+              </p>
+              {t.numero_tour_actuel !== null && (
+                <p className="text-muted-foreground">Tour actuel : <strong className="text-foreground">{t.numero_tour_actuel}/{t.nombre_membres}</strong></p>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+);
 
 interface EpargneSectionProps {
   objectifs: ObjectifEpargne[];

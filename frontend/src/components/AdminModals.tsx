@@ -507,6 +507,7 @@ interface PlanFormData {
   acces_analyse: boolean;
   acces_jarvis: boolean;
   acces_rapport: boolean;
+  acces_tontine: boolean;
 }
 
 interface PlanModalProps {
@@ -529,6 +530,7 @@ const ACCES_OPTIONS: { key: keyof PlanFormData; label: string }[] = [
   { key: 'acces_analyse', label: 'Analyse & Prédictions' },
   { key: 'acces_jarvis', label: 'Assistant JARVIS IA' },
   { key: 'acces_rapport', label: 'Rapports PDF' },
+  { key: 'acces_tontine', label: 'Tontines & Épargne Collective' },
 ];
 
 const ACCES_VIDES = {
@@ -539,6 +541,7 @@ const ACCES_VIDES = {
   acces_analyse: false,
   acces_jarvis: false,
   acces_rapport: false,
+  acces_tontine: false,
 };
 
 export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onSubmit }) => {
@@ -569,6 +572,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
         acces_analyse: plan.acces_analyse,
         acces_jarvis: plan.acces_jarvis,
         acces_rapport: plan.acces_rapport,
+        acces_tontine: plan.acces_tontine,
       });
     } else {
       setNom('');

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -33,6 +33,10 @@ class Dette(Base):
     # créances uniquement). EN_RETARD n'est jamais stocké ici : c'est un
     # état dérivé à la volée depuis date_echeance (get_jours_avant_echeance).
     statut = Column(String, default="EN_COURS", nullable=False)
+    # Suppression logique uniquement (voir service.supprimer_dette) : la
+    # ligne et les Transaction liées restent en base pour l'historique/audit,
+    # seule sa visibilité dans les listages change.
+    est_actif = Column(Boolean, default=True, nullable=False)
     date_creation = Column(DateTime, default=datetime.utcnow)
     date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -293,3 +293,58 @@ def test_lister_dettes_filtre_par_type(client):
     seulement_dettes = client.get("/api/v1/dettes?type=DETTE", headers=headers).json()
     assert len(seulement_dettes) == 1
     assert seulement_dettes[0]["type"] == "DETTE"
+
+
+def test_supprimer_une_dette_encore_en_cours_est_refuse(client):
+    headers = _register_and_login(client)
+    compte = _creer_compte(client, headers, solde_initial=10000)
+
+    dette = client.post(
+        "/api/v1/dettes",
+        json={"id_compte": compte["id_compte"], "type": "DETTE", "nom": "Prêt", "montant_total": 1000},
+        headers=headers,
+    ).json()
+
+    reponse = client.delete(f"/api/v1/dettes/{dette['id_dette']}", headers=headers)
+    assert reponse.status_code == 400
+
+    # Toujours listée : la suppression a bien été refusée, pas juste l'appel HTTP.
+    toutes = client.get("/api/v1/dettes", headers=headers).json()
+    assert any(d["id_dette"] == dette["id_dette"] for d in toutes)
+
+
+def test_supprimer_une_dette_soldee_conserve_lhistorique(client):
+    headers = _register_and_login(client)
+    compte = _creer_compte(client, headers, solde_initial=10000)
+
+    dette = client.post(
+        "/api/v1/dettes",
+        json={"id_compte": compte["id_compte"], "type": "DETTE", "nom": "Prêt", "montant_total": 1000},
+        headers=headers,
+    ).json()
+    client.post(
+        f"/api/v1/dettes/{dette['id_dette']}/rembourser",
+        json={"montant": 1000, "id_compte": compte["id_compte"]},
+        headers=headers,
+    )
+
+    reponse = client.delete(f"/api/v1/dettes/{dette['id_dette']}", headers=headers)
+    assert reponse.status_code == 204
+
+    # Disparaît du listage par défaut...
+    toutes = client.get("/api/v1/dettes", headers=headers).json()
+    assert not any(d["id_dette"] == dette["id_dette"] for d in toutes)
+
+    # ...mais reste consultable via include_inactifs (historisation) et
+    # récupérable individuellement par son ID — rien n'a été réellement effacé.
+    avec_inactifs = client.get("/api/v1/dettes?include_inactifs=true", headers=headers).json()
+    supprimee = next(d for d in avec_inactifs if d["id_dette"] == dette["id_dette"])
+    assert supprimee["est_actif"] is False
+
+    detail = client.get(f"/api/v1/dettes/{dette['id_dette']}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["statut"] == "SOLDE"
+
+    # Suppression déjà appliquée -> une deuxième tentative échoue proprement.
+    reponse_double = client.delete(f"/api/v1/dettes/{dette['id_dette']}", headers=headers)
+    assert reponse_double.status_code == 404

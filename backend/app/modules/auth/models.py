@@ -76,6 +76,7 @@ class Client(Utilisateur):
     actions_ia = relationship("ActionIA", back_populates="client", cascade="all, delete-orphan")
     analyses_financieres = relationship("AnalyseFinanciere", back_populates="client", cascade="all, delete-orphan")
     predictions = relationship("Prediction", back_populates="client", cascade="all, delete-orphan")
+    tontines = relationship("Tontine", back_populates="client", cascade="all, delete-orphan")
 
     __mapper_args__ = {
         "polymorphic_identity": "client",

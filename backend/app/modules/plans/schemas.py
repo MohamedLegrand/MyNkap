@@ -17,6 +17,7 @@ class PlanOut(BaseModel):
     acces_analyse: bool
     acces_jarvis: bool
     acces_rapport: bool
+    acces_tontine: bool
 
     class Config:
         from_attributes = True

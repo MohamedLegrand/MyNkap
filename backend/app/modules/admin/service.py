@@ -724,6 +724,7 @@ def creer_plan_admin(
         acces_analyse=payload.acces_analyse,
         acces_jarvis=payload.acces_jarvis,
         acces_rapport=payload.acces_rapport,
+        acces_tontine=payload.acces_tontine,
     )
     db.add(plan)
     db.commit()
@@ -777,6 +778,7 @@ def modifier_plan_admin(
         "acces_analyse": plan.acces_analyse,
         "acces_jarvis": plan.acces_jarvis,
         "acces_rapport": plan.acces_rapport,
+        "acces_tontine": plan.acces_tontine,
     }
 
     if payload.nom is not None:
@@ -797,6 +799,7 @@ def modifier_plan_admin(
     for champ in (
         "prix_mensuel", "prix_annuel", "devise", "acces_dettes", "acces_epargne",
         "acces_recurrentes", "acces_templates", "acces_analyse", "acces_jarvis", "acces_rapport",
+        "acces_tontine",
     ):
         valeur = getattr(payload, champ)
         if valeur is not None:
@@ -824,6 +827,7 @@ def modifier_plan_admin(
             "acces_analyse": plan.acces_analyse,
             "acces_jarvis": plan.acces_jarvis,
             "acces_rapport": plan.acces_rapport,
+            "acces_tontine": plan.acces_tontine,
         },
         request=request,
     )

@@ -26,6 +26,7 @@ class Plan(Base):
     # Réservé au futur module Rapports (pas encore construit) : aucune
     # route ne vérifie ce flag pour l'instant.
     acces_rapport = Column(Boolean, default=False, nullable=False)
+    acces_tontine = Column(Boolean, default=False, nullable=False)
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     abonnements = relationship("Abonnement", back_populates="plan")

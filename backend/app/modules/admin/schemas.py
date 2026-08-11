@@ -153,6 +153,7 @@ class AdminPlanCreate(BaseModel):
     acces_analyse: bool = False
     acces_jarvis: bool = False
     acces_rapport: bool = False
+    acces_tontine: bool = False
 
 class AdminPlanUpdate(BaseModel):
     nom: Optional[str] = Field(None, min_length=2, max_length=50)
@@ -166,6 +167,7 @@ class AdminPlanUpdate(BaseModel):
     acces_analyse: Optional[bool] = None
     acces_jarvis: Optional[bool] = None
     acces_rapport: Optional[bool] = None
+    acces_tontine: Optional[bool] = None
 
 # --- Schémas pour la Gestion des Abonnements & Paiements ---
 class PlanCountItem(BaseModel):

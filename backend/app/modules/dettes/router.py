@@ -31,6 +31,7 @@ def _to_out(dette: Dette) -> DetteOut:
         statut=dette.statut,
         jours_avant_echeance=dette.get_jours_avant_echeance(),
         impact_patrimoine_net=dette.get_impact_patrimoine_net(),
+        est_actif=dette.est_actif,
         date_creation=dette.date_creation,
         date_modification=dette.date_modification,
     )
@@ -59,10 +60,11 @@ def creer_dette(
 @router.get("", response_model=List[DetteOut])
 def lister_dettes(
     type: Optional[str] = None,
+    include_inactifs: bool = False,
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_active_client),
 ):
-    return [_to_out(d) for d in service.lister_dettes(db, client.id_client, type)]
+    return [_to_out(d) for d in service.lister_dettes(db, client.id_client, type, include_inactifs)]
 
 
 @router.get("/{id_dette}", response_model=DetteOut)
@@ -163,3 +165,24 @@ def marquer_comme_perte(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Cette créance est déjà soldée ou classée en perte"
         )
     return _to_out(dette)
+
+
+@router.delete("/{id_dette}", status_code=status.HTTP_204_NO_CONTENT)
+def supprimer_dette(
+    id_dette: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Supprime (logiquement) une dette/créance déjà soldée. L'historique
+    des transactions liées est conservé, et l'action tracée dans l'AuditLog
+    — voir service.supprimer_dette."""
+    try:
+        service.supprimer_dette(db, client.id_client, id_dette, request=request)
+    except service.DetteIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dette introuvable")
+    except service.DetteNonSoldeeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seules les dettes/créances déjà soldées peuvent être supprimées.",
+        )

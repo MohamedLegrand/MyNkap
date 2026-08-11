@@ -24,13 +24,16 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 PLANS_SEED = [
     {"nom": "GRATUIT", "prix_mensuel": 0, "prix_annuel": 0, "devise": "XAF",
      "acces_dettes": False, "acces_epargne": False, "acces_recurrentes": False,
-     "acces_templates": False, "acces_analyse": False, "acces_jarvis": False, "acces_rapport": False},
+     "acces_templates": False, "acces_analyse": False, "acces_jarvis": False, "acces_rapport": False,
+     "acces_tontine": False},
     {"nom": "ESSENTIEL", "prix_mensuel": 1000, "prix_annuel": 10000, "devise": "XAF",
      "acces_dettes": True, "acces_epargne": True, "acces_recurrentes": True,
-     "acces_templates": True, "acces_analyse": False, "acces_jarvis": False, "acces_rapport": False},
+     "acces_templates": True, "acces_analyse": False, "acces_jarvis": False, "acces_rapport": False,
+     "acces_tontine": True},
     {"nom": "PREMIUM", "prix_mensuel": 2500, "prix_annuel": 25000, "devise": "XAF",
      "acces_dettes": True, "acces_epargne": True, "acces_recurrentes": True,
-     "acces_templates": True, "acces_analyse": True, "acces_jarvis": True, "acces_rapport": False},
+     "acces_templates": True, "acces_analyse": True, "acces_jarvis": True, "acces_rapport": False,
+     "acces_tontine": True},
 ]
 
 

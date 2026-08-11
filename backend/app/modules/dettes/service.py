@@ -38,6 +38,12 @@ class SoldeInsuffisantError(Exception):
     """Le compte n'a pas les fonds nécessaires pour cette opération."""
 
 
+class DetteNonSoldeeError(Exception):
+    """Seule une dette/créance déjà SOLDE peut être supprimée — une dette
+    encore EN_COURS ou PARTIELLEMENT_REMBOURSE représente de l'argent
+    réellement dû, la supprimer masquerait une obligation financière active."""
+
+
 def _appliquer_impact(compte, impact: Decimal) -> None:
     if impact >= 0:
         crediter_compte(compte, impact)
@@ -45,8 +51,12 @@ def _appliquer_impact(compte, impact: Decimal) -> None:
         debiter_compte(compte, -impact)
 
 
-def lister_dettes(db: Session, id_client: int, type_: Optional[str] = None) -> List[Dette]:
+def lister_dettes(
+    db: Session, id_client: int, type_: Optional[str] = None, include_inactifs: bool = False
+) -> List[Dette]:
     query = db.query(Dette).filter(Dette.id_client == id_client)
+    if not include_inactifs:
+        query = query.filter(Dette.est_actif.is_(True))
     if type_ is not None:
         query = query.filter(Dette.type == type_)
     return query.order_by(Dette.date_creation.desc()).all()
@@ -227,3 +237,39 @@ def marquer_comme_perte(db: Session, id_client: int, id_dette: int, request: Opt
         request=request,
     )
     return dette
+
+
+def supprimer_dette(db: Session, id_client: int, id_dette: int, request: Optional[Request] = None) -> None:
+    """
+    Suppression logique (est_actif=False) d'une dette/créance déjà soldée.
+    Les Transaction liées (origine, remboursements/encaissements) ne sont
+    jamais supprimées : l'historique financier du client reste intact, et
+    l'action elle-même est tracée dans l'AuditLog — rien ne disparaît sans
+    laisser de trace (voir DetteNonSoldeeError pour le garde-fou EN_COURS).
+    """
+    dette = obtenir_dette_du_client(db, id_dette, id_client)
+    if dette is None or not dette.est_actif:
+        raise DetteIntrouvableError()
+    if dette.statut != "SOLDE":
+        raise DetteNonSoldeeError()
+
+    donnees_avant = {
+        "nom": dette.nom,
+        "type": dette.type,
+        "statut": dette.statut,
+        "montant_total": str(dette.montant_total),
+        "personne_impliquee": dette.personne_impliquee,
+    }
+    dette.est_actif = False
+    db.commit()
+
+    enregistrer_action(
+        db,
+        id_utilisateur=id_client,
+        action="DETTE_SUPPRIMEE",
+        ressource="Dette",
+        id_ressource=dette.id_dette,
+        donnees_avant=donnees_avant,
+        donnees_apres=None,
+        request=request,
+    )

@@ -182,6 +182,7 @@ export const AdminDashboard: React.FC = () => {
     acces_analyse: boolean;
     acces_jarvis: boolean;
     acces_rapport: boolean;
+    acces_tontine: boolean;
   }) => {
     if (planEnEdition) {
       const updated = await api.request<Plan>(`/admin/plans/${planEnEdition.id_plan}`, {
@@ -826,6 +827,7 @@ export const AdminDashboard: React.FC = () => {
                             p.acces_analyse && 'Analyse',
                             p.acces_jarvis && 'JARVIS',
                             p.acces_rapport && 'Rapports',
+                            p.acces_tontine && 'Tontines',
                           ].filter(Boolean).map((label) => (
                             <span key={label as string} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                               {label}
