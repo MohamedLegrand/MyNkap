@@ -530,17 +530,6 @@ interface PlanModalProps {
 // admin.service.PLANS_SYSTEME.
 const PLANS_SYSTEME = ['GRATUIT', 'ESSENTIEL', 'PREMIUM'];
 
-const ACCES_OPTIONS: { key: keyof PlanFormData; labelKey: string }[] = [
-  { key: 'acces_dettes', labelKey: 'dashboard.nav.debts' },
-  { key: 'acces_epargne', labelKey: 'dashboard.nav.savings' },
-  { key: 'acces_recurrentes', labelKey: 'automations.recurring_title' },
-  { key: 'acces_templates', labelKey: 'automations.templates_title' },
-  { key: 'acces_analyse', labelKey: 'dashboard.nav.analyse' },
-  { key: 'acces_jarvis', labelKey: 'dashboard.nav.jarvis' },
-  { key: 'acces_rapport', labelKey: 'dashboard.nav.reports' },
-  { key: 'acces_tontine', labelKey: 'admin.modals.plan.feature_tontines' },
-];
-
 const ACCES_VIDES = {
   acces_dettes: false,
   acces_epargne: false,
@@ -551,6 +540,17 @@ const ACCES_VIDES = {
   acces_rapport: false,
   acces_tontine: false,
 };
+
+const ACCES_OPTIONS: { key: keyof typeof ACCES_VIDES; labelKey: string }[] = [
+  { key: 'acces_dettes', labelKey: 'dashboard.nav.debts' },
+  { key: 'acces_epargne', labelKey: 'dashboard.nav.savings' },
+  { key: 'acces_recurrentes', labelKey: 'automations.recurring_title' },
+  { key: 'acces_templates', labelKey: 'automations.templates_title' },
+  { key: 'acces_analyse', labelKey: 'dashboard.nav.analyse' },
+  { key: 'acces_jarvis', labelKey: 'dashboard.nav.jarvis' },
+  { key: 'acces_rapport', labelKey: 'dashboard.nav.reports' },
+  { key: 'acces_tontine', labelKey: 'admin.modals.plan.feature_tontines' },
+];
 
 export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onSubmit }) => {
   const { t } = useTranslation();
