@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Users,
   Search,
@@ -56,6 +57,7 @@ interface Paginated<T> {
 const formatXAF = (valeur: number) => `${Number(valeur).toLocaleString('fr-FR')} XAF`;
 
 export const AdminDashboard: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('kpis');
 
   // Modals state
@@ -99,27 +101,27 @@ export const AdminDashboard: React.FC = () => {
       const res = await api.request<AdminGlobalKPIs>('/admin/kpis');
       setKpis(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de charger les KPIs.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.kpis'));
     }
-  }, []);
+  }, [t]);
 
   const fetchClients = useCallback(async () => {
     try {
       const res = await api.request<Paginated<AdminClientListItem>>('/admin/clients');
       setClients(res.items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de charger les clients.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.clients'));
     }
-  }, []);
+  }, [t]);
 
   const fetchAdmins = useCallback(async () => {
     try {
       const res = await api.request<AdminListItem[]>('/admin/admins');
       setAdmins(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de charger les administrateurs.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.admins'));
     }
-  }, []);
+  }, [t]);
 
   const fetchAuditLogs = useCallback(async () => {
     try {
@@ -130,18 +132,18 @@ export const AdminDashboard: React.FC = () => {
       setAuditLogs(logs.items);
       setAuditStats(stats);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de charger l'audit.");
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.audit'));
     }
-  }, []);
+  }, [t]);
 
   const fetchConfigs = useCallback(async () => {
     try {
       const res = await api.request<ConfigItem[]>('/admin/config');
       setConfigs(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de charger la configuration.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.config'));
     }
-  }, []);
+  }, [t]);
 
   const fetchSubscriptions = useCallback(async () => {
     try {
@@ -156,9 +158,9 @@ export const AdminDashboard: React.FC = () => {
       setPaiements(paiementsRes.items);
       setPlans(plansRes);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de charger les abonnements.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.subscriptions'));
     }
-  }, []);
+  }, [t]);
 
   const handleOuvrirCreationPlan = () => {
     setPlanEnEdition(null);
@@ -200,17 +202,17 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleDeletePlan = async (plan: Plan) => {
-    if (!window.confirm(`Supprimer définitivement le plan "${plan.nom}" ? Cette action est irréversible.`)) return;
+    if (!window.confirm(t('admin.dashboard.errors.delete_plan_confirm', { nom: plan.nom }))) return;
     try {
       await api.request(`/admin/plans/${plan.id_plan}`, { method: 'DELETE' });
       setPlans((prev) => prev.filter((p) => p.id_plan !== plan.id_plan));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Suppression impossible.');
+      setError(err instanceof Error ? err.message : t('common.error_delete'));
     }
   };
 
   const handleValiderPaiementManuel = async (idPaiement: number) => {
-    if (!window.confirm('Valider manuellement ce paiement et appliquer le plan correspondant au client ?')) return;
+    if (!window.confirm(t('admin.dashboard.errors.validate_payment_confirm'))) return;
     try {
       const paiement = await api.request<AdminPaiementItem>(`/admin/paiements/${idPaiement}/valider-manuel`, {
         method: 'POST',
@@ -219,7 +221,7 @@ export const AdminDashboard: React.FC = () => {
       setPaiements((prev) => prev.map((p) => (p.id_paiement === idPaiement ? paiement : p)));
       fetchSubscriptions();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Validation impossible.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.validate_payment_failed'));
     }
   };
 
@@ -232,9 +234,9 @@ export const AdminDashboard: React.FC = () => {
       setFraudTransactions(res.items);
       setFraudOverview(overview);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de charger la surveillance anti-fraude.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.fraud'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const fetchersParOnglet: Record<string, () => Promise<void>> = {
@@ -266,7 +268,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setClients((prev) => prev.map((c) => (c.id_client === id ? { ...c, est_actif: !currentlyActive } : c)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action impossible.');
+      setError(err instanceof Error ? err.message : t('common.error_action'));
     }
   };
 
@@ -284,7 +286,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setResetPasswordResult(res.mot_de_passe_temporaire);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Réinitialisation impossible.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.reset_password_failed'));
     }
   };
 
@@ -297,7 +299,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setAdmins((prev) => [...prev, nouvelAdmin]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Création de l'administrateur impossible.");
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.create_admin_failed'));
     }
   };
 
@@ -310,12 +312,12 @@ export const AdminDashboard: React.FC = () => {
       });
       setAdmins((prev) => prev.map((a) => (a.id_administrateur === id ? admin : a)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Changement de rôle impossible.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.role_change_failed'));
     }
   };
 
   const handleToggleAdminStatus = async (id: number, currentlyActive: boolean) => {
-    const raison = currentlyActive ? window.prompt('Raison de la suspension (facultatif) :') ?? undefined : undefined;
+    const raison = currentlyActive ? window.prompt(t('admin.dashboard.errors.suspension_reason_prompt')) ?? undefined : undefined;
     try {
       const admin = await api.request<AdminListItem>(`/admin/admins/${id}/status`, {
         method: 'PATCH',
@@ -323,7 +325,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setAdmins((prev) => prev.map((a) => (a.id_administrateur === id ? admin : a)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Changement de statut impossible.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.status_change_failed'));
     }
   };
 
@@ -334,7 +336,7 @@ export const AdminDashboard: React.FC = () => {
       setSelectedAuditLog(detail);
       setIsAuditModalOpen(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Détail d'audit indisponible.");
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.audit_detail_failed'));
     }
   };
 
@@ -347,7 +349,7 @@ export const AdminDashboard: React.FC = () => {
       setTargetConfig({ key: fraiche.cle, val: fraiche.valeur, type: fraiche.type, description: fraiche.description });
       setIsEditConfigOpen(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de charger ce paramètre.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.load_config_param_failed'));
     }
   };
 
@@ -360,7 +362,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setConfigs((prev) => prev.map((cfg) => (cfg.cle === targetConfig.key ? updated : cfg)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Modification impossible.');
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.modify_config_failed'));
     }
   };
 
@@ -373,7 +375,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setFraudTransactions((prev) => prev.map((tx) => (tx.id_transaction === idTx ? updated : tx)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action impossible.');
+      setError(err instanceof Error ? err.message : t('common.error_action'));
     }
   };
 
@@ -397,53 +399,53 @@ export const AdminDashboard: React.FC = () => {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <div>
-              <h2 className="text-xl font-black tracking-tight">Tableau de Bord KPI Globaux (Supervision 360°)</h2>
-              <p className="text-xs text-muted-foreground">Vue synthétique consolidée de l'ensemble des modules MyNkap</p>
+              <h2 className="text-xl font-black tracking-tight">{t('admin.dashboard.kpis.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('admin.dashboard.kpis.subtitle')}</p>
             </div>
             <button onClick={fetchAdminKPIs} className="p-2 rounded-xl bg-muted hover:bg-accent text-xs font-semibold flex items-center gap-1.5 border border-border">
               <RefreshCw className="h-3.5 w-3.5" />
-              <span>Actualiser les métriques</span>
+              <span>{t('admin.dashboard.kpis.refresh')}</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Base Clients</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.kpis.client_base')}</span>
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <p className="text-3xl font-black text-primary tabular-nums">{kpis.clients.total_clients}</p>
               <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Actifs : <strong className="text-forest-600 dark:text-forest-400">{kpis.clients.clients_actifs}</strong></span>
-                <span>Nouveaux +30j : <strong className="text-secondary">+{kpis.clients.nouveaux_clients_30j}</strong></span>
+                <span>{t('admin.dashboard.kpis.active_label')} <strong className="text-forest-600 dark:text-forest-400">{kpis.clients.clients_actifs}</strong></span>
+                <span>{t('admin.dashboard.kpis.new_30d_label')} <strong className="text-secondary">+{kpis.clients.nouveaux_clients_30j}</strong></span>
               </div>
             </div>
 
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Chiffre d'Affaires</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.kpis.revenue')}</span>
                 <TrendingUp className="h-5 w-5 text-secondary" />
               </div>
               <p className="text-2xl font-black text-secondary tabular-nums">{formatXAF(kpis.finances.chiffre_affaires_abonnements)}</p>
-              <p className="text-xs text-muted-foreground mt-2">Volume total : {formatXAF(kpis.finances.volume_total_transactions)}</p>
+              <p className="text-xs text-muted-foreground mt-2">{t('admin.dashboard.kpis.total_volume_label')} {formatXAF(kpis.finances.volume_total_transactions)}</p>
             </div>
 
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Conversion Payant</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.kpis.payer_conversion')}</span>
                 <Zap className="h-5 w-5 text-forest-500 dark:text-forest-400" />
               </div>
               <p className="text-3xl font-black text-forest-500 dark:text-forest-400 tabular-nums">{kpis.abonnements.taux_conversion_payant_pourcent}%</p>
-              <p className="text-xs text-muted-foreground mt-2">Payants : {kpis.abonnements.abonnes_essentiel + kpis.abonnements.abonnes_premium} abonnés</p>
+              <p className="text-xs text-muted-foreground mt-2">{t('admin.dashboard.kpis.payers_label')} {kpis.abonnements.abonnes_essentiel + kpis.abonnements.abonnes_premium} {t('admin.dashboard.kpis.subscribers_suffix')}</p>
             </div>
 
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Alertes Fraude</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.kpis.fraud_alerts')}</span>
                 <AlertOctagon className="h-5 w-5 text-destructive" />
               </div>
               <p className="text-3xl font-black text-destructive tabular-nums">{kpis.securite.transactions_suspectes_count}</p>
-              <p className="text-xs font-semibold text-destructive mt-2">Montant à risque : {formatXAF(kpis.securite.montant_total_suspect)}</p>
+              <p className="text-xs font-semibold text-destructive mt-2">{t('admin.dashboard.kpis.amount_at_risk')} {formatXAF(kpis.securite.montant_total_suspect)}</p>
             </div>
           </div>
         </div>
@@ -454,8 +456,8 @@ export const AdminDashboard: React.FC = () => {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <div>
-              <h2 className="text-xl font-black tracking-tight">Gestion des Clients (Module 1)</h2>
-              <p className="text-xs text-muted-foreground">Consulter, suspendre et réinitialiser les comptes clients</p>
+              <h2 className="text-xl font-black tracking-tight">{t('admin.dashboard.clients.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('admin.dashboard.clients.subtitle')}</p>
             </div>
           </div>
 
@@ -465,7 +467,7 @@ export const AdminDashboard: React.FC = () => {
                 <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Rechercher par nom, email, téléphone..."
+                  placeholder={t('admin.dashboard.clients.search_placeholder')}
                   className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -474,12 +476,12 @@ export const AdminDashboard: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                 <tr>
-                  <th className="p-4">Client</th>
-                  <th className="p-4">Téléphone</th>
-                  <th className="p-4">Solde principal</th>
-                  <th className="p-4">Plan</th>
-                  <th className="p-4">Statut</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4">{t('admin.dashboard.common.th_client')}</th>
+                  <th className="p-4">{t('auth.phone')}</th>
+                  <th className="p-4">{t('admin.dashboard.clients.th_main_balance')}</th>
+                  <th className="p-4">{t('admin.dashboard.common.th_plan')}</th>
+                  <th className="p-4">{t('admin.dashboard.common.th_status')}</th>
+                  <th className="p-4 text-right">{t('admin.dashboard.common.th_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-medium">
@@ -499,11 +501,11 @@ export const AdminDashboard: React.FC = () => {
                     <td className="p-4">
                       {c.est_actif ? (
                         <span className="inline-flex items-center gap-1 bg-forest-500/10 text-forest-600 dark:text-forest-400 px-2 py-0.5 rounded-full font-bold text-[10px]">
-                          <CheckCircle2 className="h-3 w-3" /> Actif
+                          <CheckCircle2 className="h-3 w-3" /> {t('admin.dashboard.common.active')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold text-[10px]">
-                          <XCircle className="h-3 w-3" /> Suspendu
+                          <XCircle className="h-3 w-3" /> {t('admin.dashboard.common.suspended')}
                         </span>
                       )}
                     </td>
@@ -513,7 +515,7 @@ export const AdminDashboard: React.FC = () => {
                         className="p-1.5 rounded-lg bg-muted hover:bg-accent text-foreground border border-border text-[11px] font-bold inline-flex items-center gap-1"
                       >
                         <UserCog className="h-3 w-3" />
-                        <span>Détails</span>
+                        <span>{t('admin.dashboard.clients.details')}</span>
                       </button>
                       <button
                         onClick={() => handleToggleClientStatus(c.id_client, c.est_actif)}
@@ -521,20 +523,20 @@ export const AdminDashboard: React.FC = () => {
                           c.est_actif ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-forest-500/10 text-forest-600 border-forest-500/20'
                         }`}
                       >
-                        {c.est_actif ? 'Suspendre' : 'Réactiver'}
+                        {c.est_actif ? t('admin.dashboard.common.suspend') : t('common.reactivate')}
                       </button>
                       <button
                         onClick={() => handleTriggerResetPassword(c.id_client, `${c.first_name} ${c.last_name}`)}
                         className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[11px] font-bold"
                       >
-                        Reset Password
+                        {t('admin.dashboard.clients.reset_password_btn')}
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {clients.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun client.</p>}
+            {clients.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.clients.none')}</p>}
           </div>
         </div>
       )}
@@ -544,15 +546,15 @@ export const AdminDashboard: React.FC = () => {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <div>
-              <h2 className="text-xl font-black tracking-tight">Équipe Administrateur (Module 2)</h2>
-              <p className="text-xs text-muted-foreground">Gestion des accès d'administration et attribution des rôles</p>
+              <h2 className="text-xl font-black tracking-tight">{t('admin.dashboard.admins.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('admin.dashboard.admins.subtitle')}</p>
             </div>
             <button
               onClick={() => setIsCreateAdminOpen(true)}
               className="bg-primary text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md hover:bg-primary/90 flex items-center gap-1.5"
             >
               <Plus className="h-4 w-4" />
-              <span>Créer un Admin</span>
+              <span>{t('admin.dashboard.admins.create_btn')}</span>
             </button>
           </div>
 
@@ -560,11 +562,11 @@ export const AdminDashboard: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                 <tr>
-                  <th className="p-4">Admin</th>
-                  <th className="p-4">Niveau d'Accès</th>
-                  <th className="p-4">Créé le</th>
-                  <th className="p-4">Statut</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4">{t('admin.dashboard.admins.th_admin')}</th>
+                  <th className="p-4">{t('admin.dashboard.admins.th_access_level')}</th>
+                  <th className="p-4">{t('admin.dashboard.admins.th_created_on')}</th>
+                  <th className="p-4">{t('admin.dashboard.common.th_status')}</th>
+                  <th className="p-4 text-right">{t('admin.dashboard.common.th_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-medium">
@@ -578,18 +580,21 @@ export const AdminDashboard: React.FC = () => {
                       <span className={`font-black px-2 py-0.5 rounded text-[10px] ${
                         a.niveau_acces === 3 ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-muted text-muted-foreground'
                       }`}>
-                        Niveau {a.niveau_acces} ({a.niveau_acces === 3 ? 'Superadmin' : a.niveau_acces === 2 ? 'Modérateur' : 'Support'})
+                        {t('admin.dashboard.admins.level_display', {
+                          level: a.niveau_acces,
+                          role: a.niveau_acces === 3 ? t('admin.dashboard.admins.role_superadmin') : a.niveau_acces === 2 ? t('admin.dashboard.admins.role_moderator') : t('admin.dashboard.admins.role_support'),
+                        })}
                       </span>
                     </td>
                     <td className="p-4">{new Date(a.date_creation).toLocaleDateString('fr-FR')}</td>
                     <td className="p-4">
                       {a.est_actif ? (
                         <span className="inline-flex items-center gap-1 bg-forest-500/10 text-forest-600 dark:text-forest-400 px-2 py-0.5 rounded-full font-bold text-[10px]">
-                          Actif
+                          {t('admin.dashboard.common.active')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold text-[10px]">
-                          Suspendu
+                          {t('admin.dashboard.common.suspended')}
                         </span>
                       )}
                     </td>
@@ -598,7 +603,7 @@ export const AdminDashboard: React.FC = () => {
                         onClick={() => handleUpdateAdminLevel(a.id_administrateur, a.niveau_acces)}
                         className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[11px] font-bold border border-primary/20"
                       >
-                        Changer Rôle
+                        {t('admin.dashboard.admins.change_role')}
                       </button>
                       <button
                         onClick={() => handleToggleAdminStatus(a.id_administrateur, a.est_actif)}
@@ -607,14 +612,14 @@ export const AdminDashboard: React.FC = () => {
                         }`}
                       >
                         {a.est_actif ? <ShieldOff className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
-                        <span>{a.est_actif ? 'Suspendre' : 'Réactiver'}</span>
+                        <span>{a.est_actif ? t('admin.dashboard.common.suspend') : t('common.reactivate')}</span>
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {admins.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun administrateur.</p>}
+            {admins.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.admins.none')}</p>}
           </div>
         </div>
       )}
@@ -624,19 +629,19 @@ export const AdminDashboard: React.FC = () => {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <div>
-              <h2 className="text-xl font-black tracking-tight">Journaux d'Audit & Traçabilité (Module 3)</h2>
-              <p className="text-xs text-muted-foreground">Historique inaltérable de toutes les actions sur la plateforme</p>
+              <h2 className="text-xl font-black tracking-tight">{t('admin.dashboard.audit.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('admin.dashboard.audit.subtitle')}</p>
             </div>
           </div>
 
           {auditStats && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Total d'événements tracés</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.audit.total_events')}</span>
                 <p className="text-3xl font-black text-primary tabular-nums mt-1">{auditStats.total_logs}</p>
               </div>
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase mb-2 block">Actions les plus fréquentes</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase mb-2 block">{t('admin.dashboard.audit.top_actions')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {auditStats.repartition_actions.slice(0, 6).map((a) => (
                     <span key={a.action} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-primary/10 text-primary">
@@ -652,12 +657,12 @@ export const AdminDashboard: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                 <tr>
-                  <th className="p-4"># ID</th>
-                  <th className="p-4">Utilisateur</th>
-                  <th className="p-4">Action</th>
-                  <th className="p-4">Ressource</th>
-                  <th className="p-4">Horodatage</th>
-                  <th className="p-4 text-right">Inspection</th>
+                  <th className="p-4">{t('admin.dashboard.audit.th_id')}</th>
+                  <th className="p-4">{t('admin.dashboard.audit.th_user')}</th>
+                  <th className="p-4">{t('admin.dashboard.audit.th_action')}</th>
+                  <th className="p-4">{t('admin.dashboard.audit.th_resource')}</th>
+                  <th className="p-4">{t('admin.dashboard.audit.th_timestamp')}</th>
+                  <th className="p-4 text-right">{t('admin.dashboard.audit.th_inspect')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-medium">
@@ -678,14 +683,14 @@ export const AdminDashboard: React.FC = () => {
                         className="px-2.5 py-1 rounded-lg bg-muted hover:bg-accent text-xs font-bold border border-border inline-flex items-center gap-1"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        <span>Inspecter JSON</span>
+                        <span>{t('admin.dashboard.audit.inspect_json')}</span>
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {auditLogs.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucune entrée d'audit.</p>}
+            {auditLogs.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.audit.none')}</p>}
           </div>
         </div>
       )}
@@ -695,8 +700,8 @@ export const AdminDashboard: React.FC = () => {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <div>
-              <h2 className="text-xl font-black tracking-tight">Configuration Système à Chaud (Module 4)</h2>
-              <p className="text-xs text-muted-foreground">Modifier la configuration applicative sans aucun redéploiement</p>
+              <h2 className="text-xl font-black tracking-tight">{t('admin.dashboard.config.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('admin.dashboard.config.subtitle')}</p>
             </div>
           </div>
 
@@ -720,12 +725,12 @@ export const AdminDashboard: React.FC = () => {
                     className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-bold flex items-center gap-1"
                   >
                     <Edit className="h-3.5 w-3.5" />
-                    <span>Modifier à chaud</span>
+                    <span>{t('admin.dashboard.config.edit_hot')}</span>
                   </button>
                 </div>
               </div>
             ))}
-            {configs.length === 0 && <p className="text-xs text-muted-foreground">Aucun paramètre de configuration.</p>}
+            {configs.length === 0 && <p className="text-xs text-muted-foreground">{t('admin.dashboard.config.none')}</p>}
           </div>
         </div>
       )}
@@ -735,23 +740,23 @@ export const AdminDashboard: React.FC = () => {
         <div className="space-y-6 animate-in fade-in duration-200">
           <div className="flex justify-between items-center pb-2 border-b border-border">
             <div>
-              <h2 className="text-xl font-black tracking-tight">Abonnements & Paiements Mobile Money (Module 5)</h2>
-              <p className="text-xs text-muted-foreground">Gestion des abonnements payants et validation des litiges HR-Skills Pay</p>
+              <h2 className="text-xl font-black tracking-tight">{t('admin.dashboard.subscriptions.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.subtitle')}</p>
             </div>
           </div>
 
           {subscriptionsOverview && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Total abonnés</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.subscriptions.total_subscribers')}</span>
                 <p className="text-2xl font-black text-primary tabular-nums mt-1">{subscriptionsOverview.total_abonnes}</p>
               </div>
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Chiffre d'affaires</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.subscriptions.revenue')}</span>
                 <p className="text-2xl font-black text-secondary tabular-nums mt-1">{formatXAF(subscriptionsOverview.chiffre_affaires_total)}</p>
               </div>
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Par plan</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase mb-1 block">{t('admin.dashboard.subscriptions.by_plan')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {subscriptionsOverview.repartition_plans.map((p) => (
                     <span key={p.nom_plan} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-primary/10 text-primary">
@@ -769,19 +774,19 @@ export const AdminDashboard: React.FC = () => {
                 onClick={() => setModeSubscriptions('abonnements')}
                 className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'abonnements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                Abonnements
+                {t('admin.dashboard.subscriptions.tab_subscriptions')}
               </button>
               <button
                 onClick={() => setModeSubscriptions('paiements')}
                 className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'paiements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                Paiements
+                {t('admin.dashboard.subscriptions.tab_payments')}
               </button>
               <button
                 onClick={() => setModeSubscriptions('plans')}
                 className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'plans' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                Plans Tarifaires
+                {t('admin.dashboard.subscriptions.tab_plans')}
               </button>
             </div>
 
@@ -791,7 +796,7 @@ export const AdminDashboard: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>Nouveau plan</span>
+                <span>{t('admin.dashboard.subscriptions.new_plan')}</span>
               </button>
             )}
           </div>
@@ -801,11 +806,11 @@ export const AdminDashboard: React.FC = () => {
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                   <tr>
-                    <th className="p-4">Plan</th>
-                    <th className="p-4">Prix mensuel</th>
-                    <th className="p-4">Prix annuel</th>
-                    <th className="p-4">Accès inclus</th>
-                    <th className="p-4 text-right">Actions</th>
+                    <th className="p-4">{t('admin.dashboard.common.th_plan')}</th>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_monthly_price')}</th>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_yearly_price')}</th>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_included_access')}</th>
+                    <th className="p-4 text-right">{t('admin.dashboard.common.th_actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border font-medium">
@@ -820,14 +825,14 @@ export const AdminDashboard: React.FC = () => {
                       <td className="p-4">
                         <div className="flex flex-wrap gap-1">
                           {[
-                            p.acces_dettes && 'Dettes',
-                            p.acces_epargne && 'Épargne',
-                            p.acces_recurrentes && 'Récurrentes',
-                            p.acces_templates && 'Modèles',
-                            p.acces_analyse && 'Analyse',
-                            p.acces_jarvis && 'JARVIS',
-                            p.acces_rapport && 'Rapports',
-                            p.acces_tontine && 'Tontines',
+                            p.acces_dettes && t('admin.dashboard.subscriptions.access_badges.dettes'),
+                            p.acces_epargne && t('admin.dashboard.subscriptions.access_badges.epargne'),
+                            p.acces_recurrentes && t('admin.dashboard.subscriptions.access_badges.recurrentes'),
+                            p.acces_templates && t('admin.dashboard.subscriptions.access_badges.modeles'),
+                            p.acces_analyse && t('admin.dashboard.subscriptions.access_badges.analyse'),
+                            p.acces_jarvis && t('admin.dashboard.subscriptions.access_badges.jarvis'),
+                            p.acces_rapport && t('admin.dashboard.subscriptions.access_badges.rapports'),
+                            p.acces_tontine && t('admin.dashboard.subscriptions.access_badges.tontines'),
                           ].filter(Boolean).map((label) => (
                             <span key={label as string} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                               {label}
@@ -839,14 +844,14 @@ export const AdminDashboard: React.FC = () => {
                         <div className="inline-flex items-center gap-1.5">
                           <button
                             onClick={() => handleOuvrirEditionPlan(p)}
-                            title="Modifier ce plan"
+                            title={t('admin.dashboard.subscriptions.edit_plan_title')}
                             className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary"
                           >
                             <Edit className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeletePlan(p)}
-                            title="Supprimer ce plan"
+                            title={t('admin.dashboard.subscriptions.delete_plan_title')}
                             className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -857,18 +862,18 @@ export const AdminDashboard: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-              {plans.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun plan tarifaire.</p>}
+              {plans.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_plans')}</p>}
             </div>
           ) : modeSubscriptions === 'abonnements' ? (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                   <tr>
-                    <th className="p-4">Client</th>
-                    <th className="p-4">Plan Tarifaire</th>
-                    <th className="p-4">Statut</th>
-                    <th className="p-4">Cycle</th>
-                    <th className="p-4">Période</th>
+                    <th className="p-4">{t('admin.dashboard.common.th_client')}</th>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_pricing_plan')}</th>
+                    <th className="p-4">{t('admin.dashboard.common.th_status')}</th>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_cycle')}</th>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_period')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border font-medium">
@@ -889,19 +894,19 @@ export const AdminDashboard: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-              {subscriptions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun abonnement.</p>}
+              {subscriptions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_subscriptions')}</p>}
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                   <tr>
-                    <th className="p-4">Client</th>
-                    <th className="p-4">Plan demandé</th>
-                    <th className="p-4">Montant</th>
-                    <th className="p-4">Référence</th>
-                    <th className="p-4">Statut</th>
-                    <th className="p-4 text-right">Action</th>
+                    <th className="p-4">{t('admin.dashboard.common.th_client')}</th>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_requested_plan')}</th>
+                    <th className="p-4">{t('transfers.amount')}</th>
+                    <th className="p-4">{t('modals.plan_upgrade.reference')}</th>
+                    <th className="p-4">{t('admin.dashboard.common.th_status')}</th>
+                    <th className="p-4 text-right">{t('admin.dashboard.subscriptions.th_action_single')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border font-medium">
@@ -925,7 +930,7 @@ export const AdminDashboard: React.FC = () => {
                             className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[11px] font-bold border border-primary/20 inline-flex items-center gap-1"
                           >
                             <CreditCard className="h-3 w-3" />
-                            <span>Valider manuellement</span>
+                            <span>{t('admin.dashboard.subscriptions.validate_manually')}</span>
                           </button>
                         )}
                       </td>
@@ -933,7 +938,7 @@ export const AdminDashboard: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-              {paiements.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucun paiement.</p>}
+              {paiements.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_payments')}</p>}
             </div>
           )}
         </div>
@@ -946,24 +951,24 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <h2 className="text-xl font-black tracking-tight text-destructive flex items-center gap-2">
                 <AlertOctagon className="h-6 w-6" />
-                <span>Surveillance Anti-Fraude (Module 6)</span>
+                <span>{t('admin.dashboard.fraud.title')}</span>
               </h2>
-              <p className="text-xs text-muted-foreground">Transactions suspectes signalées et gestion du risque financier</p>
+              <p className="text-xs text-muted-foreground">{t('admin.dashboard.fraud.subtitle')}</p>
             </div>
           </div>
 
           {fraudOverview && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Transactions suspectes</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('analyse.suspicious_transactions')}</span>
                 <p className="text-2xl font-black text-destructive tabular-nums mt-1">{fraudOverview.total_transactions_suspectes}</p>
               </div>
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Clients concernés</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.fraud.clients_concerned')}</span>
                 <p className="text-2xl font-black text-primary tabular-nums mt-1">{fraudOverview.nombre_clients_concernes}</p>
               </div>
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Montant à risque</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.fraud.amount_at_risk')}</span>
                 <p className="text-2xl font-black text-destructive tabular-nums mt-1">{formatXAF(fraudOverview.montant_total_suspect)}</p>
               </div>
             </div>
@@ -973,12 +978,12 @@ export const AdminDashboard: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-destructive/10 border-b border-destructive/20 text-destructive uppercase font-bold text-[10px]">
                 <tr>
-                  <th className="p-4"># Tx</th>
-                  <th className="p-4">Client Impacté</th>
-                  <th className="p-4">Description / Alerte</th>
-                  <th className="p-4">Montant</th>
-                  <th className="p-4">Date</th>
-                  <th className="p-4 text-right">Action Suspicion</th>
+                  <th className="p-4">{t('admin.dashboard.fraud.th_tx')}</th>
+                  <th className="p-4">{t('admin.dashboard.fraud.th_impacted_client')}</th>
+                  <th className="p-4">{t('admin.dashboard.fraud.th_description_alert')}</th>
+                  <th className="p-4">{t('transfers.amount')}</th>
+                  <th className="p-4">{t('common.date')}</th>
+                  <th className="p-4 text-right">{t('admin.dashboard.fraud.th_suspicion_action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-medium">
@@ -996,14 +1001,14 @@ export const AdminDashboard: React.FC = () => {
                           tx.est_suspecte ? 'bg-forest-500/10 text-forest-600 border border-forest-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'
                         }`}
                       >
-                        {tx.est_suspecte ? 'Lever la suspicion' : 'Marquer Suspecte'}
+                        {tx.est_suspecte ? t('admin.dashboard.fraud.lift_suspicion') : t('admin.dashboard.fraud.mark_suspicious')}
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {fraudTransactions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">Aucune transaction suspecte.</p>}
+            {fraudTransactions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.fraud.none')}</p>}
           </div>
         </div>
       )}

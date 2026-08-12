@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'react-i18next';
 import {
   Gauge,
   PieChart as PieChartIcon,
@@ -30,12 +32,14 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { api } from '../services/api';
+import i18n from '../i18n';
 import type { AnalyseFinanciere, Prediction, Budget, Categorie } from '../types';
 
+const localeActuelle = () => (i18n.language === 'en' ? 'en-US' : 'fr-FR');
 const formatMontant = (valeur: string | number) => `${Number(valeur).toLocaleString('fr-FR')} XAF`;
 const formatPeriode = (debut: string, fin: string) =>
-  `${new Date(debut).toLocaleDateString('fr-FR')} → ${new Date(fin).toLocaleDateString('fr-FR')}`;
-const formatMoisCourt = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+  `${new Date(debut).toLocaleDateString(localeActuelle())} → ${new Date(fin).toLocaleDateString(localeActuelle())}`;
+const formatMoisCourt = (iso: string) => new Date(iso).toLocaleDateString(localeActuelle(), { month: 'short', year: '2-digit' });
 
 // Palette volontairement multi-teintes (pas uniquement les couleurs de marque)
 // pour que chaque catégorie/série d'un graphique reste immédiatement
@@ -58,17 +62,17 @@ const AXE_STYLE = { fontSize: 11, fill: 'hsl(var(--muted-foreground))' };
 type TypeAnalyse = 'HABITUDES' | 'TENDANCES' | 'COMPARAISON' | 'COMPORTEMENT';
 type TypePrediction = 'DEPENSES_FUTURES' | 'RISQUE_BUDGETAIRE' | 'CAPACITE_EPARGNE';
 
-const TYPES_ANALYSE: { valeur: TypeAnalyse; label: string; icon: React.ReactNode }[] = [
-  { valeur: 'HABITUDES', label: 'Habitudes de dépense', icon: <PieChartIcon className="h-3.5 w-3.5" /> },
-  { valeur: 'TENDANCES', label: 'Tendances', icon: <TrendingUp className="h-3.5 w-3.5" /> },
-  { valeur: 'COMPARAISON', label: 'Comparaison', icon: <ArrowUpRight className="h-3.5 w-3.5" /> },
-  { valeur: 'COMPORTEMENT', label: 'Comportement', icon: <ShieldAlert className="h-3.5 w-3.5" /> },
+const TYPES_ANALYSE: { valeur: TypeAnalyse; labelKey: string; icon: React.ReactNode }[] = [
+  { valeur: 'HABITUDES', labelKey: 'analyse.type_habits', icon: <PieChartIcon className="h-3.5 w-3.5" /> },
+  { valeur: 'TENDANCES', labelKey: 'analyse.type_trends', icon: <TrendingUp className="h-3.5 w-3.5" /> },
+  { valeur: 'COMPARAISON', labelKey: 'analyse.type_comparison', icon: <ArrowUpRight className="h-3.5 w-3.5" /> },
+  { valeur: 'COMPORTEMENT', labelKey: 'analyse.type_behavior', icon: <ShieldAlert className="h-3.5 w-3.5" /> },
 ];
 
-const TYPES_PREDICTION: { valeur: TypePrediction; label: string; icon: React.ReactNode }[] = [
-  { valeur: 'DEPENSES_FUTURES', label: 'Dépenses futures', icon: <Sparkles className="h-3.5 w-3.5" /> },
-  { valeur: 'RISQUE_BUDGETAIRE', label: 'Risque budgétaire', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-  { valeur: 'CAPACITE_EPARGNE', label: "Capacité d'épargne", icon: <PiggyBank className="h-3.5 w-3.5" /> },
+const TYPES_PREDICTION: { valeur: TypePrediction; labelKey: string; icon: React.ReactNode }[] = [
+  { valeur: 'DEPENSES_FUTURES', labelKey: 'analyse.pred_future_expenses', icon: <Sparkles className="h-3.5 w-3.5" /> },
+  { valeur: 'RISQUE_BUDGETAIRE', labelKey: 'analyse.pred_budget_risk', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+  { valeur: 'CAPACITE_EPARGNE', labelKey: 'analyse.pred_savings_capacity', icon: <PiggyBank className="h-3.5 w-3.5" /> },
 ];
 
 interface Repartition {
@@ -87,29 +91,32 @@ interface Tendance {
 const scoreCouleur = (score: number) =>
   score >= 70 ? 'text-forest-600 dark:text-forest-400' : score >= 40 ? 'text-amber-500' : 'text-destructive';
 
-const ScoreFinancier: React.FC<{ score: number | null }> = ({ score }) => (
-  <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
-    <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0">
-      <Gauge className="h-6 w-6" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Score financier</p>
-      <p className={`text-3xl font-black tabular-nums ${score !== null ? scoreCouleur(score) : 'text-muted-foreground'}`}>
-        {score !== null ? score.toFixed(1) : '—'} <span className="text-sm font-bold text-muted-foreground">/ 100</span>
-      </p>
-    </div>
-    {score !== null && (
-      <div className="w-28 shrink-0 bg-muted h-2.5 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${
-            score >= 70 ? 'bg-forest-500' : score >= 40 ? 'bg-amber-500' : 'bg-destructive'
-          }`}
-          style={{ width: `${Math.min(Math.max(score, 0), 100)}%` }}
-        />
+const ScoreFinancier: React.FC<{ score: number | null }> = ({ score }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
+      <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0">
+        <Gauge className="h-6 w-6" />
       </div>
-    )}
-  </div>
-);
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('analyse.score_title')}</p>
+        <p className={`text-3xl font-black tabular-nums ${score !== null ? scoreCouleur(score) : 'text-muted-foreground'}`}>
+          {score !== null ? score.toFixed(1) : '—'} <span className="text-sm font-bold text-muted-foreground">/ 100</span>
+        </p>
+      </div>
+      {score !== null && (
+        <div className="w-28 shrink-0 bg-muted h-2.5 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              score >= 70 ? 'bg-forest-500' : score >= 40 ? 'bg-amber-500' : 'bg-destructive'
+            }`}
+            style={{ width: `${Math.min(Math.max(score, 0), 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
 
 const CarteGraphique: React.FC<{ titre: string; children: React.ReactNode }> = ({ titre, children }) => (
   <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
@@ -141,27 +148,28 @@ const Conclusion: React.FC<{ niveau: NiveauConclusion; texte: string }> = ({ niv
 };
 
 const RenduHabitudes: React.FC<{ resultats: Record<string, unknown> }> = ({ resultats }) => {
+  const { t } = useTranslation();
   const repartition = (resultats.repartition as Repartition[] | undefined) ?? [];
   const totalDepenses = resultats.total_depenses as string | undefined;
 
   if (repartition.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-10">Aucune dépense sur cette période.</p>;
+    return <p className="text-sm text-muted-foreground text-center py-10">{t('analyse.no_expenses_period')}</p>;
   }
 
   // repartition est déjà triée par pourcentage décroissant côté backend.
   const top = repartition[0];
   const concentre = top.pourcentage >= 50;
   const messageHabitudes = concentre
-    ? `${top.categorie} représente à elle seule plus de la moitié de vos dépenses (${top.pourcentage}%, soit ${formatMontant(top.montant)}). Si c'est un poste incompressible (loyer, alimentation...), c'est normal — sinon, c'est le premier endroit où chercher pour réduire vos dépenses.`
-    : `Votre poste de dépense principal est ${top.categorie}, avec ${top.pourcentage}% du total (${formatMontant(top.montant)}). Vos dépenses sont réparties sur ${repartition.length} catégories, ce qui est plutôt équilibré — votre gestion actuelle est bonne, continuez ainsi.`;
+    ? t('analyse.habits_concentrated', { categorie: top.categorie, pourcentage: top.pourcentage, montant: formatMontant(top.montant) })
+    : t('analyse.habits_balanced', { categorie: top.categorie, pourcentage: top.pourcentage, montant: formatMontant(top.montant), count: repartition.length });
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Total dépensé : <strong className="text-foreground">{formatMontant(totalDepenses ?? '0')}</strong>
+        {t('analyse.total_spent')} : <strong className="text-foreground">{formatMontant(totalDepenses ?? '0')}</strong>
       </p>
 
-      <CarteGraphique titre="Répartition par catégorie">
+      <CarteGraphique titre={t('analyse.chart_breakdown')}>
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie data={repartition} dataKey="pourcentage" nameKey="categorie" cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={3} isAnimationActive={false}>
@@ -200,26 +208,32 @@ const RenduHabitudes: React.FC<{ resultats: Record<string, unknown> }> = ({ resu
 };
 
 const RenduTendances: React.FC<{ resultats: Record<string, unknown> }> = ({ resultats }) => {
+  const { t } = useTranslation();
   const tendances = (resultats.tendances as Tendance[] | undefined) ?? [];
 
   if (tendances.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-10">Pas assez de données pour dégager une tendance.</p>;
+    return <p className="text-sm text-muted-foreground text-center py-10">{t('analyse.not_enough_trend_data')}</p>;
   }
 
-  const donneesGraphique = tendances.map((t) => ({
-    categorie: t.categorie,
-    'Période actuelle': Number(t.montant_periode),
-    'Moyenne 3 mois': Number(t.moyenne_glissante_3_mois),
+  const labelPeriodeActuelle = t('analyse.series_current_period');
+  const labelMoyenne3Mois = t('analyse.series_3month_avg');
+  const donneesGraphique = tendances.map((tendance) => ({
+    categorie: tendance.categorie,
+    [labelPeriodeActuelle]: Number(tendance.montant_periode),
+    [labelMoyenne3Mois]: Number(tendance.moyenne_glissante_3_mois),
   }));
 
-  const enForteHausse = tendances.filter((t) => t.variation_pourcentage !== null && t.variation_pourcentage > 20);
+  const enForteHausse = tendances.filter((tendance) => tendance.variation_pourcentage !== null && tendance.variation_pourcentage > 20);
   const messageTendances = enForteHausse.length > 0
-    ? `Attention : vos dépenses en ${enForteHausse.map((t) => t.categorie).join(', ')} ont fortement augmenté par rapport à votre moyenne des 3 derniers mois. Gardez un œil sur ${enForteHausse.length > 1 ? 'ces postes' : 'ce poste'} pour ne pas être surpris en fin de mois.`
-    : "Bonne nouvelle : aucune catégorie n'est en forte hausse ce mois-ci par rapport à votre moyenne habituelle. Votre gestion actuelle est stable, continuez ainsi !";
+    ? t('analyse.trends_rising', {
+        categories: enForteHausse.map((tendance) => tendance.categorie).join(', '),
+        poste: enForteHausse.length > 1 ? t('analyse.these_expense_items') : t('analyse.this_expense_item'),
+      })
+    : t('analyse.trends_stable');
 
   return (
     <div className="space-y-4">
-      <CarteGraphique titre="Dépenses vs moyenne glissante (3 mois)">
+      <CarteGraphique titre={t('analyse.chart_trends')}>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={donneesGraphique} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -227,8 +241,8 @@ const RenduTendances: React.FC<{ resultats: Record<string, unknown> }> = ({ resu
             <YAxis tick={AXE_STYLE} />
             <Tooltip formatter={(value: unknown) => formatMontant(Number(value))} {...STYLE_TOOLTIP} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="Période actuelle" fill={PALETTE[1]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
-            <Bar dataKey="Moyenne 3 mois" fill={PALETTE[2]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey={labelPeriodeActuelle} fill={PALETTE[1]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey={labelMoyenne3Mois} fill={PALETTE[2]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </CarteGraphique>
@@ -236,34 +250,34 @@ const RenduTendances: React.FC<{ resultats: Record<string, unknown> }> = ({ resu
       <Conclusion niveau={enForteHausse.length > 0 ? 'attention' : 'positif'} texte={messageTendances} />
 
       <div className="divide-y divide-border">
-        {tendances.map((t) => (
-          <div key={t.categorie} className="py-3.5 flex items-center justify-between gap-3">
+        {tendances.map((tendance) => (
+          <div key={tendance.categorie} className="py-3.5 flex items-center justify-between gap-3">
             <div>
-              <h4 className="text-sm font-bold text-foreground">{t.categorie}</h4>
+              <h4 className="text-sm font-bold text-foreground">{tendance.categorie}</h4>
               <p className="text-xs text-muted-foreground">
-                {formatMontant(t.montant_periode)} — moyenne 3 mois : {formatMontant(t.moyenne_glissante_3_mois)}
+                {formatMontant(tendance.montant_periode)} — {t('analyse.avg_3month', { montant: formatMontant(tendance.moyenne_glissante_3_mois) })}
               </p>
             </div>
-            {t.variation_pourcentage === null ? (
-              <span className="text-[11px] font-bold text-muted-foreground px-2 py-1 rounded-full bg-muted">Nouveau</span>
+            {tendance.variation_pourcentage === null ? (
+              <span className="text-[11px] font-bold text-muted-foreground px-2 py-1 rounded-full bg-muted">{t('analyse.new_badge')}</span>
             ) : (
               <span
                 className={`text-xs font-bold flex items-center gap-1 px-2 py-1 rounded-full ${
-                  t.variation_pourcentage > 0
+                  tendance.variation_pourcentage > 0
                     ? 'text-destructive bg-destructive/10'
-                    : t.variation_pourcentage < 0
+                    : tendance.variation_pourcentage < 0
                     ? 'text-forest-600 dark:text-forest-400 bg-forest-500/10'
                     : 'text-muted-foreground bg-muted'
                 }`}
               >
-                {t.variation_pourcentage > 0 ? (
+                {tendance.variation_pourcentage > 0 ? (
                   <TrendingUp className="h-3.5 w-3.5" />
-                ) : t.variation_pourcentage < 0 ? (
+                ) : tendance.variation_pourcentage < 0 ? (
                   <TrendingDown className="h-3.5 w-3.5" />
                 ) : (
                   <Minus className="h-3.5 w-3.5" />
                 )}
-                <span>{t.variation_pourcentage > 0 ? '+' : ''}{t.variation_pourcentage}%</span>
+                <span>{tendance.variation_pourcentage > 0 ? '+' : ''}{tendance.variation_pourcentage}%</span>
               </span>
             )}
           </div>
@@ -276,6 +290,7 @@ const RenduTendances: React.FC<{ resultats: Record<string, unknown> }> = ({ resu
 const CarteComparaison: React.FC<{ titre: string; actuelle: number; precedente: number; inverse?: boolean }> = ({
   titre, actuelle, precedente, inverse,
 }) => {
+  const { t } = useTranslation();
   const hausse = actuelle > precedente;
   const stable = actuelle === precedente;
   const bon = inverse ? hausse : !hausse;
@@ -283,7 +298,7 @@ const CarteComparaison: React.FC<{ titre: string; actuelle: number; precedente: 
     <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-2">
       <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{titre}</p>
       <p className="text-xl font-black text-foreground tabular-nums">{formatMontant(actuelle)}</p>
-      <p className="text-xs text-muted-foreground">Période précédente : {formatMontant(precedente)}</p>
+      <p className="text-xs text-muted-foreground">{t('analyse.previous_period', { montant: formatMontant(precedente) })}</p>
       {!stable && (
         <span className={`inline-flex items-center gap-1 text-xs font-bold ${bon ? 'text-forest-600 dark:text-forest-400' : 'text-destructive'}`}>
           {hausse ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
@@ -295,14 +310,17 @@ const CarteComparaison: React.FC<{ titre: string; actuelle: number; precedente: 
 };
 
 const RenduComparaison: React.FC<{ resultats: Record<string, unknown> }> = ({ resultats }) => {
+  const { t } = useTranslation();
   const depActuelle = Number(resultats.depenses_periode_actuelle ?? 0);
   const depPrecedente = Number(resultats.depenses_periode_precedente ?? 0);
   const revActuelle = Number(resultats.revenus_periode_actuelle ?? 0);
   const revPrecedente = Number(resultats.revenus_periode_precedente ?? 0);
 
+  const labelActuelle = t('analyse.series_current');
+  const labelPrecedente = t('analyse.series_previous');
   const donneesGraphique = [
-    { categorie: 'Dépenses', Actuelle: depActuelle, Précédente: depPrecedente },
-    { categorie: 'Revenus', Actuelle: revActuelle, Précédente: revPrecedente },
+    { categorie: t('transactions.expenses'), [labelActuelle]: depActuelle, [labelPrecedente]: depPrecedente },
+    { categorie: t('transactions.income'), [labelActuelle]: revActuelle, [labelPrecedente]: revPrecedente },
   ];
 
   const variationDepenses = depPrecedente > 0 ? Math.round(((depActuelle - depPrecedente) / depPrecedente) * 100) : null;
@@ -313,19 +331,19 @@ const RenduComparaison: React.FC<{ resultats: Record<string, unknown> }> = ({ re
   const revenusEnBaisse = variationRevenus !== null && variationRevenus < 0;
 
   const phraseDepenses = variationDepenses === null
-    ? "Pas encore assez de données sur la période précédente pour comparer vos dépenses."
+    ? t('analyse.not_enough_compare_data')
     : depensesEnForteHausse
-    ? `Vos dépenses ont augmenté de ${Math.abs(variationDepenses)}% par rapport à la période précédente.`
+    ? t('analyse.expenses_sharp_rise', { percent: Math.abs(variationDepenses) })
     : variationDepenses === 0
-    ? 'Vos dépenses sont restées stables par rapport à la période précédente.'
-    : `Vos dépenses ont baissé de ${Math.abs(variationDepenses)}% par rapport à la période précédente.`;
+    ? t('analyse.expenses_stable')
+    : t('analyse.expenses_decreased', { percent: Math.abs(variationDepenses) });
 
   const phraseRevenus = variationRevenus === null
     ? ''
     : revenusEnHausse
-    ? ` Vos revenus ont progressé de ${variationRevenus}% sur la même période.`
+    ? t('analyse.income_increased', { percent: variationRevenus })
     : revenusEnBaisse
-    ? ` En revanche, vos revenus ont baissé de ${Math.abs(variationRevenus)}% sur la même période.`
+    ? t('analyse.income_decreased', { percent: Math.abs(variationRevenus) })
     : '';
 
   // Le niveau global tient compte des DEUX signaux — jamais "positif" si l'un
@@ -335,21 +353,19 @@ const RenduComparaison: React.FC<{ resultats: Record<string, unknown> }> = ({ re
   let messageComparaison: string;
   if (depensesEnForteHausse || revenusEnBaisse) {
     niveauComparaison = 'attention';
-    const conseil = depensesEnForteHausse
-      ? " Essayez d'identifier la cause pour garder le contrôle sur votre budget."
-      : '';
+    const conseil = depensesEnForteHausse ? t('analyse.identify_cause_hint') : '';
     messageComparaison = `${phraseDepenses}${phraseRevenus}${conseil}`;
   } else if (depensesEnBaisse || revenusEnHausse) {
     niveauComparaison = 'positif';
-    messageComparaison = `${phraseDepenses}${phraseRevenus} Votre gestion actuelle est bonne, continuez ainsi !`;
+    messageComparaison = `${phraseDepenses}${phraseRevenus}${t('analyse.good_management')}`;
   } else {
     niveauComparaison = 'neutre';
-    messageComparaison = "Pas encore assez de données sur la période précédente pour comparer utilement. Revenez consulter cette section le mois prochain.";
+    messageComparaison = t('analyse.not_enough_compare_data_full');
   }
 
   return (
     <div className="space-y-4">
-      <CarteGraphique titre="Période actuelle vs précédente">
+      <CarteGraphique titre={t('analyse.chart_comparison')}>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={donneesGraphique} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -357,8 +373,8 @@ const RenduComparaison: React.FC<{ resultats: Record<string, unknown> }> = ({ re
             <YAxis tick={AXE_STYLE} />
             <Tooltip formatter={(value: unknown) => formatMontant(Number(value))} {...STYLE_TOOLTIP} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="Actuelle" fill={PALETTE[1]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
-            <Bar dataKey="Précédente" fill={PALETTE[5]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey={labelActuelle} fill={PALETTE[1]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey={labelPrecedente} fill={PALETTE[5]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </CarteGraphique>
@@ -366,8 +382,8 @@ const RenduComparaison: React.FC<{ resultats: Record<string, unknown> }> = ({ re
       <Conclusion niveau={niveauComparaison} texte={messageComparaison} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <CarteComparaison titre="Dépenses" actuelle={depActuelle} precedente={depPrecedente} />
-        <CarteComparaison titre="Revenus" actuelle={revActuelle} precedente={revPrecedente} inverse />
+        <CarteComparaison titre={t('transactions.expenses')} actuelle={depActuelle} precedente={depPrecedente} />
+        <CarteComparaison titre={t('transactions.income')} actuelle={revActuelle} precedente={revPrecedente} inverse />
       </div>
     </div>
   );
@@ -381,36 +397,40 @@ const StatComportement: React.FC<{ label: string; valeur: number; alerte?: boole
 );
 
 const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ resultats }) => {
+  const { t } = useTranslation();
   const suspectes = Number(resultats.transactions_suspectes ?? 0);
   const depasses = Number(resultats.budgets_depasses ?? 0);
   const actifs = Number(resultats.nombre_budgets_actifs ?? 0);
 
+  const labelSuspectes = t('analyse.suspicious_transactions');
+  const labelDepasses = t('analyse.exceeded_budgets');
+  const labelActifs = t('analyse.active_budgets');
   const donneesGraphique = [
-    { label: 'Transactions suspectes', valeur: suspectes },
-    { label: 'Budgets dépassés', valeur: depasses },
-    { label: 'Budgets actifs', valeur: actifs },
+    { label: labelSuspectes, valeur: suspectes },
+    { label: labelDepasses, valeur: depasses },
+    { label: labelActifs, valeur: actifs },
   ];
 
   const rienASignaler = suspectes === 0 && depasses === 0;
   let messageComportement: string;
   if (rienASignaler) {
-    messageComportement = "Aucune transaction suspecte et aucun budget dépassé ce mois-ci : votre gestion actuelle est très bonne, continuez ainsi !";
+    messageComportement = t('analyse.nothing_to_report');
   } else {
     const points: string[] = [];
-    if (suspectes > 0) points.push(`${suspectes} transaction${suspectes > 1 ? 's' : ''} suspecte${suspectes > 1 ? 's' : ''} à vérifier`);
-    if (depasses > 0) points.push(`${depasses} budget${depasses > 1 ? 's' : ''} dépassé${depasses > 1 ? 's' : ''}`);
-    messageComportement = `Points à surveiller : ${points.join(' et ')}. Consultez le détail dans les sections Transactions et Budgets pour agir.`;
+    if (suspectes > 0) points.push(t('analyse.suspicious_count', { count: suspectes }));
+    if (depasses > 0) points.push(t('analyse.exceeded_count', { count: depasses }));
+    messageComportement = t('analyse.points_to_watch', { points: points.join(` ${t('common.and')} `) });
   }
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatComportement label="Transactions suspectes" valeur={suspectes} alerte />
-        <StatComportement label="Budgets dépassés" valeur={depasses} alerte />
-        <StatComportement label="Budgets actifs" valeur={actifs} />
+        <StatComportement label={labelSuspectes} valeur={suspectes} alerte />
+        <StatComportement label={labelDepasses} valeur={depasses} alerte />
+        <StatComportement label={labelActifs} valeur={actifs} />
       </div>
 
-      <CarteGraphique titre="Vue d'ensemble">
+      <CarteGraphique titre={t('analyse.overview_title')}>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart layout="vertical" data={donneesGraphique} margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
@@ -441,17 +461,18 @@ const RENDUS_ANALYSE: Record<TypeAnalyse, React.FC<{ resultats: Record<string, u
 const niveauConfianceCouleur = (niveau: number) => (niveau >= 0.7 ? PALETTE[0] : niveau >= 0.4 ? PALETTE[2] : PALETTE[6]);
 
 const GraphiqueHistoriqueScore: React.FC<{ historique: AnalyseFinanciere[]; scoreActuel: number | null }> = ({ historique, scoreActuel }) => {
+  const { t } = useTranslation();
   const donnees = [
     ...[...historique].reverse().map((a) => ({
       label: formatMoisCourt(a.periode_debut),
       score: a.score_financier ?? 0,
       estimation: false,
     })),
-    { label: 'Ce mois-ci', score: scoreActuel ?? 0, estimation: true },
+    { label: t('analyse.this_month'), score: scoreActuel ?? 0, estimation: true },
   ];
 
   return (
-    <CarteGraphique titre="Évolution du score financier">
+    <CarteGraphique titre={t('analyse.score_evolution')}>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -472,6 +493,7 @@ const GraphiqueHistoriqueScore: React.FC<{ historique: AnalyseFinanciere[]; scor
 const GraphiqueHistoriquePrediction: React.FC<{ historique: Prediction[]; estimationActuelle: Prediction }> = ({
   historique, estimationActuelle,
 }) => {
+  const { t } = useTranslation();
   const donnees = [
     ...[...historique].reverse().map((p) => ({
       label: formatMoisCourt(p.periode_debut),
@@ -479,14 +501,14 @@ const GraphiqueHistoriquePrediction: React.FC<{ historique: Prediction[]; estima
       estimation: false,
     })),
     {
-      label: 'Estimation',
+      label: t('analyse.estimation'),
       montant: Number(estimationActuelle.montant_predit ?? 0),
       estimation: true,
     },
   ];
 
   return (
-    <CarteGraphique titre="Évolution mensuelle">
+    <CarteGraphique titre={t('analyse.monthly_evolution')}>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -505,21 +527,24 @@ const GraphiqueHistoriquePrediction: React.FC<{ historique: Prediction[]; estima
 };
 
 const GraphiqueRisqueBudgetaire: React.FC<{ budgets: Budget[]; categories: Categorie[] }> = ({ budgets, categories }) => {
-  const nomCategorie = (id: number) => categories.find((c) => c.id_categorie === id)?.nom ?? `Catégorie #${id}`;
+  const { t } = useTranslation();
+  const nomCategorie = (id: number) => categories.find((c) => c.id_categorie === id)?.nom ?? t('modals.budget.category_fallback', { id });
 
   if (budgets.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-6">Aucun budget actif ce mois-ci.</p>;
+    return <p className="text-sm text-muted-foreground text-center py-6">{t('analyse.no_active_budgets')}</p>;
   }
 
+  const labelDepense = t('analyse.spent');
+  const labelLimite = t('analyse.limit');
   const donnees = budgets.map((b) => ({
     categorie: nomCategorie(b.id_categorie),
-    'Dépensé': Number(b.montant_depense),
-    'Limite': Number(b.montant_limite),
+    [labelDepense]: Number(b.montant_depense),
+    [labelLimite]: Number(b.montant_limite),
     depasse: b.est_depasse,
   }));
 
   return (
-    <CarteGraphique titre="Dépensé vs limite par catégorie (mois en cours)">
+    <CarteGraphique titre={t('analyse.budget_vs_limit_chart')}>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -527,12 +552,12 @@ const GraphiqueRisqueBudgetaire: React.FC<{ budgets: Budget[]; categories: Categ
           <YAxis tick={AXE_STYLE} />
           <Tooltip formatter={(value: unknown) => formatMontant(Number(value))} {...STYLE_TOOLTIP} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Bar dataKey="Dépensé" radius={[6, 6, 0, 0]} isAnimationActive={false}>
+          <Bar dataKey={labelDepense} radius={[6, 6, 0, 0]} isAnimationActive={false}>
             {donnees.map((d) => (
               <Cell key={d.categorie} fill={d.depasse ? PALETTE[6] : PALETTE[1]} />
             ))}
           </Bar>
-          <Bar dataKey="Limite" fill="hsl(var(--muted-foreground))" fillOpacity={0.35} radius={[6, 6, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey={labelLimite} fill="hsl(var(--muted-foreground))" fillOpacity={0.35} radius={[6, 6, 0, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </CarteGraphique>
@@ -546,24 +571,24 @@ interface RenduPredictionProps {
   categoriesRisque: Categorie[];
 }
 
-const conclusionPrediction = (prediction: Prediction, budgetsRisque: Budget[]): { niveau: NiveauConclusion; texte: string } => {
+const conclusionPrediction = (prediction: Prediction, budgetsRisque: Budget[], t: TFunction): { niveau: NiveauConclusion; texte: string } => {
   if (prediction.type === 'RISQUE_BUDGETAIRE') {
     const budgetsDejaDepasses = budgetsRisque.filter((b) => b.est_depasse).length;
     if (budgetsDejaDepasses > 0) {
       return {
         niveau: 'attention',
-        texte: `${budgetsDejaDepasses} budget${budgetsDejaDepasses > 1 ? 's sont déjà dépassés' : ' est déjà dépassé'} ce mois-ci. Ralentissez vos dépenses sur ${budgetsDejaDepasses > 1 ? 'ces catégories' : 'cette catégorie'} jusqu'au mois prochain.`,
+        texte: t('analyse.budgets_exceeded_now', { count: budgetsDejaDepasses }),
       };
     }
     if (prediction.montant_predit !== null) {
       return {
         niveau: 'attention',
-        texte: "Au rythme actuel, un ou plusieurs budgets risquent d'être dépassés d'ici la fin du mois. Ralentissez vos dépenses sur les catégories concernées pour rester dans les clous.",
+        texte: t('analyse.budget_risk_soon'),
       };
     }
     return {
       niveau: 'positif',
-      texte: "Aucun budget ne semble menacé de dépassement au rythme actuel. Votre gestion actuelle est très bonne, continuez ainsi !",
+      texte: t('analyse.budget_risk_none'),
     };
   }
 
@@ -572,31 +597,32 @@ const conclusionPrediction = (prediction: Prediction, budgetsRisque: Budget[]): 
     if (montant > 0) {
       return {
         niveau: 'positif',
-        texte: "Vous avez de la marge pour épargner ce mois-ci. Pensez à virer cette somme vers un compte épargne dès réception de vos revenus, avant d'être tenté de la dépenser ailleurs.",
+        texte: t('analyse.savings_capacity_positive'),
       };
     }
     return {
       niveau: 'attention',
-      texte: "Vos dépenses couvrent actuellement l'ensemble de vos revenus : difficile d'épargner ce mois-ci. Essayez de repérer un poste de dépense à réduire, même léger.",
+      texte: t('analyse.savings_capacity_negative'),
     };
   }
 
   // DEPENSES_FUTURES : ni bon ni mauvais signe en soi, c'est une simple projection.
   return {
     niveau: 'neutre',
-    texte: "Cette estimation se base sur votre moyenne des 3 derniers mois. Elle deviendra plus précise avec le temps, au fur et à mesure que nous accumulons davantage de données sur vos habitudes.",
+    texte: t('analyse.future_expenses_note'),
   };
 };
 
 const RenduPrediction: React.FC<RenduPredictionProps> = ({ prediction, historique, budgetsRisque, categoriesRisque }) => {
-  const conclusion = conclusionPrediction(prediction, budgetsRisque);
+  const { t } = useTranslation();
+  const conclusion = conclusionPrediction(prediction, budgetsRisque, t);
 
   return (
     <div className="space-y-4">
       <div className="bg-card rounded-2xl border border-border p-6 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Montant estimé</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">{t('analyse.estimated_amount')}</p>
             <p className="text-3xl font-black text-primary tabular-nums">
               {prediction.montant_predit !== null ? formatMontant(prediction.montant_predit) : '—'}
             </p>
@@ -610,7 +636,7 @@ const RenduPrediction: React.FC<RenduPredictionProps> = ({ prediction, historiqu
                 />
               </div>
               <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">
-                Confiance {Math.round(prediction.niveau_confiance * 100)}%
+                {t('analyse.confidence', { percent: Math.round(prediction.niveau_confiance * 100) })}
               </span>
             </div>
           )}
@@ -636,6 +662,7 @@ const RenduPrediction: React.FC<RenduPredictionProps> = ({ prediction, historiqu
 };
 
 export const AnalyseSection: React.FC = () => {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'analyse' | 'prediction'>('analyse');
   const [typeAnalyse, setTypeAnalyse] = useState<TypeAnalyse>('HABITUDES');
   const [typePrediction, setTypePrediction] = useState<TypePrediction>('DEPENSES_FUTURES');
@@ -658,10 +685,11 @@ export const AnalyseSection: React.FC = () => {
         setPrediction(await api.request<Prediction>(`/analyse/predictions/${typePrediction}`));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de calculer cette analyse pour le moment.');
+      setError(err instanceof Error ? err.message : t('analyse.error_generic'));
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, typeAnalyse, typePrediction]);
 
   useEffect(() => {
@@ -719,7 +747,7 @@ export const AnalyseSection: React.FC = () => {
             mode === 'analyse' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Analyse
+          {t('analyse.tab_analysis')}
         </button>
         <button
           onClick={() => setMode('prediction')}
@@ -727,45 +755,45 @@ export const AnalyseSection: React.FC = () => {
             mode === 'prediction' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          Prédictions
+          {t('analyse.tab_predictions')}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {mode === 'analyse'
-          ? TYPES_ANALYSE.map((t) => (
+          ? TYPES_ANALYSE.map((item) => (
               <button
-                key={t.valeur}
-                onClick={() => setTypeAnalyse(t.valeur)}
+                key={item.valeur}
+                onClick={() => setTypeAnalyse(item.valeur)}
                 className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${
-                  typeAnalyse === t.valeur
+                  typeAnalyse === item.valeur
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                     : 'bg-card text-muted-foreground border-border hover:text-foreground'
                 }`}
               >
-                {t.icon}
-                <span>{t.label}</span>
+                {item.icon}
+                <span>{t(item.labelKey)}</span>
               </button>
             ))
-          : TYPES_PREDICTION.map((t) => (
+          : TYPES_PREDICTION.map((item) => (
               <button
-                key={t.valeur}
-                onClick={() => setTypePrediction(t.valeur)}
+                key={item.valeur}
+                onClick={() => setTypePrediction(item.valeur)}
                 className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${
-                  typePrediction === t.valeur
+                  typePrediction === item.valeur
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                     : 'bg-card text-muted-foreground border-border hover:text-foreground'
                 }`}
               >
-                {t.icon}
-                <span>{t.label}</span>
+                {item.icon}
+                <span>{t(item.labelKey)}</span>
               </button>
             ))}
       </div>
 
       {(mode === 'analyse' ? analyse : prediction) && (
         <p className="text-xs text-muted-foreground">
-          Période analysée : {formatPeriode((mode === 'analyse' ? analyse : prediction)!.periode_debut, (mode === 'analyse' ? analyse : prediction)!.periode_fin)}
+          {t('analyse.period_analyzed', { periode: formatPeriode((mode === 'analyse' ? analyse : prediction)!.periode_debut, (mode === 'analyse' ? analyse : prediction)!.periode_fin) })}
         </p>
       )}
 
@@ -776,7 +804,7 @@ export const AnalyseSection: React.FC = () => {
       ) : error ? (
         <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={charger} className="font-bold underline shrink-0 ml-3">Réessayer</button>
+          <button onClick={charger} className="font-bold underline shrink-0 ml-3">{t('common.retry')}</button>
         </div>
       ) : mode === 'analyse' ? (
         analyse && RenduActif && (

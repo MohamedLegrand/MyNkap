@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2, ArrowRight } from 'lucide-react';
 import { api } from '../services/api';
 import type { CompteFinancier } from '../types';
@@ -11,6 +12,7 @@ interface TransfertModalProps {
 }
 
 export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose, onSuccess, comptes }) => {
+  const { t } = useTranslation();
   const [idCompteSource, setIdCompteSource] = useState('');
   const [idCompteDestination, setIdCompteDestination] = useState('');
   const [montant, setMontant] = useState('');
@@ -55,7 +57,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transfert impossible.');
+      setError(err instanceof Error ? err.message : t('modals.transfert.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -65,7 +67,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">Transférer entre comptes</h3>
+          <h3 className="text-lg font-bold tracking-tight">{t('accounts.transfer_between')}</h3>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -74,7 +76,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Depuis</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('transfers.from')}</label>
               <select
                 value={idCompteSource}
                 onChange={(e) => {
@@ -100,7 +102,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
             </div>
             <ArrowRight className="h-4 w-4 text-muted-foreground mb-3" />
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Vers</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('transfers.to')}</label>
               <select
                 value={idCompteDestination}
                 onChange={(e) => setIdCompteDestination(e.target.value)}
@@ -114,7 +116,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Montant (XAF)</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('transfers.amount')} (XAF)</label>
             <input
               type="number"
               required
@@ -127,16 +129,16 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
             />
             {soldeSource !== undefined && (
               <p className="text-[11px] text-muted-foreground">
-                Solde disponible : {Number(soldeSource).toLocaleString('fr-FR')} XAF
+                {t('modals.transfert.available_balance')} : {Number(soldeSource).toLocaleString('fr-FR')} XAF
               </p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Note / Description (facultatif)</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.transfert.note_label')}</label>
             <input
               type="text"
-              placeholder="ex: Réserve d'épargne du mois"
+              placeholder={t('modals.transfert.note_placeholder')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -147,7 +149,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -155,7 +157,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
               className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>Transférer</span>
+              <span>{t('modals.transfert.submit')}</span>
             </button>
           </div>
         </form>

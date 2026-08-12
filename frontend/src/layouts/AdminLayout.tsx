@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
   Users,
@@ -33,6 +34,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   activeTab = 'kpis',
   onTabChange,
 }) => {
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useDarkMode('dark');
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
@@ -52,13 +54,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   };
 
   const navItems = [
-    { id: 'kpis', label: 'KPIs Globaux 360°', icon: BarChart3, badge: 'M7' },
-    { id: 'clients', label: 'Gestion des Clients', icon: Users, badge: 'M1' },
-    { id: 'admins', label: 'Équipe Administrateur', icon: ShieldCheck, badge: 'M2' },
-    { id: 'audit', label: 'Journaux d\'Audit', icon: History, badge: 'M3' },
-    { id: 'config', label: 'Configuration Système', icon: Sliders, badge: 'M4' },
-    { id: 'subscriptions', label: 'Abonnements & Paiements', icon: CreditCard, badge: 'M5' },
-    { id: 'fraud', label: 'Surveillance Anti-Fraude', icon: AlertOctagon, badge: 'M6', alert: true },
+    { id: 'kpis', label: t('admin.layout.nav.kpis'), icon: BarChart3, badge: 'M7' },
+    { id: 'clients', label: t('admin.layout.nav.clients'), icon: Users, badge: 'M1' },
+    { id: 'admins', label: t('admin.layout.nav.admins'), icon: ShieldCheck, badge: 'M2' },
+    { id: 'audit', label: t('admin.layout.nav.audit'), icon: History, badge: 'M3' },
+    { id: 'config', label: t('admin.layout.nav.config'), icon: Sliders, badge: 'M4' },
+    { id: 'subscriptions', label: t('admin.layout.nav.subscriptions'), icon: CreditCard, badge: 'M5' },
+    { id: 'fraud', label: t('admin.layout.nav.fraud'), icon: AlertOctagon, badge: 'M6', alert: true },
   ];
 
   return (
@@ -78,7 +80,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 MyNkap Admin
               </span>
               <span className="block text-[10px] font-bold text-primary uppercase tracking-widest">
-                Console de Contrôle
+                {t('admin.layout.brand_subtitle')}
               </span>
             </div>
           </div>
@@ -89,14 +91,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-primary animate-pulse" />
-              <span className="text-xs font-bold text-foreground">Accès Superadmin</span>
+              <span className="text-xs font-bold text-foreground">{t('admin.layout.superadmin_access')}</span>
             </div>
             <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
-              Niveau 3
+              {t('admin.layout.level_3')}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground mt-1.5 leading-tight">
-            Privilèges élevés : Gestion système, audit complet et contrôle anti-fraude.
+            {t('admin.layout.privileges_desc')}
           </p>
         </div>
 
@@ -138,7 +140,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           >
             <span className="flex items-center gap-2">
               {theme === 'light' ? <Moon className="h-4 w-4 text-secondary" /> : <Sun className="h-4 w-4 text-secondary" />}
-              <span>{theme === 'light' ? 'Mode Sombre' : 'Mode Clair'}</span>
+              <span>{theme === 'light' ? t('admin.layout.dark_mode') : t('admin.layout.light_mode')}</span>
             </span>
             <span className="text-[10px] text-muted-foreground uppercase">{theme}</span>
           </button>
@@ -148,7 +150,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors"
           >
             <LogOut className="h-4 w-4" />
-            <span>Quitter la Console Admin</span>
+            <span>{t('admin.layout.logout_console')}</span>
           </button>
         </div>
       </aside>
@@ -183,7 +185,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           <div className="flex justify-between items-center pb-4 border-b border-border">
             <div className="flex items-center gap-3">
               <Shield className="h-7 w-7 text-primary" />
-              <span className="text-xl font-black text-primary">Console Admin</span>
+              <span className="text-xl font-black text-primary">{t('admin.layout.console_admin')}</span>
             </div>
             <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-xl bg-muted">
               <X className="h-6 w-6" />
@@ -216,7 +218,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             className="w-full py-3 rounded-xl bg-destructive/10 text-destructive font-bold flex items-center justify-center gap-2"
           >
             <LogOut className="h-5 w-5" />
-            <span>Déconnexion</span>
+            <span>{t('dashboard.logout')}</span>
           </button>
         </div>
       )}
@@ -227,11 +229,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         <header className="hidden md:flex items-center justify-between h-16 px-8 border-b border-border bg-card sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-black text-foreground uppercase tracking-wider">
-              {navItems.find(i => i.id === activeTab)?.label || 'Console Admin'}
+              {navItems.find(i => i.id === activeTab)?.label || t('admin.layout.console_admin')}
             </h1>
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
               <Lock className="h-3 w-3" />
-              <span>Environnement Sécurisé SSL</span>
+              <span>{t('admin.layout.secure_env')}</span>
             </span>
           </div>
 
@@ -246,8 +248,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 A
               </div>
               <div className="text-left">
-                <span className="block text-xs font-bold leading-tight">Administrateur Principal</span>
-                <span className="block text-[10px] text-primary font-semibold leading-tight">Superadmin (Niveau 3)</span>
+                <span className="block text-xs font-bold leading-tight">{t('admin.layout.main_admin')}</span>
+                <span className="block text-[10px] text-primary font-semibold leading-tight">{t('admin.layout.superadmin_level')}</span>
               </div>
             </div>
           </div>

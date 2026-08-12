@@ -6,11 +6,13 @@ import {
   HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff, Wallet, RefreshCw,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type { TokenResponse, Client } from '../types';
 import { OtpVerificationStep } from '../components/OtpVerificationStep';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useDarkMode } from '../hooks/useDarkMode';
 
 // Décode la charge utile d'un jeton d'identité Google (JWT) côté client,
@@ -30,31 +32,38 @@ const decoderProfilGoogle = (credential: string): { email: string; prenom: strin
   }
 };
 
-// Bandeau de confiance défilant (section "Conçu pour la sécurité...")
-const TRUST_PILLS: { icon: LucideIcon; titre: string; description: string }[] = [
-  { icon: Globe, titre: 'XAF', description: 'Devise native Afrique Centrale' },
-  { icon: Users, titre: 'Mobile Money', description: 'Orange Money & MTN MoMo intégrés' },
-  { icon: Database, titre: '0 écart', description: 'Aucune incohérence de solde tolérée' },
-  { icon: Lock, titre: 'Chiffré', description: 'Données protégées de bout en bout' },
-  { icon: Shield, titre: '2FA', description: 'Double authentification par e-mail' },
-  { icon: Check, titre: 'Historique inaltérable', description: 'Aucune transaction supprimable' },
-  { icon: TrendingUp, titre: 'Patrimoine en temps réel', description: 'Calculé à chaque opération' },
+// Bandeau de confiance défilant (section "Conçu pour la sécurité...") — la
+// clé pointe vers landing.trust.<key>_title / _desc dans les fichiers de
+// traduction (le composant n'a pas de hook useTranslation ici, il n'est
+// jamais rendu directement).
+const TRUST_PILLS: { icon: LucideIcon; key: string }[] = [
+  { icon: Globe, key: 'xaf' },
+  { icon: Users, key: 'mobile_money' },
+  { icon: Database, key: 'zero_gap' },
+  { icon: Lock, key: 'encrypted' },
+  { icon: Shield, key: 'two_fa' },
+  { icon: Check, key: 'immutable_history' },
+  { icon: TrendingUp, key: 'realtime_wealth' },
 ];
 
 // Bouton de bascule de thème
-const ThemeToggle = ({ theme, toggleTheme }: { theme: string; toggleTheme: () => void }) => (
-  <button
-    onClick={toggleTheme}
-    aria-label={theme === 'light' ? 'Activer le mode sombre' : 'Activer le mode clair'}
-    className="p-2 rounded-xl bg-muted hover:bg-accent text-foreground border border-border transition-colors duration-150"
-    title="Changer de thème"
-  >
-    {theme === 'light' ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-secondary" />}
-  </button>
-);
+const ThemeToggle = ({ theme, toggleTheme }: { theme: string; toggleTheme: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={toggleTheme}
+      aria-label={theme === 'light' ? t('common.enable_dark_mode') : t('common.enable_light_mode')}
+      className="p-2 rounded-xl bg-muted hover:bg-accent text-foreground border border-border transition-colors duration-150"
+      title={t('common.toggle_theme')}
+    >
+      {theme === 'light' ? <Moon className="h-5 w-5 text-muted-foreground" /> : <Sun className="h-5 w-5 text-secondary" />}
+    </button>
+  );
+};
 
 // En-tête partagé par la landing page et la page À propos
 const SiteHeader = () => {
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useDarkMode();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -71,33 +80,35 @@ const SiteHeader = () => {
 
         {/* Desktop Nav Links */}
         <nav className="hidden lg:flex items-center gap-8">
-          <a href="/#ia" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Intelligence Artificielle</a>
-          <a href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
-          <a href="/#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Tarifs</a>
-          <Link to="/a-propos" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">À propos</Link>
-          <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
+          <a href="/#ia" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.ai')}</a>
+          <a href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.features')}</a>
+          <a href="/#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</a>
+          <Link to="/a-propos" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.about')}</Link>
+          <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.contact')}</Link>
         </nav>
 
         {/* CTA & Theme toggle */}
         <div className="hidden lg:flex items-center gap-4">
+          <LanguageSwitcher />
           <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
           <Link to="/login" className="text-sm font-semibold hover:text-primary transition-colors">
-            Connexion
+            {t('nav.login')}
           </Link>
           <Link
             to="/register"
             className="bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 px-5 rounded-xl transition-all shadow-sm"
           >
-            S'inscrire
+            {t('nav.register')}
           </Link>
         </div>
 
         {/* Mobile Menu Toggle */}
         <div className="flex items-center gap-4 lg:hidden">
+          <LanguageSwitcher />
           <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-label={mobileMenuOpen ? t('common.close_menu') : t('common.open_menu')}
             aria-expanded={mobileMenuOpen}
             className="p-2 text-muted-foreground hover:text-foreground"
           >
@@ -109,17 +120,17 @@ const SiteHeader = () => {
       {/* Mobile Navigation Drawer */}
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-border bg-background px-4 pt-4 pb-6 space-y-3 transition-colors duration-200">
-          <a href="/#ia" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Intelligence Artificielle</a>
-          <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Fonctionnalités</a>
-          <a href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Tarifs</a>
-          <Link to="/a-propos" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">À propos</Link>
-          <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">Contact</Link>
+          <a href="/#ia" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.ai')}</a>
+          <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.features')}</a>
+          <a href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.pricing')}</a>
+          <Link to="/a-propos" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.about')}</Link>
+          <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.contact')}</Link>
           <div className="pt-4 border-t border-border flex flex-col gap-3">
             <Link to="/login" className="text-center py-2.5 font-semibold text-sm hover:text-primary transition-colors">
-              Connexion
+              {t('nav.login')}
             </Link>
             <Link to="/register" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-sm">
-              S'inscrire
+              {t('nav.register')}
             </Link>
           </div>
         </div>
@@ -133,7 +144,9 @@ const WHATSAPP_NUMERO = '237677246900';
 const WHATSAPP_LIEN = `https://wa.me/${WHATSAPP_NUMERO}`;
 
 // Pied de page partagé par la landing page et la page À propos
-const SiteFooter = () => (
+const SiteFooter = () => {
+  const { t } = useTranslation();
+  return (
   <footer className="bg-background text-muted-foreground transition-colors duration-200 border-t border-border pt-16 pb-12">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -146,7 +159,7 @@ const SiteFooter = () => (
             <span className="text-xl font-black text-foreground">MyNkap</span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
-            L'application intelligente d'analyse financière et de suivi budgétaire conçue pour le marché d'Afrique Centrale. Centralisez vos comptes Orange Money, MTN MoMo, cartes bancaires et cash.
+            {t('footer.description')}
           </p>
 
           {/* Réseaux sociaux */}
@@ -171,30 +184,30 @@ const SiteFooter = () => (
 
         {/* Colonne 2: Produit */}
         <div className="md:col-span-2 space-y-4">
-          <h4 className="text-sm font-bold text-foreground">Produit</h4>
+          <h4 className="text-sm font-bold text-foreground">{t('footer.product_title')}</h4>
           <ul className="space-y-2 text-xs">
-            <li><a href="/#features" className="hover:text-foreground transition-colors">Fonctionnalités</a></li>
-            <li><a href="/#ia" className="hover:text-foreground transition-colors">Intelligence Artificielle</a></li>
-            <li><a href="/#pricing" className="hover:text-foreground transition-colors">Tarifs & Offres</a></li>
-            <li><a href="#" className="hover:text-foreground transition-colors">Mises à jour</a></li>
+            <li><a href="/#features" className="hover:text-foreground transition-colors">{t('nav.features')}</a></li>
+            <li><a href="/#ia" className="hover:text-foreground transition-colors">{t('nav.ai')}</a></li>
+            <li><a href="/#pricing" className="hover:text-foreground transition-colors">{t('nav.pricing')}</a></li>
+            <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.updates')}</a></li>
           </ul>
         </div>
 
         {/* Colonne 3: Ressources */}
         <div className="md:col-span-2 space-y-4">
-          <h4 className="text-sm font-bold text-foreground">Ressources</h4>
+          <h4 className="text-sm font-bold text-foreground">{t('footer.resources_title')}</h4>
           <ul className="space-y-2 text-xs">
-            <li><Link to="/a-propos" className="hover:text-foreground transition-colors">À propos</Link></li>
-            <li><Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link></li>
-            <li><a href="/#about" className="hover:text-foreground transition-colors">Principes Comptables</a></li>
-            <li><a href="#" className="hover:text-foreground transition-colors">Centre d'aide</a></li>
-            <li><a href="#" className="hover:text-foreground transition-colors">API Développeurs</a></li>
+            <li><Link to="/a-propos" className="hover:text-foreground transition-colors">{t('nav.about')}</Link></li>
+            <li><Link to="/contact" className="hover:text-foreground transition-colors">{t('nav.contact')}</Link></li>
+            <li><a href="/#about" className="hover:text-foreground transition-colors">{t('footer.accounting_principles')}</a></li>
+            <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.help_center')}</a></li>
+            <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.developer_api')}</a></li>
           </ul>
         </div>
 
         {/* Colonne 4: Support & Localisation */}
         <div className="md:col-span-4 space-y-4">
-          <h4 className="text-sm font-bold text-foreground">Support & Contact</h4>
+          <h4 className="text-sm font-bold text-foreground">{t('footer.support_title')}</h4>
           <ul className="space-y-2.5 text-xs">
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-primary" />
@@ -215,14 +228,14 @@ const SiteFooter = () => (
             </li>
             <li className="flex items-center gap-2">
               <HelpCircle className="h-4 w-4 text-secondary" />
-              <span className="text-muted-foreground">Yaoundé / Douala, Cameroun</span>
+              <span className="text-muted-foreground">{t('footer.location')}</span>
             </li>
           </ul>
           {/* Badge Sécurisé */}
           <div className="pt-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold uppercase tracking-wider">
               <Shield className="h-3 w-3" />
-              Données Chiffrées
+              {t('footer.encrypted_data')}
             </span>
           </div>
         </div>
@@ -233,32 +246,33 @@ const SiteFooter = () => (
       <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="text-left space-y-2 max-w-2xl">
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            <strong>Avertissement légal :</strong> MyNkap est un outil d'analyse et de planification financière personnelle. L'application ne gère aucun dépôt de fonds réels, n'effectue aucun transfert monétaire réel et ne détient pas de licence d'établissement bancaire. Les transactions doivent être renseignées par l'utilisateur.
+            <strong>{t('footer.legal_disclaimer_label')}</strong> {t('footer.legal_disclaimer')}
           </p>
           <p className="text-xs">
-            &copy; {new Date().getFullYear()} MyNkap SaaS. Conçu pour le marché africain. Tous droits réservés.
+            {t('footer.copyright', { annee: new Date().getFullYear() })}
           </p>
         </div>
 
         <div className="flex gap-4 text-xs font-semibold whitespace-nowrap">
-          <a href="#" className="hover:text-foreground transition-colors">Confidentialité</a>
-          <a href="#" className="hover:text-foreground transition-colors">Conditions</a>
+          <a href="#" className="hover:text-foreground transition-colors">{t('footer.privacy')}</a>
+          <a href="#" className="hover:text-foreground transition-colors">{t('footer.terms')}</a>
         </div>
       </div>
 
     </div>
   </footer>
-);
+  );
+};
+
+type PhaseDemoIA = 'question' | 'reflexion' | 'reponse' | 'pause';
 
 // Démo animée de l'assistant IA (section "Intelligence Artificielle") : la
 // question puis la réponse s'affichent lettre par lettre, en boucle continue,
 // pour simuler une vraie conversation en train de s'écrire.
-const IA_DEMO_QUESTION = "Puis-je me permettre d'acheter un téléphone à 250 000 XAF ce mois-ci ?";
-const IA_DEMO_REPONSE = "En analysant vos revenus (800 000 XAF) et vos dépenses fixes actuelles (300 000 XAF), oui vous le pouvez. Cependant, cela réduira votre objectif d'épargne 'Terrain Douala' de 12% ce mois-ci. Je vous recommande d'attendre le 5 du mois prochain.";
-
-type PhaseDemoIA = 'question' | 'reflexion' | 'reponse' | 'pause';
-
 const AiChatDemo = () => {
+  const { t } = useTranslation();
+  const demoQuestion = t('landing.ia.demo_question');
+  const demoReponse = t('landing.ia.demo_answer');
   const [phase, setPhase] = useState<PhaseDemoIA>('question');
   const [question, setQuestion] = useState('');
   const [reponse, setReponse] = useState('');
@@ -285,7 +299,7 @@ const AiChatDemo = () => {
         setQuestion('');
         setReponse('');
         setPhase('question');
-        await ecrireProgressivement(IA_DEMO_QUESTION, setQuestion, 35);
+        await ecrireProgressivement(demoQuestion, setQuestion, 35);
         if (annule) return;
 
         await attendre(600);
@@ -295,7 +309,7 @@ const AiChatDemo = () => {
         if (annule) return;
 
         setPhase('reponse');
-        await ecrireProgressivement(IA_DEMO_REPONSE, setReponse, 18);
+        await ecrireProgressivement(demoReponse, setReponse, 18);
         if (annule) return;
 
         setPhase('pause');
@@ -308,7 +322,7 @@ const AiChatDemo = () => {
       annule = true;
       clearTimeout(idTimeout);
     };
-  }, []);
+  }, [demoQuestion, demoReponse]);
 
   return (
     <div className="w-full max-w-sm bg-card rounded-2xl shadow-xl border border-border p-6 space-y-4 text-left">
@@ -317,10 +331,10 @@ const AiChatDemo = () => {
           <Sparkles className="w-6 h-6" />
         </div>
         <div>
-          <h4 className="font-bold text-sm">Assistant Financier IA</h4>
+          <h4 className="font-bold text-sm">{t('landing.ia.demo_title')}</h4>
           <span className="text-xs text-green-500 flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
-            En ligne
+            {t('landing.ia.demo_online')}
           </span>
         </div>
       </div>
@@ -332,7 +346,7 @@ const AiChatDemo = () => {
               "{question}
               {phase === 'question' && <span className="animate-pulse">▌</span>}"
             </div>
-            <span className="text-[10px] text-muted-foreground mt-1">Vous, 14:58</span>
+            <span className="text-[10px] text-muted-foreground mt-1">{t('landing.ia.demo_you')}</span>
           </div>
         )}
 
@@ -352,7 +366,7 @@ const AiChatDemo = () => {
               "{reponse}
               {phase === 'reponse' && <span className="animate-pulse">▌</span>}"
             </div>
-            <span className="text-[10px] text-muted-foreground mt-1">Assistant IA, 14:59</span>
+            <span className="text-[10px] text-muted-foreground mt-1">{t('landing.ia.demo_assistant')}</span>
           </div>
         )}
       </div>
@@ -361,10 +375,10 @@ const AiChatDemo = () => {
         <div className="flex gap-2 bg-muted p-2 rounded-xl border border-border">
           <input
             disabled
-            placeholder="Posez une question financière à l'IA..."
+            placeholder={t('landing.ia.demo_placeholder')}
             className="bg-transparent border-none text-xs flex-1 outline-none text-muted-foreground"
           />
-          <button className="bg-primary text-primary-foreground p-1.5 rounded-lg" aria-label="Envoyer">
+          <button className="bg-primary text-primary-foreground p-1.5 rounded-lg" aria-label={t('landing.ia.demo_send')}>
             <MessageSquare className="w-4 h-4" />
           </button>
         </div>
@@ -374,6 +388,7 @@ const AiChatDemo = () => {
 };
 
 const LandingPage = () => {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
       {/* 1. Header (Navigation) */}
@@ -385,27 +400,27 @@ const LandingPage = () => {
           <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
               <Sparkles className="h-4 w-4" />
-              <span>Nouveau : Prise en charge native de Mobile Money</span>
+              <span>{t('landing.hero.badge')}</span>
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
-              Contrôlez Votre <span className="text-primary">Budget</span> Et Vos <span className="text-secondary">Finances</span> Facilement
+              {t('landing.hero.title_part1')} <span className="text-primary">{t('landing.hero.title_budget')}</span> {t('landing.hero.title_part2')} <span className="text-secondary">{t('landing.hero.title_finances')}</span> {t('landing.hero.title_part3')}
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              MyNkap est l'application intelligente conçue spécifiquement pour le marché d'Afrique Centrale. Centralisez vos comptes Orange Money, MTN MoMo, bancaires et cash au même endroit avec l'aide de notre assistant financier propulsé par l'intelligence artificielle.
+              {t('landing.hero.subtitle')}
             </p>
             <div className="flex flex-wrap justify-center gap-4 pt-2">
               <a
                 href="/register"
                 className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-3.5 px-8 rounded-xl transition-all shadow-md flex items-center gap-2 group"
               >
-                <span>Essayer Gratuitement</span>
+                <span>{t('landing.hero.cta_primary')}</span>
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </a>
               <a
                 href="#ia"
                 className="bg-card hover:bg-muted text-foreground border border-border font-bold py-3.5 px-8 rounded-xl transition-all shadow-sm"
               >
-                Découvrir l'IA
+                {t('landing.hero.cta_secondary')}
               </a>
             </div>
           </div>
@@ -416,7 +431,7 @@ const LandingPage = () => {
       <section className="py-12 bg-muted transition-colors duration-200 border-y border-border overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-8">
-            Conçu pour la sécurité et la fiabilité financière au quotidien
+            {t('landing.trust.tagline')}
           </p>
         </div>
 
@@ -428,8 +443,8 @@ const LandingPage = () => {
                   <pill.icon className="h-5 w-5" />
                 </span>
                 <div className="text-left leading-tight">
-                  <span className="block text-sm font-bold text-foreground whitespace-nowrap">{pill.titre}</span>
-                  <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{pill.description}</span>
+                  <span className="block text-sm font-bold text-foreground whitespace-nowrap">{t(`landing.trust.${pill.key}_title`)}</span>
+                  <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{t(`landing.trust.${pill.key}_desc`)}</span>
                 </div>
                 <span className="text-border pl-7 select-none">•</span>
               </div>
@@ -451,18 +466,18 @@ const LandingPage = () => {
             {/* Right Column (Content) */}
             <div className="lg:col-span-7 space-y-6 text-left">
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                Prenez des décisions éclairées grâce à l'<span className="text-primary">Intelligence Artificielle</span>
+                {t('landing.ia.title_part1')} <span className="text-primary">{t('landing.ia.title_highlight')}</span>
               </h2>
               <p className="text-base text-muted-foreground leading-relaxed">
-                Notre assistant IA n'est pas un simple chatbot. Il est directement connecté à vos flux financiers enregistrés. Il apprend de vos habitudes de consommation pour vous proposer des conseils d'épargne personnalisés, anticiper vos découverts et automatiser la saisie par commande vocale.
+                {t('landing.ia.description')}
               </p>
-              
+
               <ul className="space-y-3.5">
                 {[
-                  "Saisie vocale en langage naturel via dictée",
-                  "Prédiction des risques de dépassement budgétaire",
-                  "Conseils personnalisés d'allocation d'épargne",
-                  "Détection automatique de doublons ou transactions suspectes"
+                  t('landing.ia.point1'),
+                  t('landing.ia.point2'),
+                  t('landing.ia.point3'),
+                  t('landing.ia.point4'),
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-center gap-3 text-sm">
                     <div className="p-1 bg-primary/10 text-primary rounded-full">
@@ -483,20 +498,20 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-6">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Simplifiez Votre Portefeuille, Suivez Vos <span className="text-secondary">Comptes</span> Sans Effort
+              {t('landing.features.title_part1')} <span className="text-secondary">{t('landing.features.title_highlight')}</span> {t('landing.features.title_part2')}
             </h2>
             <p className="text-base text-muted-foreground leading-relaxed">
-              Fini le désordre des relevés sur plusieurs téléphones ou banques. Avec MyNkap, vous disposez d'un compte principal agrégateur qui additionne automatiquement l'ensemble de votre patrimoine brut en temps réel.
+              {t('landing.features.description')}
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 w-full text-left">
               <div className="p-5 bg-card rounded-2xl border border-border shadow-sm">
-                <div className="text-primary font-bold text-lg mb-2">Mobile Money</div>
-                <p className="text-xs text-muted-foreground">MTN MoMo et Orange Money intégrés pour suivre vos transferts et recharges instantanément.</p>
+                <div className="text-primary font-bold text-lg mb-2">{t('landing.features.mobile_money_title')}</div>
+                <p className="text-xs text-muted-foreground">{t('landing.features.mobile_money_desc')}</p>
               </div>
               <div className="p-5 bg-card rounded-2xl border border-border shadow-sm">
-                <div className="text-secondary font-bold text-lg mb-2">Comptes Épargne</div>
-                <p className="text-xs text-muted-foreground">Chaque objectif d'épargne possède un compte d'épargne dédié créé automatiquement.</p>
+                <div className="text-secondary font-bold text-lg mb-2">{t('landing.features.savings_title')}</div>
+                <p className="text-xs text-muted-foreground">{t('landing.features.savings_desc')}</p>
               </div>
             </div>
           </div>
@@ -512,21 +527,21 @@ const LandingPage = () => {
             <div className="lg:col-span-7 space-y-6 text-left order-last lg:order-first">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold uppercase tracking-wide">
                 <Sparkles className="h-3.5 w-3.5" />
-                Nouveau
+                {t('landing.tontines.badge')}
               </span>
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                Vos <span className="text-secondary">tontines</span> enfin organisées, sans jamais toucher à votre argent
+                {t('landing.tontines.title_part1')} <span className="text-secondary">{t('landing.tontines.title_highlight')}</span> {t('landing.tontines.title_part2')}
               </h2>
               <p className="text-base text-muted-foreground leading-relaxed">
-                MyNkap ne détient jamais l'argent de votre tontine ou njangi — l'argent continue de circuler entre vous, comme toujours. L'application se charge simplement de ce qui est fastidieux à tenir à la main : qui a cotisé, à qui c'est le tour, et quand.
+                {t('landing.tontines.description')}
               </p>
 
               <ul className="space-y-3.5">
                 {[
-                  "Rotation des tours générée automatiquement selon l'ordre des membres",
-                  "Suivi des cotisations versées, tour par tour",
-                  "Calendrier des échéances hebdomadaires ou mensuelles",
-                  "Historique complet conservé, même après la clôture d'un tour",
+                  t('landing.tontines.point1'),
+                  t('landing.tontines.point2'),
+                  t('landing.tontines.point3'),
+                  t('landing.tontines.point4'),
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-center gap-3 text-sm">
                     <div className="p-1 bg-secondary/10 text-secondary rounded-full">
@@ -544,14 +559,14 @@ const LandingPage = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-secondary" />
-                    <span className="font-bold text-sm">Tontine du quartier</span>
+                    <span className="font-bold text-sm">{t('landing.tontines.card_name')}</span>
                   </div>
                   <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary">ACTIVE</span>
                 </div>
                 <div className="p-3 rounded-xl bg-secondary/5 border border-secondary/20 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <RefreshCw className="h-4 w-4 text-secondary" />
-                    <span className="text-xs font-semibold">Tour 2/5 — Awa</span>
+                    <span className="text-xs font-semibold">{t('landing.tontines.card_turn')}</span>
                   </div>
                   <span className="text-xs font-black text-secondary">25 000 XAF</span>
                 </div>
@@ -565,7 +580,7 @@ const LandingPage = () => {
                     <div key={m.nom} className="flex items-center gap-2 text-xs">
                       <div className={`h-2 w-2 rounded-full ${m.ok ? 'bg-forest-500' : 'bg-muted-foreground/30'}`} />
                       <span className={m.ok ? 'text-foreground font-semibold' : 'text-muted-foreground'}>{m.nom}</span>
-                      <span className="ml-auto text-muted-foreground">{m.ok ? 'Versé' : 'En attente'}</span>
+                      <span className="ml-auto text-muted-foreground">{m.ok ? t('landing.tontines.member_paid') : t('landing.tontines.member_pending')}</span>
                     </div>
                   ))}
                 </div>
@@ -581,10 +596,10 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
           <div className="max-w-2xl mx-auto space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Rigueur Comptable & Financière Stricte
+              {t('landing.rigor.title')}
             </h2>
             <p className="text-base text-muted-foreground leading-relaxed">
-              MyNkap repose sur les principes de la comptabilité moderne pour vous garantir une traçabilité sans faille et une image fidèle de votre situation patrimoniale brute et nette.
+              {t('landing.rigor.subtitle')}
             </p>
           </div>
 
@@ -593,9 +608,9 @@ const LandingPage = () => {
               <div className="p-3 bg-primary/10 text-primary w-12 h-12 rounded-xl flex justify-center items-center">
                 <Database className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold">Immuabilité des flux</h3>
+              <h3 className="text-lg font-bold">{t('landing.rigor.immutability_title')}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Une transaction enregistrée ne peut jamais être supprimée directement. Toutes les corrections s'effectuent par transaction d'annulation inverse, assurant un historique d'audit inaltérable.
+                {t('landing.rigor.immutability_desc')}
               </p>
             </div>
 
@@ -603,9 +618,9 @@ const LandingPage = () => {
               <div className="p-3 bg-secondary/10 text-secondary w-12 h-12 rounded-xl flex justify-center items-center">
                 <TrendingUp className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold">Patrimoine Net Réel</h3>
+              <h3 className="text-lg font-bold">{t('landing.rigor.networth_title')}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Le patrimoine net est calculé dynamiquement : Somme des soldes actifs moins la somme de vos dettes plus la somme de vos créances accordées.
+                {t('landing.rigor.networth_desc')}
               </p>
             </div>
 
@@ -613,9 +628,9 @@ const LandingPage = () => {
               <div className="p-3 bg-primary/10 text-primary w-12 h-12 rounded-xl flex justify-center items-center">
                 <Shield className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold">Opérations Atomiques</h3>
+              <h3 className="text-lg font-bold">{t('landing.rigor.atomic_title')}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Aucun écart de solde n'est toléré. Chaque opération financière (transfert, virement, achat) est exécutée de manière atomique sous forme de transaction SQL.
+                {t('landing.rigor.atomic_desc')}
               </p>
             </div>
           </div>
@@ -627,10 +642,10 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
           <div className="max-w-2xl mx-auto space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Des Plans Adaptés À Vos Besoins
+              {t('landing.pricing.title')}
             </h2>
             <p className="text-base text-muted-foreground leading-relaxed">
-              Choisissez l'offre qui correspond le mieux à votre rythme de gestion financière.
+              {t('landing.pricing.subtitle')}
             </p>
           </div>
 
@@ -638,62 +653,62 @@ const LandingPage = () => {
             {/* Plan Gratuit */}
             <div className="bg-card p-8 rounded-2xl border border-border shadow-sm flex flex-col justify-between text-left relative">
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">GRATUIT</h3>
-                <div className="text-3xl font-extrabold text-primary">0 XAF</div>
-                <p className="text-xs text-muted-foreground">Toute la gestion financière de base, sans limite.</p>
+                <h3 className="text-xl font-bold">{t('landing.pricing.free.name')}</h3>
+                <div className="text-3xl font-extrabold text-primary">{t('landing.pricing.free.price')}</div>
+                <p className="text-xs text-muted-foreground">{t('landing.pricing.free.desc')}</p>
                 <hr className="border-border" />
                 <ul className="space-y-3 text-xs">
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Comptes financiers</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Transactions & Transferts</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Budgets</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Catégories</li>
-                  <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Dettes & Créances, Épargne indisponibles</li>
-                  <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> Analyse, Prédictions et JARVIS indisponibles</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.free.feature1')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.free.feature2')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.free.feature3')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.free.feature4')}</li>
+                  <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> {t('landing.pricing.free.feature5')}</li>
+                  <li className="flex items-center gap-2 text-muted-foreground/60"><Check className="w-4 h-4 text-muted-foreground/40" /> {t('landing.pricing.free.feature6')}</li>
                 </ul>
               </div>
               <Link to="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
-                Commencer
+                {t('landing.pricing.free.cta')}
               </Link>
             </div>
 
             {/* Plan Essentiel */}
             <div className="bg-card p-8 rounded-2xl border-2 border-primary shadow-md flex flex-col justify-between text-left relative transform md:-translate-y-2">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full">
-                Recommandé
+                {t('landing.pricing.recommended')}
               </div>
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">ESSENTIEL</h3>
-                <div className="text-3xl font-extrabold text-primary">1 000 XAF <span className="text-xs font-normal text-muted-foreground">/ mois</span></div>
-                <p className="text-xs text-muted-foreground">10 000 XAF / an (2 mois offerts). Tout le Gratuit, plus :</p>
+                <h3 className="text-xl font-bold">{t('landing.pricing.essential.name')}</h3>
+                <div className="text-3xl font-extrabold text-primary">{t('landing.pricing.essential.price')} <span className="text-xs font-normal text-muted-foreground">{t('landing.pricing.essential.price_suffix')}</span></div>
+                <p className="text-xs text-muted-foreground">{t('landing.pricing.essential.desc')}</p>
                 <hr className="border-border" />
                 <ul className="space-y-3 text-xs">
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Dettes & Créances</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Objectifs d'épargne</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Transactions récurrentes automatiques</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Templates de transaction</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.essential.feature1')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.essential.feature2')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.essential.feature3')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.essential.feature4')}</li>
                 </ul>
               </div>
               <Link to="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
-                Choisir Essentiel
+                {t('landing.pricing.essential.cta')}
               </Link>
             </div>
 
             {/* Plan Premium */}
             <div className="bg-card p-8 rounded-2xl border border-border shadow-sm flex flex-col justify-between text-left relative">
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">PREMIUM</h3>
-                <div className="text-3xl font-extrabold text-primary">2 500 XAF <span className="text-xs font-normal text-muted-foreground">/ mois</span></div>
-                <p className="text-xs text-muted-foreground">25 000 XAF / an (2 mois offerts). Tout l'Essentiel, plus :</p>
+                <h3 className="text-xl font-bold">{t('landing.pricing.premium.name')}</h3>
+                <div className="text-3xl font-extrabold text-primary">{t('landing.pricing.premium.price')} <span className="text-xs font-normal text-muted-foreground">{t('landing.pricing.premium.price_suffix')}</span></div>
+                <p className="text-xs text-muted-foreground">{t('landing.pricing.premium.desc')}</p>
                 <hr className="border-border" />
                 <ul className="space-y-3 text-xs">
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Analyse & Prédictions financières</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Score financier personnalisé</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> JARVIS — chat texte et vocal</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> Conseils financiers personnalisés</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.premium.feature1')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.premium.feature2')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.premium.feature3')}</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.premium.feature4')}</li>
                 </ul>
               </div>
               <Link to="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
-                Choisir Premium
+                {t('landing.pricing.premium.cta')}
               </Link>
             </div>
           </div>
@@ -707,6 +722,7 @@ const LandingPage = () => {
 };
 
 const AboutPage = () => {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
       <SiteHeader />
@@ -716,13 +732,13 @@ const AboutPage = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
             <Sparkles className="h-4 w-4" />
-            <span>À propos de MyNkap</span>
+            <span>{t('about_page.badge')}</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight">
-            Une application pensée pour les finances personnelles en <span className="text-primary">Afrique Centrale</span>
+            {t('about_page.title_part1')} <span className="text-primary">{t('about_page.title_highlight')}</span>
           </h1>
           <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            MyNkap est né d'un constat simple : gérer son argent au quotidien en zone CEMAC (FCFA) — entre Mobile Money, comptes bancaires et espèces — reste éclaté entre plusieurs applications qui ne se parlent pas. MyNkap réunit tout cela en un seul endroit clair et fiable.
+            {t('about_page.subtitle')}
           </p>
         </div>
       </section>
@@ -731,34 +747,34 @@ const AboutPage = () => {
       <section className="py-16 md:py-20 bg-muted border-t border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div className="space-y-4">
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Notre objectif</h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('about_page.goal_title')}</h2>
             <p className="text-base text-muted-foreground leading-relaxed">
-              Donner à chacun une vision claire et fidèle de sa situation financière réelle : combien vous possédez, combien vous devez, combien vous pouvez épargner — sans avoir à additionner mentalement plusieurs comptes Mobile Money, un compte bancaire et de l'argent en espèces.
+              {t('about_page.goal_p1')}
             </p>
             <p className="text-base text-muted-foreground leading-relaxed">
-              MyNkap ne déplace pas d'argent réel : c'est un outil de suivi, de budgétisation et d'analyse. Vous gardez le contrôle total de vos comptes existants, MyNkap vous aide simplement à voir clair.
+              {t('about_page.goal_p2')}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
               <Wallet className="h-6 w-6 text-primary" />
-              <h3 className="text-sm font-bold">Comptes unifiés</h3>
-              <p className="text-xs text-muted-foreground">Mobile Money, banque et espèces au même endroit.</p>
+              <h3 className="text-sm font-bold">{t('about_page.card1_title')}</h3>
+              <p className="text-xs text-muted-foreground">{t('about_page.card1_desc')}</p>
             </div>
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
               <TrendingUp className="h-6 w-6 text-secondary" />
-              <h3 className="text-sm font-bold">Budgets clairs</h3>
-              <p className="text-xs text-muted-foreground">Catégories et plafonds pour garder le cap chaque mois.</p>
+              <h3 className="text-sm font-bold">{t('about_page.card2_title')}</h3>
+              <p className="text-xs text-muted-foreground">{t('about_page.card2_desc')}</p>
             </div>
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
               <Sparkles className="h-6 w-6 text-primary" />
-              <h3 className="text-sm font-bold">Assistant IA</h3>
-              <p className="text-xs text-muted-foreground">Des conseils personnalisés basés sur vos vraies données.</p>
+              <h3 className="text-sm font-bold">{t('about_page.card3_title')}</h3>
+              <p className="text-xs text-muted-foreground">{t('about_page.card3_desc')}</p>
             </div>
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
               <Shield className="h-6 w-6 text-secondary" />
-              <h3 className="text-sm font-bold">Données protégées</h3>
-              <p className="text-xs text-muted-foreground">Chiffrement et double authentification par défaut.</p>
+              <h3 className="text-sm font-bold">{t('about_page.card4_title')}</h3>
+              <p className="text-xs text-muted-foreground">{t('about_page.card4_desc')}</p>
             </div>
           </div>
         </div>
@@ -767,12 +783,12 @@ const AboutPage = () => {
       {/* Pour qui */}
       <section className="py-16 md:py-20 border-t border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Pour qui ?</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('about_page.who_title')}</h2>
           <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            MyNkap s'adresse à toute personne en Afrique Centrale qui utilise Orange Money, MTN MoMo, un ou plusieurs comptes bancaires, et souhaite enfin suivre ses finances personnelles sans jongler entre plusieurs applications ou tableurs.
+            {t('about_page.who_subtitle')}
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            {['Salariés', 'Indépendants & commerçants', 'Étudiants', 'Familles'].map((profil) => (
+            {[t('about_page.profile1'), t('about_page.profile2'), t('about_page.profile3'), t('about_page.profile4')].map((profil) => (
               <span key={profil} className="px-4 py-2 rounded-full bg-muted border border-border text-sm font-semibold">
                 {profil}
               </span>
@@ -784,9 +800,9 @@ const AboutPage = () => {
       {/* Contact */}
       <section className="py-16 md:py-20 bg-muted border-t border-border">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Une question ?</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('about_page.question_title')}</h2>
           <p className="text-base text-muted-foreground leading-relaxed">
-            Notre équipe basée à Yaoundé et Douala vous répond directement sur WhatsApp.
+            {t('about_page.question_subtitle')}
           </p>
           <a
             href={WHATSAPP_LIEN}
@@ -797,7 +813,7 @@ const AboutPage = () => {
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884M20.52 3.449C18.24 1.245 15.24 0 12.05 0 5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.304-1.654a11.888 11.888 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.463-8.452" />
             </svg>
-            <span>Discuter sur WhatsApp — +237 677 246 900</span>
+            <span>{t('about_page.whatsapp_cta')}</span>
           </a>
         </div>
       </section>
@@ -808,6 +824,7 @@ const AboutPage = () => {
 };
 
 const ContactPage = () => {
+  const { t } = useTranslation();
   const [nom, setNom] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -832,13 +849,13 @@ const ContactPage = () => {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
             <MessageSquare className="h-4 w-4" />
-            <span>Contact</span>
+            <span>{t('nav.contact')}</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight">
-            Une question ? <span className="text-primary">Écrivez-nous</span>
+            {t('contact_page.title_part1')} <span className="text-primary">{t('contact_page.title_highlight')}</span>
           </h1>
           <p className="text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto">
-            Remplissez le formulaire ci-dessous : votre message s'ouvre directement dans WhatsApp, prêt à être envoyé à notre équipe.
+            {t('contact_page.subtitle')}
           </p>
         </div>
       </section>
@@ -851,21 +868,21 @@ const ContactPage = () => {
                 <div className="mx-auto w-14 h-14 rounded-full bg-forest-500/10 text-forest-600 dark:text-forest-400 flex items-center justify-center">
                   <Check className="h-7 w-7" />
                 </div>
-                <h2 className="text-xl font-bold">WhatsApp est en train de s'ouvrir</h2>
+                <h2 className="text-xl font-bold">{t('contact_page.opening_title')}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Un nouvel onglet WhatsApp s'est ouvert avec votre message pré-rempli. Il ne reste plus qu'à appuyer sur envoyer.
+                  {t('contact_page.opening_desc')}
                 </p>
                 <button
                   onClick={() => { setEstEnvoye(false); setNom(''); setEmail(''); setMessage(''); }}
                   className="text-sm font-bold text-primary hover:underline"
                 >
-                  Envoyer un autre message
+                  {t('contact_page.send_another')}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="contact_nom" className="text-sm font-medium">Nom complet</label>
+                  <label htmlFor="contact_nom" className="text-sm font-medium">{t('contact_page.full_name')}</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
@@ -874,14 +891,14 @@ const ContactPage = () => {
                       required
                       value={nom}
                       onChange={(e) => setNom(e.target.value)}
-                      placeholder="Votre nom"
+                      placeholder={t('contact_page.full_name_placeholder')}
                       className="w-full bg-background border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="contact_email" className="text-sm font-medium">Adresse e-mail</label>
+                  <label htmlFor="contact_email" className="text-sm font-medium">{t('contact_page.email')}</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
@@ -897,14 +914,14 @@ const ContactPage = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label htmlFor="contact_message" className="text-sm font-medium">Message</label>
+                  <label htmlFor="contact_message" className="text-sm font-medium">{t('contact_page.message')}</label>
                   <textarea
                     id="contact_message"
                     required
                     rows={5}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Comment pouvons-nous vous aider ?"
+                    placeholder={t('contact_page.message_placeholder')}
                     className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
@@ -916,14 +933,14 @@ const ContactPage = () => {
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884M20.52 3.449C18.24 1.245 15.24 0 12.05 0 5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.304-1.654a11.888 11.888 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.463-8.452" />
                   </svg>
-                  <span>Envoyer via WhatsApp</span>
+                  <span>{t('contact_page.send_via_whatsapp')}</span>
                 </button>
               </form>
             )}
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-6">
-            Vous préférez l'e-mail ? Écrivez-nous à{' '}
+            {t('contact_page.prefer_email')}{' '}
             <a href="mailto:support@mynkap.com" className="font-semibold text-primary hover:underline">support@mynkap.com</a>
           </p>
         </div>
@@ -946,11 +963,13 @@ const AuthLayout = ({
   maxWidthClassName?: string;
   children: React.ReactNode;
 }) => {
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useDarkMode();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background text-foreground transition-colors duration-200">
-      <div className="absolute top-6 right-6">
+      <div className="absolute top-6 right-6 flex items-center gap-2">
+        <LanguageSwitcher />
         <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
       </div>
 
@@ -969,7 +988,7 @@ const AuthLayout = ({
         </div>
 
         <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-foreground font-medium mt-6">
-          ← Retour à l'accueil
+          ← {t('auth.back_to_home')}
         </Link>
       </div>
     </div>
@@ -997,6 +1016,7 @@ const PasswordInput = ({
   className,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement>) => {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
 
   return (
@@ -1010,7 +1030,7 @@ const PasswordInput = ({
       <button
         type="button"
         onClick={() => setVisible((prev) => !prev)}
-        aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        aria-label={visible ? t('auth.hide_password') : t('auth.show_password')}
         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
       >
         {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -1020,6 +1040,7 @@ const PasswordInput = ({
 };
 
 const LoginPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const setSession = useAuthStore((state) => state.setSession);
@@ -1049,7 +1070,7 @@ const LoginPage = () => {
       });
       setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Adresse e-mail ou mot de passe incorrect.');
+      setError(err instanceof Error ? err.message : t('auth.login_error_generic'));
     } finally {
       setIsSubmitting(false);
     }
@@ -1069,7 +1090,7 @@ const LoginPage = () => {
       setEmail(decoderProfilGoogle(credential).email);
       setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connexion Google impossible.');
+      setError(err instanceof Error ? err.message : t('auth.google_login_error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -1094,7 +1115,7 @@ const LoginPage = () => {
       navigate(isAdminUser ? '/admin' : '/dashboard');
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : 'Code de vérification invalide ou expiré.';
+      return err instanceof Error ? err.message : t('auth.invalid_otp');
     }
   };
 
@@ -1117,25 +1138,25 @@ const LoginPage = () => {
       }
       return null;
     } catch (err) {
-      return err instanceof Error ? err.message : "Impossible de renvoyer le code.";
+      return err instanceof Error ? err.message : t('auth.resend_error');
     }
   };
 
   return (
     <AuthLayout
-      title={step === 1 ? 'Se connecter à MyNkap' : 'Vérification de sécurité'}
-      subtitle={step === 1 ? 'Accédez à votre tableau de bord financier' : 'Saisissez le code reçu par e-mail'}
+      title={step === 1 ? t('auth.login_title') : t('auth.otp_title')}
+      subtitle={step === 1 ? t('auth.login_subtitle') : t('auth.otp_subtitle')}
     >
       {step === 1 ? (
         <form onSubmit={handleSubmit} className="space-y-4">
           {compteVientDetreCree && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-secondary/10 border border-secondary/20 text-sm text-secondary font-medium">
               <Check className="h-4 w-4 shrink-0" />
-              <span>Compte créé ! Connectez-vous pour continuer.</span>
+              <span>{t('auth.account_created')}</span>
             </div>
           )}
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+            <label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</label>
             <IconInput
               icon={Mail}
               id="email"
@@ -1149,9 +1170,9 @@ const LoginPage = () => {
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
+              <label htmlFor="mot_de_passe" className="text-sm font-medium">{t('auth.password')}</label>
               <Link to="/forgot-password" className="text-xs text-secondary hover:underline font-medium">
-                Mot de passe oublié ?
+                {t('auth.forgot_password')}
               </Link>
             </div>
             <PasswordInput
@@ -1173,17 +1194,17 @@ const LoginPage = () => {
             className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Vérification des identifiants...' : 'Se connecter'}
+            {isSubmitting ? t('auth.checking_credentials') : t('auth.login_button')}
           </button>
 
           <p className="text-center text-sm text-muted-foreground pt-1">
-            Pas encore de compte ?{' '}
-            <Link to="/register" className="text-secondary hover:underline font-medium">Créer un compte</Link>
+            {t('auth.no_account')}{' '}
+            <Link to="/register" className="text-secondary hover:underline font-medium">{t('auth.create_account')}</Link>
           </p>
 
           <div className="flex items-center gap-3 pt-1">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">ou</span>
+            <span className="text-xs text-muted-foreground">{t('auth.or')}</span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
@@ -1255,6 +1276,7 @@ export const AppRoutes: React.FC = () => {
 };
 
 const RegisterPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState('');
@@ -1285,7 +1307,7 @@ const RegisterPage = () => {
     setError(null);
 
     if (motDePasse !== confirmMotDePasse) {
-      setError('Les mots de passe ne correspondent pas.');
+      setError(t('auth.password_mismatch'));
       return;
     }
 
@@ -1307,7 +1329,7 @@ const RegisterPage = () => {
       // établit une session. On redirige vers /login pour ce vrai flux.
       navigate('/login?compte_cree=1');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+      setError(err instanceof Error ? err.message : t('auth.generic_error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -1315,8 +1337,8 @@ const RegisterPage = () => {
 
   return (
     <AuthLayout
-      title="Créer votre compte MyNkap"
-      subtitle="Commencez à maîtriser vos finances en quelques secondes"
+      title={t('auth.register_title')}
+      subtitle={t('auth.register_subtitle')}
       maxWidthClassName="max-w-lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -1324,19 +1346,19 @@ const RegisterPage = () => {
         {prerempliParGoogle && (
           <div className="flex items-center gap-2 p-3 rounded-xl bg-secondary/10 border border-secondary/20 text-sm text-secondary font-medium">
             <Check className="h-4 w-4 shrink-0" />
-            <span>Infos reprises de votre compte Google. Ajoutez votre téléphone et un mot de passe pour terminer.</span>
+            <span>{t('auth.google_prefilled')}</span>
           </div>
         )}
 
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-muted-foreground">ou remplissez le formulaire</span>
+          <span className="text-xs text-muted-foreground">{t('auth.or_fill_form')}</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label htmlFor="first_name" className="text-sm font-medium">Prénom</label>
+            <label htmlFor="first_name" className="text-sm font-medium">{t('auth.first_name')}</label>
             <IconInput
               icon={User}
               id="first_name"
@@ -1349,7 +1371,7 @@ const RegisterPage = () => {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="last_name" className="text-sm font-medium">Nom</label>
+            <label htmlFor="last_name" className="text-sm font-medium">{t('auth.last_name')}</label>
             <IconInput
               icon={User}
               id="last_name"
@@ -1364,7 +1386,7 @@ const RegisterPage = () => {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+          <label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</label>
           <IconInput
             icon={Mail}
             id="email"
@@ -1378,7 +1400,7 @@ const RegisterPage = () => {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="phone" className="text-sm font-medium">Téléphone</label>
+          <label htmlFor="phone" className="text-sm font-medium">{t('auth.phone')}</label>
           <IconInput
             icon={Phone}
             id="phone"
@@ -1393,7 +1415,7 @@ const RegisterPage = () => {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label htmlFor="mot_de_passe" className="text-sm font-medium">Mot de passe</label>
+            <label htmlFor="mot_de_passe" className="text-sm font-medium">{t('auth.password')}</label>
             <PasswordInput
               id="mot_de_passe"
               required
@@ -1405,7 +1427,7 @@ const RegisterPage = () => {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">Confirmer</label>
+            <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">{t('auth.confirm_password')}</label>
             <PasswordInput
               id="confirm_mot_de_passe"
               required
@@ -1426,12 +1448,12 @@ const RegisterPage = () => {
           className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
         >
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isSubmitting ? 'Création du compte...' : 'Créer mon compte'}
+          {isSubmitting ? t('auth.creating_account') : t('auth.create_account_button')}
         </button>
 
         <p className="text-center text-sm text-muted-foreground pt-1">
-          Déjà un compte ?{' '}
-          <Link to="/login" className="text-secondary hover:underline font-medium">Se connecter</Link>
+          {t('auth.already_account')}{' '}
+          <Link to="/login" className="text-secondary hover:underline font-medium">{t('auth.login_button')}</Link>
         </p>
       </form>
     </AuthLayout>
@@ -1439,6 +1461,7 @@ const RegisterPage = () => {
 };
 
 const ForgotPasswordPage = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1455,7 +1478,7 @@ const ForgotPasswordPage = () => {
       });
       setIsSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+      setError(err instanceof Error ? err.message : t('auth.generic_error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -1463,8 +1486,8 @@ const ForgotPasswordPage = () => {
 
   return (
     <AuthLayout
-      title="Mot de passe oublié"
-      subtitle="Indiquez votre e-mail pour recevoir un lien de réinitialisation"
+      title={t('auth.forgot_password_title')}
+      subtitle={t('auth.forgot_password_subtitle')}
     >
       {isSubmitted ? (
         <div className="text-center space-y-4">
@@ -1472,17 +1495,16 @@ const ForgotPasswordPage = () => {
             <Check className="h-6 w-6" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Si un compte existe pour <span className="font-medium text-foreground">{email}</span>, un e-mail de
-            réinitialisation vient de lui être envoyé.
+            {t('auth.forgot_password_sent_part1')} <span className="font-medium text-foreground">{email}</span>{t('auth.forgot_password_sent_part2')}
           </p>
           <Link to="/login" className="block text-sm text-secondary hover:underline font-medium">
-            Retour à la connexion
+            {t('auth.back_to_login')}
           </Link>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-sm font-medium">Adresse e-mail</label>
+            <label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</label>
             <IconInput
               icon={Mail}
               id="email"
@@ -1503,11 +1525,11 @@ const ForgotPasswordPage = () => {
             className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Envoi en cours...' : 'Envoyer le lien de réinitialisation'}
+            {isSubmitting ? t('auth.sending') : t('auth.send_reset_link')}
           </button>
 
           <p className="text-center text-sm text-muted-foreground pt-1">
-            <Link to="/login" className="text-secondary hover:underline font-medium">Retour à la connexion</Link>
+            <Link to="/login" className="text-secondary hover:underline font-medium">{t('auth.back_to_login')}</Link>
           </p>
         </form>
       )}
@@ -1516,6 +1538,7 @@ const ForgotPasswordPage = () => {
 };
 
 const ResetPasswordPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') ?? '';
@@ -1531,7 +1554,7 @@ const ResetPasswordPage = () => {
     setError(null);
 
     if (nouveauMotDePasse !== confirmMotDePasse) {
-      setError('Les mots de passe ne correspondent pas.');
+      setError(t('auth.password_mismatch'));
       return;
     }
 
@@ -1544,18 +1567,18 @@ const ResetPasswordPage = () => {
       setIsSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+      setError(err instanceof Error ? err.message : t('auth.generic_error'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <AuthLayout title="Réinitialiser le mot de passe" subtitle="Choisissez un nouveau mot de passe">
+    <AuthLayout title={t('auth.reset_password_title')} subtitle={t('auth.reset_password_subtitle')}>
       {!token ? (
         <p className="text-sm text-destructive text-center">
-          Ce lien de réinitialisation est invalide. Merci de refaire une demande depuis la page{' '}
-          <Link to="/forgot-password" className="text-secondary hover:underline font-medium">mot de passe oublié</Link>.
+          {t('auth.invalid_reset_link_part1')}{' '}
+          <Link to="/forgot-password" className="text-secondary hover:underline font-medium">{t('auth.invalid_reset_link_cta')}</Link>.
         </p>
       ) : isSuccess ? (
         <div className="text-center space-y-4">
@@ -1563,13 +1586,13 @@ const ResetPasswordPage = () => {
             <Check className="h-6 w-6" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Mot de passe modifié avec succès. Redirection vers la connexion...
+            {t('auth.reset_success')}
           </p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="nouveau_mot_de_passe" className="text-sm font-medium">Nouveau mot de passe</label>
+            <label htmlFor="nouveau_mot_de_passe" className="text-sm font-medium">{t('auth.new_password')}</label>
             <PasswordInput
               id="nouveau_mot_de_passe"
               required
@@ -1581,7 +1604,7 @@ const ResetPasswordPage = () => {
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">Confirmer</label>
+            <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">{t('auth.confirm_password')}</label>
             <PasswordInput
               id="confirm_mot_de_passe"
               required
@@ -1601,7 +1624,7 @@ const ResetPasswordPage = () => {
             className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-primary-foreground font-semibold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Modification en cours...' : 'Réinitialiser le mot de passe'}
+            {isSubmitting ? t('auth.resetting') : t('auth.reset_password_button')}
           </button>
         </form>
       )}

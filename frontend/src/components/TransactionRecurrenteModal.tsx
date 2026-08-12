@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { Categorie, CompteFinancier, TransactionRecurrente } from '../types';
@@ -13,16 +14,17 @@ interface TransactionRecurrenteModalProps {
   recurrence?: TransactionRecurrente | null;
 }
 
-const FREQUENCES: { valeur: TransactionRecurrente['frequence']; label: string }[] = [
-  { valeur: 'HEBDOMADAIRE', label: 'Chaque semaine' },
-  { valeur: 'MENSUELLE', label: 'Chaque mois' },
-  { valeur: 'TRIMESTRIELLE', label: 'Chaque trimestre' },
-  { valeur: 'ANNUELLE', label: 'Chaque année' },
+const FREQUENCE_KEYS: { valeur: TransactionRecurrente['frequence']; labelKey: string }[] = [
+  { valeur: 'HEBDOMADAIRE', labelKey: 'modals.transaction_recurrente.freq_weekly' },
+  { valeur: 'MENSUELLE', labelKey: 'modals.transaction_recurrente.freq_monthly' },
+  { valeur: 'TRIMESTRIELLE', labelKey: 'modals.transaction_recurrente.freq_quarterly' },
+  { valeur: 'ANNUELLE', labelKey: 'modals.transaction_recurrente.freq_yearly' },
 ];
 
 export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProps> = ({
   isOpen, onClose, onSuccess, comptes, categories, recurrence = null,
 }) => {
+  const { t } = useTranslation();
   const modeEdition = recurrence !== null;
 
   const [type, setType] = useState<'DEPENSE' | 'REVENU'>('DEPENSE');
@@ -57,7 +59,7 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
           setProchaineExecution(fraiche.prochaine_execution.slice(0, 10));
           setDateFin(fraiche.date_fin ? fraiche.date_fin.slice(0, 10) : '');
         })
-        .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger cette récurrence.'))
+        .catch((err) => setError(err instanceof Error ? err.message : t('modals.transaction_recurrente.error_load')))
         .finally(() => setIsLoadingDetail(false));
     } else {
       setType('DEPENSE');
@@ -66,6 +68,7 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
       setDateFin('');
       if (comptes.length > 0) setIdCompte(String(comptes[0].id_compte));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, recurrence, comptes]);
 
   useEffect(() => {
@@ -116,7 +119,7 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `${modeEdition ? 'Modification' : 'Création'} de la récurrence impossible.`);
+      setError(err instanceof Error ? err.message : (modeEdition ? t('modals.transaction_recurrente.error_edit') : t('modals.transaction_recurrente.error_create')));
     } finally {
       setIsSubmitting(false);
     }
@@ -126,7 +129,7 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? 'Modifier la récurrence' : 'Planifier une transaction récurrente'}</h3>
+          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? t('modals.transaction_recurrente.title_edit') : t('modals.transaction_recurrente.title_create')}</h3>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -141,10 +144,10 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
             {!modeEdition && (
               <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
                 <button type="button" onClick={() => setType('DEPENSE')} className={`py-2.5 rounded-lg text-xs font-bold transition-all ${type === 'DEPENSE' ? 'bg-destructive text-destructive-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                  Dépense
+                  {t('categories.expense')}
                 </button>
                 <button type="button" onClick={() => setType('REVENU')} className={`py-2.5 rounded-lg text-xs font-bold transition-all ${type === 'REVENU' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                  Revenu
+                  {t('categories.income')}
                 </button>
               </div>
             )}
@@ -152,13 +155,13 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
             {!modeEdition && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Compte</label>
+                  <label className="text-xs font-semibold text-muted-foreground">{t('accounts.title')}</label>
                   <select value={idCompte} onChange={(e) => setIdCompte(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
                     {comptes.map((c) => <option key={c.id_compte} value={c.id_compte}>{c.nom}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Catégorie</label>
+                  <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_detail.category')}</label>
                   <select value={idCategorie} onChange={(e) => setIdCategorie(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
                     {categoriesFiltrees.map((c) => <option key={c.id_categorie} value={c.id_categorie}>{c.nom}</option>)}
                   </select>
@@ -167,29 +170,29 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Montant (XAF)</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette_operation.amount_label')}</label>
               <input type="number" required min={1} value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="ex: 15000" className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Description (facultatif)</label>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="ex: Abonnement Netflix" className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.template_transaction.description_label')}</label>
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('modals.transaction_recurrente.description_placeholder')} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Fréquence</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('tontines.frequency')}</label>
               <select value={frequence} onChange={(e) => setFrequence(e.target.value as TransactionRecurrente['frequence'])} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
-                {FREQUENCES.map((f) => <option key={f.valeur} value={f.valeur}>{f.label}</option>)}
+                {FREQUENCE_KEYS.map((f) => <option key={f.valeur} value={f.valeur}>{t(f.labelKey)}</option>)}
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Prochaine exécution</label>
+                <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_recurrente.next_execution')}</label>
                 <input type="date" required value={prochaineExecution} onChange={(e) => setProchaineExecution(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Fin (facultatif)</label>
+                <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_recurrente.end_date')}</label>
                 <input type="date" value={dateFin} min={prochaineExecution} onChange={(e) => setDateFin(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
             </div>
@@ -197,10 +200,10 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
             {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
             <div className="pt-2 flex gap-3">
-              <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">Annuler</button>
+              <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">{t('common.cancel')}</button>
               <button type="submit" disabled={isSubmitting || !idCompte || !idCategorie} className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50">
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>{modeEdition ? 'Enregistrer' : 'Planifier'}</span>
+                <span>{modeEdition ? t('common.save') : t('modals.transaction_recurrente.submit')}</span>
               </button>
             </div>
           </form>

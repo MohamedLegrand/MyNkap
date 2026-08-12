@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { CompteFinancier } from '../types';
@@ -12,6 +13,7 @@ interface CompteModalProps {
 }
 
 export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuccess, compte = null }) => {
+  const { t } = useTranslation();
   const modeEdition = compte !== null;
 
   const [nom, setNom] = useState('');
@@ -35,7 +37,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
           setNom(frais.nom);
           setType(frais.type as 'MOBILE_MONEY' | 'BANCAIRE' | 'ESPECES');
         })
-        .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger ce compte.'))
+        .catch((err) => setError(err instanceof Error ? err.message : t('modals.compte.error_load')))
         .finally(() => setIsLoadingDetail(false));
     } else if (isOpen) {
       setNom('');
@@ -43,7 +45,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
       setSoldeInitial('');
       setError(null);
     }
-  }, [isOpen, compte]);
+  }, [isOpen, compte, t]);
 
   if (!isOpen) return null;
 
@@ -66,7 +68,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `${modeEdition ? 'Modification' : 'Création'} du compte impossible.`);
+      setError(err instanceof Error ? err.message : (modeEdition ? t('modals.compte.error_edit') : t('modals.compte.error_create')));
     } finally {
       setIsSubmitting(false);
     }
@@ -76,7 +78,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? 'Modifier compte' : 'Créer compte'}</h3>
+          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? t('modals.compte.title_edit') : t('modals.compte.title_create')}</h3>
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -92,11 +94,11 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Nom du compte</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.compte.name_label')}</label>
               <input
                 type="text"
                 required
-                placeholder="ex: Orange Money"
+                placeholder={t('modals.compte.name_placeholder')}
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
                 className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
@@ -104,21 +106,21 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Type de compte</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.compte.type_label')}</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as 'MOBILE_MONEY' | 'BANCAIRE' | 'ESPECES')}
                 className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <option value="MOBILE_MONEY">Mobile Money (Orange, MTN...)</option>
-                <option value="BANCAIRE">Compte bancaire</option>
-                <option value="ESPECES">Espèces / Cash</option>
+                <option value="MOBILE_MONEY">{t('modals.compte.type_mobile_money')}</option>
+                <option value="BANCAIRE">{t('modals.compte.type_bank')}</option>
+                <option value="ESPECES">{t('modals.compte.type_cash')}</option>
               </select>
             </div>
 
             {!modeEdition && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Solde de départ (facultatif)</label>
+                <label className="text-xs font-semibold text-muted-foreground">{t('modals.compte.initial_balance_label')}</label>
                 <input
                   type="number"
                   min={0}
@@ -134,7 +136,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
 
             <div className="pt-2 flex gap-3">
               <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-                Annuler
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -142,7 +144,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
                 className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>{modeEdition ? 'Enregistrer' : 'Créer compte'}</span>
+                <span>{modeEdition ? t('common.save') : t('modals.compte.title_create')}</span>
               </button>
             </div>
           </form>

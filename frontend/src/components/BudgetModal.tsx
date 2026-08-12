@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { Budget, Categorie } from '../types';
@@ -14,14 +15,15 @@ interface BudgetModalProps {
   nomCategorie?: (id: number | null) => string;
 }
 
-const MOIS_LABELS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+const MOIS_KEYS = [
+  'common.month_1', 'common.month_2', 'common.month_3', 'common.month_4', 'common.month_5', 'common.month_6',
+  'common.month_7', 'common.month_8', 'common.month_9', 'common.month_10', 'common.month_11', 'common.month_12',
 ];
 
 export const BudgetModal: React.FC<BudgetModalProps> = ({
   isOpen, onClose, onSuccess, categoriesDepense, budget = null, nomCategorie,
 }) => {
+  const { t } = useTranslation();
   const modeEdition = budget !== null;
   const maintenant = new Date();
   const [idCategorie, setIdCategorie] = useState('');
@@ -58,12 +60,12 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
           setMois(frais.mois);
           setAnnee(frais.annee);
         })
-        .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger ce budget.'))
+        .catch((err) => setError(err instanceof Error ? err.message : t('modals.budget.error_load')))
         .finally(() => setIsLoadingDetail(false));
     } else if (isOpen) {
       setMontantLimite('');
     }
-  }, [isOpen, budget]);
+  }, [isOpen, budget, t]);
 
   if (!isOpen) return null;
 
@@ -88,7 +90,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `${modeEdition ? 'Modification' : 'Définition'} du budget impossible.`);
+      setError(err instanceof Error ? err.message : (modeEdition ? t('modals.budget.error_edit') : t('modals.budget.error_create')));
     } finally {
       setIsSubmitting(false);
     }
@@ -98,7 +100,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? 'Modifier budget' : 'Définir budget'}</h3>
+          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? t('modals.budget.title_edit') : t('modals.budget.title_create')}</h3>
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -114,22 +116,22 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
         ) : !modeEdition && categoriesDepense.length === 0 ? (
           <div className="p-6 space-y-3 text-center">
             <p className="text-sm text-muted-foreground">
-              Créez d'abord une catégorie de dépense pour pouvoir lui définir un budget.
+              {t('modals.budget.no_category_yet')}
             </p>
             <button onClick={onClose} className="text-sm font-bold text-primary hover:underline">
-              Fermer
+              {t('common.close')}
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             {modeEdition ? (
               <p className="text-xs text-muted-foreground">
-                <strong className="text-foreground">{nomCategorie ? nomCategorie(Number(idCategorie)) : `Catégorie #${idCategorie}`}</strong>
-                {' '}— {MOIS_LABELS[mois - 1]} {annee}
+                <strong className="text-foreground">{nomCategorie ? nomCategorie(Number(idCategorie)) : t('modals.budget.category_fallback', { id: idCategorie })}</strong>
+                {' '}— {t(MOIS_KEYS[mois - 1])} {annee}
               </p>
             ) : (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Catégorie de dépense</label>
+                <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.category_label')}</label>
                 <select
                   value={idCategorie}
                   onChange={(e) => setIdCategorie(e.target.value)}
@@ -143,7 +145,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Plafond mensuel (FCFA / XAF)</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.limit_label')}</label>
               <input
                 type="number"
                 required
@@ -159,19 +161,19 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
             {!modeEdition && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Mois</label>
+                  <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.month_label')}</label>
                   <select
                     value={mois}
                     onChange={(e) => setMois(Number(e.target.value))}
                     className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
                   >
-                    {MOIS_LABELS.map((label, idx) => (
-                      <option key={label} value={idx + 1}>{label}</option>
+                    {MOIS_KEYS.map((key, idx) => (
+                      <option key={key} value={idx + 1}>{t(key)}</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Année</label>
+                  <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.year_label')}</label>
                   <input
                     type="number"
                     required
@@ -189,7 +191,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
 
             <div className="pt-2 flex gap-3">
               <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-                Annuler
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -197,7 +199,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
                 className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>{modeEdition ? 'Enregistrer' : 'Définir budget'}</span>
+                <span>{modeEdition ? t('common.save') : t('modals.budget.title_create')}</span>
               </button>
             </div>
           </form>

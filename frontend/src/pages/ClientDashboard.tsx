@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Wallet,
   TrendingUp,
@@ -82,6 +83,7 @@ const joursRestantsEssai = (dateFin: string): number =>
   Math.max(0, Math.ceil((new Date(dateFin).getTime() - Date.now()) / 86_400_000));
 
 export const ClientDashboard: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -150,7 +152,7 @@ export const ClientDashboard: React.FC = () => {
       setCategories(listeCategories);
       setBudgets(listeBudgets);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Impossible de charger votre tableau de bord.');
+      setLoadError(err instanceof Error ? err.message : t('common.error_load_dashboard'));
     } finally {
       setIsLoading(false);
     }
@@ -245,7 +247,7 @@ export const ClientDashboard: React.FC = () => {
   }, [transfertDetailId]);
 
   const nomCategorie = (idCategorie: number | null) =>
-    categories.find((c) => c.id_categorie === idCategorie)?.nom ?? 'Non catégorisé';
+    categories.find((c) => c.id_categorie === idCategorie)?.nom ?? t('common.uncategorized');
   const categorieParId = (idCategorie: number | null) =>
     categories.find((c) => c.id_categorie === idCategorie);
   const nomCompte = (idCompte: number) => comptes.find((c) => c.id_compte === idCompte)?.nom ?? '—';
@@ -265,7 +267,7 @@ export const ClientDashboard: React.FC = () => {
       }
       chargerDonnees();
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Action impossible.');
+      setLoadError(err instanceof Error ? err.message : t('common.error_action'));
     }
   };
 
@@ -279,27 +281,27 @@ export const ClientDashboard: React.FC = () => {
       }
       chargerDonnees();
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Action impossible.');
+      setLoadError(err instanceof Error ? err.message : t('common.error_action'));
     }
   };
 
   const marquerDettePerte = async (dette: Dette) => {
-    if (!window.confirm(`Confirmer que "${dette.nom}" est irrécouvrable ? Cette action est définitive.`)) return;
+    if (!window.confirm(t('debts.confirm_write_off', { nom: dette.nom }))) return;
     try {
       await api.request(`/dettes/${dette.id_dette}/marquer-perte`, { method: 'POST' });
       api.request<Dette[]>('/dettes').then(setDettes).catch(() => {});
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Action impossible.');
+      setLoadError(err instanceof Error ? err.message : t('common.error_action'));
     }
   };
 
   const supprimerDette = async (dette: Dette) => {
-    if (!window.confirm(`Supprimer définitivement "${dette.nom}" de la liste ? Son historique de transactions reste conservé.`)) return;
+    if (!window.confirm(t('debts.confirm_delete', { nom: dette.nom }))) return;
     try {
       await api.request(`/dettes/${dette.id_dette}`, { method: 'DELETE' });
       setDettes((prev) => prev.filter((d) => d.id_dette !== dette.id_dette));
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Suppression impossible.');
+      setLoadError(err instanceof Error ? err.message : t('common.error_delete'));
     }
   };
 
@@ -309,7 +311,7 @@ export const ClientDashboard: React.FC = () => {
       await api.request(`/comptes/${compte.id_compte}/reconcilier`, { method: 'POST' });
       chargerDonnees();
     } catch (err) {
-      setCompteActionError(err instanceof Error ? err.message : 'Réconciliation impossible.');
+      setCompteActionError(err instanceof Error ? err.message : t('accounts.error_reconcile'));
     }
   };
 
@@ -323,7 +325,7 @@ export const ClientDashboard: React.FC = () => {
       }
       chargerDonnees();
     } catch (err) {
-      setCompteActionError(err instanceof Error ? err.message : 'Action impossible.');
+      setCompteActionError(err instanceof Error ? err.message : t('common.error_action'));
     }
   };
 
@@ -361,14 +363,14 @@ export const ClientDashboard: React.FC = () => {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Bonjour {client?.first_name ?? ''} 
+              {t('overview.greeting', { nom: client?.first_name ?? '' })}
             </h2>
             <p className="text-sm text-white/80 max-w-xl leading-relaxed">
-              Voici votre bilan financier consolidé. Votre trésorerie globale s'élève à{' '}
+              {t('overview.summary_prefix')}{' '}
               <strong className="text-violet-300 font-black text-base">
                 {comptePrincipal ? formatMontant(Number(comptePrincipal.solde_total)) : '—'}
               </strong>{' '}
-              répartis sur {comptesActifs.length} compte{comptesActifs.length > 1 ? 's' : ''} actif{comptesActifs.length > 1 ? 's' : ''}.
+              {t('overview.summary_suffix', { count: comptesActifs.length })}
             </p>
           </div>
 
@@ -383,7 +385,7 @@ export const ClientDashboard: React.FC = () => {
                 className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-3 px-5 rounded-xl border border-white/25 backdrop-blur-md transition-all flex items-center gap-2"
               >
                 <Bot className="h-4 w-4" />
-                <span>Demander à JARVIS</span>
+                <span>{t('overview.ask_jarvis')}</span>
               </button>
             </div>
           )}
@@ -401,11 +403,11 @@ export const ClientDashboard: React.FC = () => {
               <Crown className="h-5 w-5" />
             </div>
             <p className="text-sm text-foreground">
-              <strong className="font-bold">Vous bénéficiez de Premium gratuitement pendant 30 jours</strong> — JARVIS et toutes les fonctionnalités inclus, encore{' '}
+              <strong className="font-bold">{t('overview.trial_banner_bold')}</strong> {t('overview.trial_banner_part1')}{' '}
               <strong className="text-primary">
-                {joursRestantsEssai(abonnement.date_fin)} jour{joursRestantsEssai(abonnement.date_fin) > 1 ? 's' : ''}
+                {t('dashboard.days_count', { count: joursRestantsEssai(abonnement.date_fin) })}
               </strong>
-              . Passé ce délai, retour automatique à l'offre Gratuite.
+              . {t('overview.trial_banner_part2')}
             </p>
           </div>
           <div className="flex flex-col items-center sm:items-end gap-1.5 shrink-0">
@@ -422,12 +424,12 @@ export const ClientDashboard: React.FC = () => {
               }}
               className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-5 rounded-xl shadow-md transition-all whitespace-nowrap"
             >
-              Profiter de mes 30 jours Premium
+              {t('overview.enjoy_premium')}
             </button>
             {essaiConfirme && (
               <span className="text-[11px] font-semibold text-forest-600 dark:text-forest-400 flex items-center gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Accès confirmé — notification envoyée
+                {t('overview.access_confirmed')}
               </span>
             )}
           </div>
@@ -437,7 +439,7 @@ export const ClientDashboard: React.FC = () => {
       {loadError && (
         <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center justify-between">
           <span>{loadError}</span>
-          <button onClick={chargerDonnees} className="font-bold underline">Réessayer</button>
+          <button onClick={chargerDonnees} className="font-bold underline">{t('common.retry')}</button>
         </div>
       )}
 
@@ -451,7 +453,7 @@ export const ClientDashboard: React.FC = () => {
           <div className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${abonnement?.plan.acces_dettes ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
               <div className="flex justify-between items-start mb-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Solde Total Agrégé</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.total_balance')}</span>
                 <div className="p-2 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
                   <Wallet className="h-5 w-5" />
                 </div>
@@ -464,7 +466,7 @@ export const ClientDashboard: React.FC = () => {
 
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Revenus (Historique)</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.income_history')}</span>
                 <div className="p-2 rounded-xl bg-forest-500/10 text-forest-600 dark:text-forest-400">
                   <TrendingUp className="h-5 w-5" />
                 </div>
@@ -476,7 +478,7 @@ export const ClientDashboard: React.FC = () => {
 
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Dépenses (Historique)</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.expenses_history')}</span>
                 <div className="p-2 rounded-xl bg-destructive/10 text-destructive">
                   <TrendingDown className="h-5 w-5" />
                 </div>
@@ -488,7 +490,7 @@ export const ClientDashboard: React.FC = () => {
 
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Réserves Épargne</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.savings_reserves')}</span>
                 <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
                   <PiggyBank className="h-5 w-5" />
                 </div>
@@ -498,14 +500,14 @@ export const ClientDashboard: React.FC = () => {
               </p>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 dark:text-orange-400">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>{objectifsEpargne.length} objectif{objectifsEpargne.length > 1 ? 's' : ''}</span>
+                <span>{t('overview.goals_count', { count: objectifsEpargne.length })}</span>
               </div>
             </div>
 
             {abonnement?.plan.acces_dettes && (
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Dettes en Cours</span>
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.debts_ongoing')}</span>
                   <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
                     <HandCoins className="h-5 w-5" />
                   </div>
@@ -515,7 +517,7 @@ export const ClientDashboard: React.FC = () => {
                 </p>
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
                   <HandCoins className="h-3.5 w-3.5" />
-                  <span>{dettesActives.length} dette{dettesActives.length > 1 ? 's' : ''} active{dettesActives.length > 1 ? 's' : ''}</span>
+                  <span>{t('overview.active_debts_count', { count: dettesActives.length })}</span>
                 </div>
               </div>
             )}
@@ -559,7 +561,7 @@ export const ClientDashboard: React.FC = () => {
                   await api.request(`/transactions/${id}/annuler`, { method: 'POST' });
                   chargerDonnees();
                 } catch (err) {
-                  setLoadError(err instanceof Error ? err.message : "Annulation impossible.");
+                  setLoadError(err instanceof Error ? err.message : t('transactions.error_cancel'));
                 }
               }}
               onOpenDetail={(id) => setTransactionDetailId(id)}
@@ -619,18 +621,18 @@ export const ClientDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                     <Wallet className="h-5 w-5 text-primary" />
-                    <span>Mes Comptes Financiers</span>
+                    <span>{t('overview.my_accounts')}</span>
                   </h3>
                 </div>
 
                 {comptesActifs.length === 0 ? (
                   <div className="p-6 rounded-2xl border border-dashed border-border text-center space-y-2">
-                    <p className="text-sm text-muted-foreground">Vous n'avez encore aucun compte financier.</p>
+                    <p className="text-sm text-muted-foreground">{t('overview.no_accounts_yet')}</p>
                     <button
                       onClick={() => setIsCompteModalOpen(true)}
                       className="text-xs font-bold text-primary hover:underline"
                     >
-                      Créer compte
+                      {t('accounts.create')}
                     </button>
                   </div>
                 ) : (
@@ -653,7 +655,7 @@ export const ClientDashboard: React.FC = () => {
                         </div>
 
                         <div className="pt-1 flex items-baseline justify-between border-t border-border/40">
-                          <span className="text-xs font-medium text-muted-foreground">Solde</span>
+                          <span className="text-xs font-medium text-muted-foreground">{t('accounts.balance')}</span>
                           <span className="text-lg font-black text-foreground tabular-nums">
                             {formatMontant(Number(acc.solde))}
                           </span>
@@ -668,13 +670,13 @@ export const ClientDashboard: React.FC = () => {
               <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between border-b border-border pb-4">
                   <div>
-                    <h3 className="text-base font-bold text-foreground">Dernières Transactions</h3>
-                    <p className="text-xs text-muted-foreground">Historique récent des mouvements sur tous vos comptes</p>
+                    <h3 className="text-base font-bold text-foreground">{t('overview.recent_transactions')}</h3>
+                    <p className="text-xs text-muted-foreground">{t('overview.recent_transactions_desc')}</p>
                   </div>
                 </div>
 
                 {transactionsRecentes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Aucune transaction pour le moment.</p>
+                  <p className="text-sm text-muted-foreground text-center py-6">{t('transactions.none_yet')}</p>
                 ) : (
                   <div className="divide-y divide-border">
                     {transactionsRecentes.map((tx) => {
@@ -719,12 +721,12 @@ export const ClientDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <PieChart className="h-4 w-4 text-primary" />
-                    <span>Plafonds Budgétaires</span>
+                    <span>{t('budgets.caps_title')}</span>
                   </h3>
                 </div>
 
                 {budgetsActifs.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Aucun budget défini pour le moment.</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">{t('budgets.none_yet')}</p>
                 ) : (
                   <div className="space-y-4">
                     {budgetsActifs.map((b) => {
@@ -746,13 +748,13 @@ export const ClientDashboard: React.FC = () => {
                           {b.est_depasse && (
                             <p className="text-[11px] font-bold text-destructive flex items-center gap-1 pt-0.5">
                               <AlertTriangle className="h-3 w-3" />
-                              <span>Budget dépassé ({percent}%) !</span>
+                              <span>{t('budgets.exceeded', { percent })}</span>
                             </p>
                           )}
                           {!b.est_depasse && percent >= 80 && (
                             <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-0.5">
                               <AlertTriangle className="h-3 w-3" />
-                              <span>Attention : seuil de 80% dépassé !</span>
+                              <span>{t('budgets.threshold_warning')}</span>
                             </p>
                           )}
                         </div>
@@ -768,12 +770,12 @@ export const ClientDashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <PiggyBank className="h-4 w-4 text-forest-600" />
-                    <span>Objectifs d'Épargne</span>
+                    <span>{t('savings.goals_title')}</span>
                   </h3>
                 </div>
 
                 {objectifsEpargne.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">Aucun objectif d'épargne pour le moment.</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">{t('savings.none_yet')}</p>
                 ) : (
                   <div className="space-y-3">
                     {objectifsEpargne.map((g) => (
@@ -786,8 +788,8 @@ export const ClientDashboard: React.FC = () => {
                           <div className="bg-forest-500 h-full rounded-full transition-all" style={{ width: `${Math.min(g.pourcentage_atteint, 100)}%` }} />
                         </div>
                         <div className="flex justify-between text-[11px] text-muted-foreground">
-                          <span>Actuel : {formatMontant(Number(g.montant_actuel))}</span>
-                          <span>Cible : {formatMontant(Number(g.montant_cible))}</span>
+                          <span>{t('savings.current_amount')} : {formatMontant(Number(g.montant_actuel))}</span>
+                          <span>{t('savings.target_amount')} : {formatMontant(Number(g.montant_cible))}</span>
                         </div>
                       </div>
                     ))}
@@ -915,7 +917,7 @@ export const ClientDashboard: React.FC = () => {
             await api.request(`/transactions/${id}/annuler`, { method: 'POST' });
             chargerDonnees();
           } catch (err) {
-            setLoadError(err instanceof Error ? err.message : 'Annulation impossible.');
+            setLoadError(err instanceof Error ? err.message : t('transactions.error_cancel'));
           }
         }}
       />
@@ -925,7 +927,7 @@ export const ClientDashboard: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-              <h3 className="text-lg font-bold tracking-tight">Détail du transfert</h3>
+              <h3 className="text-lg font-bold tracking-tight">{t('transfers.detail_title')}</h3>
               <button onClick={() => setTransfertDetailId(null)} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                 <X className="h-5 w-5" />
               </button>
@@ -935,15 +937,15 @@ export const ClientDashboard: React.FC = () => {
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : !transfertDetail ? (
-              <p className="p-6 text-sm text-destructive text-center">Transfert introuvable.</p>
+              <p className="p-6 text-sm text-destructive text-center">{t('transfers.not_found')}</p>
             ) : (
               <div className="p-6 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">De</span><strong className="text-foreground">{nomCompte(transfertDetail.id_compte_source)}</strong></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Vers</span><strong className="text-foreground">{nomCompte(transfertDetail.id_compte_destination)}</strong></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Montant</span><strong className="text-foreground">{formatMontant(Number(transfertDetail.montant))}</strong></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Date</span><strong className="text-foreground">{new Date(transfertDetail.date).toLocaleDateString('fr-FR')}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t('transfers.from')}</span><strong className="text-foreground">{nomCompte(transfertDetail.id_compte_source)}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t('transfers.to')}</span><strong className="text-foreground">{nomCompte(transfertDetail.id_compte_destination)}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t('transfers.amount')}</span><strong className="text-foreground">{formatMontant(Number(transfertDetail.montant))}</strong></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t('common.date')}</span><strong className="text-foreground">{new Date(transfertDetail.date).toLocaleDateString('fr-FR')}</strong></div>
                 {transfertDetail.description && (
-                  <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">Description</span><strong className="text-foreground text-right">{transfertDetail.description}</strong></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground shrink-0">{t('common.description')}</span><strong className="text-foreground text-right">{transfertDetail.description}</strong></div>
                 )}
               </div>
             )}
@@ -1029,6 +1031,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
   comptes, transferts, nomCompte, onOpenCompteModal, onOpenTransfertModal, onEditCompte, onReconcilierCompte, onToggleActifCompte,
   onOpenTransfertDetail, actionError,
 }) => {
+  const { t } = useTranslation();
   const comptesActifs = comptes.filter((c) => c.est_actif);
 
   return (
@@ -1036,7 +1039,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-base font-bold text-foreground flex items-center gap-2">
           <Wallet className="h-5 w-5 text-primary" />
-          <span>Mes Comptes Financiers</span>
+          <span>{t('overview.my_accounts')}</span>
         </h3>
         <div className="flex items-center gap-2">
           {/* Un transfert n'a de sens qu'entre deux comptes actifs existants —
@@ -1048,7 +1051,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
               className="bg-muted hover:bg-accent text-foreground font-bold text-xs py-2.5 px-4 rounded-xl border border-border transition-all flex items-center gap-2"
             >
               <ArrowRightLeft className="h-4 w-4" />
-              <span>Transférer entre comptes</span>
+              <span>{t('accounts.transfer_between')}</span>
             </button>
           )}
           <button
@@ -1056,7 +1059,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
             className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            <span>Créer compte</span>
+            <span>{t('accounts.create')}</span>
           </button>
         </div>
       </div>
@@ -1065,7 +1068,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
 
       {comptes.length === 0 ? (
         <div className="p-6 rounded-2xl border border-dashed border-border text-center space-y-2">
-          <p className="text-sm text-muted-foreground">Vous n'avez encore aucun compte financier.</p>
+          <p className="text-sm text-muted-foreground">{t('overview.no_accounts_yet')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1082,17 +1085,17 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
                   <div className="min-w-0">
                     <h4 className="text-sm font-bold text-foreground leading-tight truncate">{acc.nom}</h4>
                     <span className="text-[11px] text-muted-foreground leading-tight">
-                      {acc.type}{!acc.est_actif && ' • Désactivé'}
+                      {acc.type}{!acc.est_actif && ` • ${t('common.disabled')}`}
                     </span>
                   </div>
                 </div>
                 <MenuActions
-                  ariaLabel="Actions du compte"
+                  ariaLabel={t('accounts.actions_aria')}
                   items={[
-                    { label: 'Modifier', icon: Pencil, onClick: () => onEditCompte(acc) },
-                    ...(acc.est_actif ? [{ label: 'Réconcilier le solde', icon: RefreshCw, onClick: () => onReconcilierCompte(acc) }] : []),
+                    { label: t('common.edit'), icon: Pencil, onClick: () => onEditCompte(acc) },
+                    ...(acc.est_actif ? [{ label: t('accounts.reconcile'), icon: RefreshCw, onClick: () => onReconcilierCompte(acc) }] : []),
                     {
-                      label: acc.est_actif ? 'Désactiver' : 'Réactiver',
+                      label: acc.est_actif ? t('common.disable') : t('common.reactivate'),
                       icon: acc.est_actif ? PowerOff : Power,
                       onClick: () => onToggleActifCompte(acc),
                       tone: acc.est_actif ? 'destructive' : 'positive',
@@ -1101,7 +1104,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
                 />
               </div>
               <div className="pt-1 flex items-baseline justify-between border-t border-border/40">
-                <span className="text-xs font-medium text-muted-foreground">Solde</span>
+                <span className="text-xs font-medium text-muted-foreground">{t('accounts.balance')}</span>
                 <span className="text-lg font-black text-foreground tabular-nums">{formatMontant(Number(acc.solde))}</span>
               </div>
             </div>
@@ -1113,22 +1116,22 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <ArrowRightLeft className="h-4 w-4 text-primary" />
-            <span>Historique des transferts</span>
+            <span>{t('transfers.history')}</span>
           </h3>
           <div className="bg-card rounded-2xl border border-border shadow-sm divide-y divide-border">
-            {transferts.map((t) => (
+            {transferts.map((tr) => (
               <button
-                key={t.id_transfert}
-                onClick={() => onOpenTransfertDetail(t.id_transfert)}
+                key={tr.id_transfert}
+                onClick={() => onOpenTransfertDetail(tr.id_transfert)}
                 className="w-full py-3 px-4 flex items-center justify-between hover:bg-muted/30 transition-colors text-left"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-foreground truncate">
-                    {nomCompte(t.id_compte_source)} <ArrowRightLeft className="h-3 w-3 inline mx-1 text-muted-foreground" /> {nomCompte(t.id_compte_destination)}
+                    {nomCompte(tr.id_compte_source)} <ArrowRightLeft className="h-3 w-3 inline mx-1 text-muted-foreground" /> {nomCompte(tr.id_compte_destination)}
                   </p>
-                  <span className="text-xs text-muted-foreground">{new Date(t.date).toLocaleDateString('fr-FR')}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(tr.date).toLocaleDateString('fr-FR')}</span>
                 </div>
-                <span className="text-sm font-black text-foreground tabular-nums shrink-0">{formatMontant(Number(t.montant))}</span>
+                <span className="text-sm font-black text-foreground tabular-nums shrink-0">{formatMontant(Number(tr.montant))}</span>
               </button>
             ))}
           </div>
@@ -1165,16 +1168,17 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
   onEditBudget,
   onToggleActifBudget,
 }) => {
+  const { t } = useTranslation();
   if (comptes.length === 0) {
     return (
       <div className="p-8 rounded-2xl border border-dashed border-border text-center space-y-3">
         <AlertTriangle className="h-8 w-8 mx-auto text-amber-500" />
-        <p className="text-sm font-semibold text-foreground">Créez d'abord un compte financier</p>
+        <p className="text-sm font-semibold text-foreground">{t('budgets.create_account_first')}</p>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-          Les catégories et les budgets s'appliquent à des comptes financiers. Créez votre premier compte pour débloquer ces fonctionnalités.
+          {t('budgets.create_account_first_desc')}
         </p>
         <button onClick={onGoToAccounts} className="text-xs font-bold text-primary hover:underline">
-          Aller à Mes Comptes
+          {t('budgets.go_to_accounts')}
         </button>
       </div>
     );
@@ -1187,19 +1191,19 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground flex items-center gap-2">
             <Tag className="h-5 w-5 text-primary" />
-            <span>Mes Catégories</span>
+            <span>{t('categories.my_categories')}</span>
           </h3>
           <button
             onClick={onOpenCategorieModal}
             className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            <span>Créer catégorie</span>
+            <span>{t('categories.create')}</span>
           </button>
         </div>
 
         {categories.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">Aucune catégorie pour le moment.</p>
+          <p className="text-xs text-muted-foreground text-center py-4">{t('categories.none_yet')}</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {categories.map((c) => (
@@ -1214,13 +1218,13 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
                 }`}
               >
                 <CategorieBadge icone={c.icone} couleur={c.couleur} size="sm" />
-                {c.nom}{!c.est_actif && ' • Désactivée'}
+                {c.nom}{!c.est_actif && ` • ${t('common.disabled_fem')}`}
                 <MenuActions
-                  ariaLabel={`Actions catégorie ${c.nom}`}
+                  ariaLabel={t('categories.actions_aria', { nom: c.nom })}
                   items={[
-                    { label: 'Modifier', icon: Pencil, onClick: () => onEditCategorie(c) },
+                    { label: t('common.edit'), icon: Pencil, onClick: () => onEditCategorie(c) },
                     {
-                      label: c.est_actif ? 'Désactiver' : 'Réactiver',
+                      label: c.est_actif ? t('common.disable') : t('common.reactivate'),
                       icon: c.est_actif ? PowerOff : Power,
                       onClick: () => onToggleActifCategorie(c),
                       tone: c.est_actif ? 'destructive' : 'positive',
@@ -1238,19 +1242,19 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <PieChart className="h-4 w-4 text-primary" />
-            <span>Plafonds Budgétaires</span>
+            <span>{t('budgets.caps_title')}</span>
           </h3>
           <button
             onClick={onOpenBudgetModal}
             className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2 px-3.5 rounded-xl shadow-md transition-all flex items-center gap-2"
           >
             <Plus className="h-3.5 w-3.5" />
-            <span>Définir budget</span>
+            <span>{t('budgets.define')}</span>
           </button>
         </div>
 
         {budgets.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">Aucun budget défini pour le moment.</p>
+          <p className="text-xs text-muted-foreground text-center py-4">{t('budgets.none_yet')}</p>
         ) : (
           <div className="space-y-4">
             {budgets.map((b) => {
@@ -1260,18 +1264,18 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
                 <div key={b.id_budget} className={`space-y-1.5 ${!b.est_actif ? 'opacity-60' : ''}`}>
                   <div className="flex justify-between items-center text-xs font-semibold gap-2">
                     <span className="text-foreground">
-                      {nomCategorie(b.id_categorie)}{!b.est_actif && ' • Désactivé'}
+                      {nomCategorie(b.id_categorie)}{!b.est_actif && ` • ${t('common.disabled')}`}
                     </span>
                     <div className="flex items-center gap-1 shrink-0">
                       <span className="text-muted-foreground">
                         <strong className="text-foreground">{Number(b.montant_depense).toLocaleString('fr-FR')}</strong> / {Number(b.montant_limite).toLocaleString('fr-FR')} XAF
                       </span>
                       <MenuActions
-                        ariaLabel={`Actions budget ${nomCategorie(b.id_categorie)}`}
+                        ariaLabel={t('budgets.actions_aria', { nom: nomCategorie(b.id_categorie) })}
                         items={[
-                          { label: 'Modifier le plafond', icon: Pencil, onClick: () => onEditBudget(b) },
+                          { label: t('budgets.edit_cap'), icon: Pencil, onClick: () => onEditBudget(b) },
                           {
-                            label: b.est_actif ? 'Désactiver' : 'Réactiver',
+                            label: b.est_actif ? t('common.disable') : t('common.reactivate'),
                             icon: b.est_actif ? PowerOff : Power,
                             onClick: () => onToggleActifBudget(b),
                             tone: b.est_actif ? 'destructive' : 'positive',
@@ -1286,13 +1290,13 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
                   {b.est_actif && b.est_depasse && (
                     <p className="text-[11px] font-bold text-destructive flex items-center gap-1 pt-0.5">
                       <AlertTriangle className="h-3 w-3" />
-                      <span>Budget dépassé ({percent}%) !</span>
+                      <span>{t('budgets.exceeded', { percent })}</span>
                     </p>
                   )}
                   {b.est_actif && !b.est_depasse && percent >= 80 && (
                     <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 pt-0.5">
                       <AlertTriangle className="h-3 w-3" />
-                      <span>Attention : seuil de 80% dépassé !</span>
+                      <span>{t('budgets.threshold_warning')}</span>
                     </p>
                   )}
                 </div>
@@ -1341,6 +1345,7 @@ const estCredit = (tx: Transaction, toutes: Transaction[]): boolean => {
 };
 
 const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions, comptes, nomCategorie, nomCompte, onAnnuler, onOpenDetail, onOpenTransactionModal, categorieParId }) => {
+  const { t } = useTranslation();
   const [filtreCompte, setFiltreCompte] = useState('');
   const [filtreType, setFiltreType] = useState('');
 
@@ -1358,7 +1363,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-bold text-foreground flex items-center gap-2">
           <ArrowUpRight className="h-5 w-5 text-primary" />
-          <span>Transactions</span>
+          <span>{t('dashboard.nav.transactions')}</span>
         </h3>
         <div className="flex items-center gap-3 text-xs">
           <button
@@ -1366,7 +1371,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
             className="bg-primary hover:bg-primary/95 text-primary-foreground font-semibold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            <span>Effectuer transaction</span>
+            <span>{t('transactions.make')}</span>
           </button>
           <Filter className="h-3.5 w-3.5 text-muted-foreground" />
           <select
@@ -1374,7 +1379,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
             onChange={(e) => setFiltreCompte(e.target.value)}
             className="bg-background border border-border rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="">Tous les comptes</option>
+            <option value="">{t('transactions.all_accounts')}</option>
             {comptes.map((c) => (
               <option key={c.id_compte} value={c.id_compte}>{c.nom}</option>
             ))}
@@ -1384,16 +1389,16 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
             onChange={(e) => setFiltreType(e.target.value)}
             className="bg-background border border-border rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="">Tous les types</option>
-            <option value="DEPENSE">Dépenses</option>
-            <option value="REVENU">Revenus</option>
+            <option value="">{t('transactions.all_types')}</option>
+            <option value="DEPENSE">{t('transactions.expenses')}</option>
+            <option value="REVENU">{t('transactions.income')}</option>
           </select>
         </div>
       </div>
 
       <div className="bg-card rounded-2xl border border-border shadow-sm">
         {transactionsFiltrees.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-10">Aucune transaction ne correspond.</p>
+          <p className="text-sm text-muted-foreground text-center py-10">{t('transactions.none_match')}</p>
         ) : (
           <div className="divide-y divide-border">
             {transactionsFiltrees.map((tx) => {
@@ -1421,7 +1426,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
                         </h4>
                         {tx.est_suspecte && (
                           <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
-                            Suspecte
+                            {t('transactions.suspicious')}
                           </span>
                         )}
                       </div>
@@ -1440,7 +1445,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
                     {peutAnnuler && (
                       <button
                         onClick={(e) => { e.stopPropagation(); onAnnuler(tx.id_transaction); }}
-                        title="Annuler cette transaction"
+                        title={t('transactions.cancel_this')}
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                       >
                         <Ban className="h-4 w-4" />
@@ -1466,12 +1471,13 @@ interface DettesSectionProps {
 }
 
 const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal, onOperation, onMarquerPerte, onSupprimer }) => {
+  const { t } = useTranslation();
   const dettesDues = dettes.filter((d) => d.type === 'DETTE');
   const creances = dettes.filter((d) => d.type === 'CREANCE');
 
   const renderListe = (liste: Dette[], estDette: boolean) => (
     liste.length === 0 ? (
-      <p className="text-xs text-muted-foreground text-center py-4">Aucune {estDette ? 'dette' : 'créance'} pour le moment.</p>
+      <p className="text-xs text-muted-foreground text-center py-4">{estDette ? t('debts.none_debt_yet') : t('debts.none_claim_yet')}</p>
     ) : (
       <div className="space-y-3">
         {liste.map((d) => {
@@ -1497,13 +1503,13 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">
-                  <strong className="text-foreground">{montantRestant.toLocaleString('fr-FR')}</strong> / {montantTotal.toLocaleString('fr-FR')} XAF restant
+                  <strong className="text-foreground">{montantRestant.toLocaleString('fr-FR')}</strong> / {montantTotal.toLocaleString('fr-FR')} XAF {t('debts.remaining')}
                 </span>
                 {d.date_echeance && (
                   <span className="text-muted-foreground">
                     {d.jours_avant_echeance !== null && d.jours_avant_echeance >= 0
-                      ? `${d.jours_avant_echeance} j restants`
-                      : 'Échéance dépassée'}
+                      ? t('debts.days_left', { count: d.jours_avant_echeance })
+                      : t('debts.overdue')}
                   </span>
                 )}
               </div>
@@ -1513,7 +1519,7 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
                     onClick={() => onOperation(d)}
                     className="flex-1 mt-1 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
                   >
-                    {estDette ? 'Rembourser' : 'Encaisser'}
+                    {estDette ? t('debts.repay') : t('debts.collect')}
                   </button>
                   {/* Seule une créance peut être classée irrécouvrable (voir
                       TypeOperationIncompatibleError côté backend) — jamais
@@ -1521,10 +1527,10 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
                   {!estDette && (
                     <button
                       onClick={() => onMarquerPerte(d)}
-                      title="Marquer comme perte (créance irrécouvrable)"
+                      title={t('debts.write_off_title')}
                       className="mt-1 py-2 px-3 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-bold transition-colors"
                     >
-                      Perte
+                      {t('debts.write_off')}
                     </button>
                   )}
                 </div>
@@ -1537,11 +1543,11 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
               {d.statut === 'SOLDE' && (
                 <button
                   onClick={() => onSupprimer(d)}
-                  title="Supprimer définitivement de la liste"
+                  title={t('debts.delete_title')}
                   className="w-full mt-1 py-2 rounded-lg bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  <span>Supprimer</span>
+                  <span>{t('common.delete')}</span>
                 </button>
               )}
             </div>
@@ -1556,24 +1562,24 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
       <div className="flex items-center justify-between">
         <h3 className="text-base font-bold text-foreground flex items-center gap-2">
           <HandCoins className="h-5 w-5 text-primary" />
-          <span>Dettes & Créances</span>
+          <span>{t('dashboard.nav.debts')}</span>
         </h3>
         <button
           onClick={onOpenDetteModal}
           className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
-          <span>Déclarer une dette / créance</span>
+          <span>{t('debts.declare')}</span>
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-3">
-          <h4 className="text-sm font-bold text-foreground">Mes dettes (je dois)</h4>
+          <h4 className="text-sm font-bold text-foreground">{t('debts.my_debts')}</h4>
           {renderListe(dettesDues, true)}
         </div>
         <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-3">
-          <h4 className="text-sm font-bold text-foreground">Mes créances (on me doit)</h4>
+          <h4 className="text-sm font-bold text-foreground">{t('debts.my_claims')}</h4>
           {renderListe(creances, false)}
         </div>
       </div>
@@ -1593,61 +1599,62 @@ const STATUT_TONTINE_BADGE: Record<string, string> = {
   ANNULEE: 'bg-muted text-muted-foreground border-border',
 };
 
-const TontinesSection: React.FC<TontinesSectionProps> = ({ tontines, onOpenTontineModal, onOpenDetail }) => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-        <Users className="h-5 w-5 text-primary" />
-        <span>Tontines</span>
-      </h3>
-      <button
-        onClick={onOpenTontineModal}
-        className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
-      >
-        <Plus className="h-4 w-4" />
-        <span>Créer une tontine</span>
-      </button>
-    </div>
+const TontinesSection: React.FC<TontinesSectionProps> = ({ tontines, onOpenTontineModal, onOpenDetail }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+          <Users className="h-5 w-5 text-primary" />
+          <span>{t('dashboard.nav.tontines')}</span>
+        </h3>
+        <button
+          onClick={onOpenTontineModal}
+          className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>{t('tontines.create')}</span>
+        </button>
+      </div>
 
-    {tontines.length === 0 ? (
-      <div className="bg-card rounded-2xl border border-dashed border-border p-10 text-center space-y-2">
-        <Users className="h-8 w-8 text-muted-foreground mx-auto" />
-        <p className="text-sm text-muted-foreground">Aucune tontine pour le moment.</p>
-        <p className="text-xs text-muted-foreground">
-          MyNkap garde uniquement la trace des cotisations et des tours — l'argent circule entre vous, en dehors de l'application.
-        </p>
-      </div>
-    ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tontines.map((t) => (
-          <button
-            key={t.id_tontine}
-            onClick={() => onOpenDetail(t.id_tontine)}
-            className="text-left bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all space-y-3"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <h4 className="text-sm font-bold text-foreground truncate">{t.nom}</h4>
-              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border shrink-0 ${STATUT_TONTINE_BADGE[t.statut]}`}>
-                {t.statut}
-              </span>
-            </div>
-            <div className="space-y-1 text-xs">
-              <p className="text-muted-foreground">
-                <strong className="text-foreground">{t.nombre_membres}</strong> membres • {t.frequence === 'HEBDOMADAIRE' ? 'hebdomadaire' : 'mensuelle'}
-              </p>
-              <p className="text-muted-foreground">
-                Cagnotte : <strong className="text-primary">{Number(t.montant_total_par_tour).toLocaleString('fr-FR')} XAF</strong>
-              </p>
-              {t.numero_tour_actuel !== null && (
-                <p className="text-muted-foreground">Tour actuel : <strong className="text-foreground">{t.numero_tour_actuel}/{t.nombre_membres}</strong></p>
-              )}
-            </div>
-          </button>
-        ))}
-      </div>
-    )}
-  </div>
-);
+      {tontines.length === 0 ? (
+        <div className="bg-card rounded-2xl border border-dashed border-border p-10 text-center space-y-2">
+          <Users className="h-8 w-8 text-muted-foreground mx-auto" />
+          <p className="text-sm text-muted-foreground">{t('tontines.none_yet')}</p>
+          <p className="text-xs text-muted-foreground">{t('tontines.explainer')}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tontines.map((tontine) => (
+            <button
+              key={tontine.id_tontine}
+              onClick={() => onOpenDetail(tontine.id_tontine)}
+              className="text-left bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all space-y-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="text-sm font-bold text-foreground truncate">{tontine.nom}</h4>
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border shrink-0 ${STATUT_TONTINE_BADGE[tontine.statut]}`}>
+                  {tontine.statut}
+                </span>
+              </div>
+              <div className="space-y-1 text-xs">
+                <p className="text-muted-foreground">
+                  <strong className="text-foreground">{tontine.nombre_membres}</strong> {t('tontines.members')} • {tontine.frequence === 'HEBDOMADAIRE' ? t('tontines.weekly') : t('tontines.monthly')}
+                </p>
+                <p className="text-muted-foreground">
+                  {t('tontines.pot')} : <strong className="text-primary">{Number(tontine.montant_total_par_tour).toLocaleString('fr-FR')} XAF</strong>
+                </p>
+                {tontine.numero_tour_actuel !== null && (
+                  <p className="text-muted-foreground">{t('tontines.current_round')} : <strong className="text-foreground">{tontine.numero_tour_actuel}/{tontine.nombre_membres}</strong></p>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface EpargneSectionProps {
   objectifs: ObjectifEpargne[];
@@ -1657,86 +1664,89 @@ interface EpargneSectionProps {
   onAbandonner: (objectif: ObjectifEpargne) => void;
 }
 
-const EpargneSection: React.FC<EpargneSectionProps> = ({ objectifs, onOpenObjectifModal, onAlimenter, onRetirer, onAbandonner }) => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-        <PiggyBank className="h-5 w-5 text-forest-600" />
-        <span>Épargne & Projets</span>
-      </h3>
-      <button
-        onClick={onOpenObjectifModal}
-        className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
-      >
-        <Plus className="h-4 w-4" />
-        <span>Créer un objectif</span>
-      </button>
-    </div>
-
-    {objectifs.length === 0 ? (
-      <div className="p-8 rounded-2xl border border-dashed border-border text-center">
-        <p className="text-sm text-muted-foreground">Aucun objectif d'épargne pour le moment.</p>
+const EpargneSection: React.FC<EpargneSectionProps> = ({ objectifs, onOpenObjectifModal, onAlimenter, onRetirer, onAbandonner }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+          <PiggyBank className="h-5 w-5 text-forest-600" />
+          <span>{t('dashboard.nav.savings')}</span>
+        </h3>
+        <button
+          onClick={onOpenObjectifModal}
+          className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>{t('savings.create')}</span>
+        </button>
       </div>
-    ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {objectifs.map((o) => {
-          const verrouille = o.statut === 'ABANDONNE' || o.statut === 'ATTEINT';
-          return (
-            <div key={o.id_objectif} className="p-4 rounded-2xl border bg-card shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-foreground">{o.nom}</h4>
-                <span className="font-black text-forest-600 dark:text-forest-400 text-sm">{Math.round(o.pourcentage_atteint)}%</span>
-              </div>
-              <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden">
-                <div className="bg-forest-500 h-full rounded-full transition-all" style={{ width: `${Math.min(o.pourcentage_atteint, 100)}%` }} />
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Actuel : <strong className="text-foreground">{Number(o.montant_actuel).toLocaleString('fr-FR')}</strong> XAF</span>
-                <span>Cible : {Number(o.montant_cible).toLocaleString('fr-FR')} XAF</span>
-              </div>
-              {o.montant_mensuel_requis !== null && !verrouille && (
-                <p className="text-[11px] text-muted-foreground">
-                  ~{Number(o.montant_mensuel_requis).toLocaleString('fr-FR')} XAF/mois pour atteindre l'objectif à temps.
-                </p>
-              )}
-              {!verrouille && (
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => onAlimenter(o)}
-                    className="flex-1 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
-                  >
-                    Alimenter
-                  </button>
-                  <button
-                    onClick={() => onRetirer(o)}
-                    disabled={o.montant_actuel <= 0}
-                    className="flex-1 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-bold transition-colors disabled:opacity-40"
-                  >
-                    Retirer
-                  </button>
-                  <button
-                    onClick={() => onAbandonner(o)}
-                    title="Abandonner cet objectif"
-                    className="py-2 px-3 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-bold transition-colors"
-                  >
-                    Abandonner
-                  </button>
+
+      {objectifs.length === 0 ? (
+        <div className="p-8 rounded-2xl border border-dashed border-border text-center">
+          <p className="text-sm text-muted-foreground">{t('savings.none_yet')}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {objectifs.map((o) => {
+            const verrouille = o.statut === 'ABANDONNE' || o.statut === 'ATTEINT';
+            return (
+              <div key={o.id_objectif} className="p-4 rounded-2xl border bg-card shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-foreground">{o.nom}</h4>
+                  <span className="font-black text-forest-600 dark:text-forest-400 text-sm">{Math.round(o.pourcentage_atteint)}%</span>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    )}
-  </div>
-);
+                <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden">
+                  <div className="bg-forest-500 h-full rounded-full transition-all" style={{ width: `${Math.min(o.pourcentage_atteint, 100)}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{t('savings.current_amount')} : <strong className="text-foreground">{Number(o.montant_actuel).toLocaleString('fr-FR')}</strong> XAF</span>
+                  <span>{t('savings.target_amount')} : {Number(o.montant_cible).toLocaleString('fr-FR')} XAF</span>
+                </div>
+                {o.montant_mensuel_requis !== null && !verrouille && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('savings.monthly_needed', { montant: Number(o.montant_mensuel_requis).toLocaleString('fr-FR') })}
+                  </p>
+                )}
+                {!verrouille && (
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => onAlimenter(o)}
+                      className="flex-1 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
+                    >
+                      {t('savings.contribute')}
+                    </button>
+                    <button
+                      onClick={() => onRetirer(o)}
+                      disabled={o.montant_actuel <= 0}
+                      className="flex-1 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-bold transition-colors disabled:opacity-40"
+                    >
+                      {t('savings.withdraw')}
+                    </button>
+                    <button
+                      onClick={() => onAbandonner(o)}
+                      title={t('savings.abandon_title')}
+                      className="py-2 px-3 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-bold transition-colors"
+                    >
+                      {t('savings.abandon')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
-const TYPES_RAPPORT: { valeur: Rapport['type']; label: string; acces: 'acces_dettes' | 'acces_analyse' | null }[] = [
-  { valeur: 'RELEVE_TRANSACTIONS', label: 'Relevé de transactions', acces: null },
-  { valeur: 'BILAN_BUDGETAIRE', label: 'Bilan budgétaire', acces: null },
-  { valeur: 'DETTES_EPARGNE', label: 'Dettes & Épargne', acces: 'acces_dettes' },
-  { valeur: 'BILAN_FINANCIER', label: 'Bilan financier', acces: 'acces_analyse' },
-  { valeur: 'PREDICTIONS', label: 'Prédictions financières', acces: 'acces_analyse' },
+const TYPES_RAPPORT: { valeur: Rapport['type']; labelKey: string; acces: 'acces_dettes' | 'acces_analyse' | null }[] = [
+  { valeur: 'RELEVE_TRANSACTIONS', labelKey: 'reports.type_statement', acces: null },
+  { valeur: 'BILAN_BUDGETAIRE', labelKey: 'reports.type_budget_summary', acces: null },
+  { valeur: 'DETTES_EPARGNE', labelKey: 'reports.type_debts_savings', acces: 'acces_dettes' },
+  { valeur: 'BILAN_FINANCIER', labelKey: 'reports.type_financial_summary', acces: 'acces_analyse' },
+  { valeur: 'PREDICTIONS', labelKey: 'reports.type_predictions', acces: 'acces_analyse' },
 ];
 
 interface RapportsSectionProps {
@@ -1746,6 +1756,7 @@ interface RapportsSectionProps {
 }
 
 const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGenere }) => {
+  const { t } = useTranslation();
   // Calculées une seule fois via l'initialiseur paresseux de useState — les
   // appeler directement dans le corps du composant serait un effet de bord
   // impur à chaque rendu (Date.now()/new Date()).
@@ -1766,13 +1777,13 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
       const frais = await api.request<Rapport>(`/rapports/${idRapport}`);
       setStatutsAJour((prev) => ({ ...prev, [idRapport]: frais }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Actualisation impossible.');
+      setError(err instanceof Error ? err.message : t('reports.error_refresh'));
     } finally {
       setIdEnActualisation(null);
     }
   };
 
-  const typesDisponibles = TYPES_RAPPORT.filter((t) => !t.acces || plan?.[t.acces]);
+  const typesDisponibles = TYPES_RAPPORT.filter((tr) => !tr.acces || plan?.[tr.acces]);
 
   const handleGenerer = async () => {
     setError(null);
@@ -1784,7 +1795,7 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
       });
       onGenere();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Génération impossible.');
+      setError(err instanceof Error ? err.message : t('reports.error_generate'));
     } finally {
       setIsSubmitting(false);
     }
@@ -1794,7 +1805,7 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
     try {
       await api.download(`/rapports/${rapport.id_rapport}/telecharger`, `mynkap_${rapport.type.toLowerCase()}_${rapport.id_rapport}.pdf`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Téléchargement impossible.');
+      setError(err instanceof Error ? err.message : t('reports.error_download'));
     }
   };
 
@@ -1803,24 +1814,24 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
       <div>
         <h3 className="text-base font-bold text-foreground flex items-center gap-2 mb-4">
           <FileText className="h-5 w-5 text-primary" />
-          <span>Générer un rapport PDF</span>
+          <span>{t('reports.generate_title')}</span>
         </h3>
         <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Type de rapport</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('reports.type_label')}</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as Rapport['type'])}
                 className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                {typesDisponibles.map((t) => (
-                  <option key={t.valeur} value={t.valeur}>{t.label}</option>
+                {typesDisponibles.map((tr) => (
+                  <option key={tr.valeur} value={tr.valeur}>{t(tr.labelKey)}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Période début</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('reports.period_start')}</label>
               <input
                 type="date"
                 value={periodeDebut}
@@ -1830,7 +1841,7 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Période fin</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('reports.period_end')}</label>
               <input
                 type="date"
                 value={periodeFin}
@@ -1850,23 +1861,23 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
             className="w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-sm py-2.5 px-5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            <span>Générer le rapport</span>
+            <span>{t('reports.generate_button')}</span>
           </button>
         </div>
       </div>
 
       <div>
-        <h3 className="text-base font-bold text-foreground mb-4">Rapports générés</h3>
+        <h3 className="text-base font-bold text-foreground mb-4">{t('reports.generated_title')}</h3>
         <div className="bg-card rounded-2xl border border-border shadow-sm">
           {rapportsAffiches.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-10">Aucun rapport généré pour le moment.</p>
+            <p className="text-sm text-muted-foreground text-center py-10">{t('reports.none_yet')}</p>
           ) : (
             <div className="divide-y divide-border">
               {rapportsAffiches.map((r) => (
                 <div key={r.id_rapport} className="py-3.5 px-4 flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-bold text-foreground">
-                      {TYPES_RAPPORT.find((t) => t.valeur === r.type)?.label ?? r.type}
+                      {t(TYPES_RAPPORT.find((tr) => tr.valeur === r.type)?.labelKey ?? '') || r.type}
                     </h4>
                     <span className="text-xs text-muted-foreground">
                       {new Date(r.periode_debut).toLocaleDateString('fr-FR')} → {new Date(r.periode_fin).toLocaleDateString('fr-FR')}
@@ -1879,19 +1890,19 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
                       className="p-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center gap-1.5 text-xs font-bold"
                     >
                       <Download className="h-3.5 w-3.5" />
-                      <span>Télécharger</span>
+                      <span>{t('reports.download')}</span>
                     </button>
                   ) : r.statut === 'ECHEC' ? (
-                    <span className="text-xs font-bold text-destructive">Échec</span>
+                    <span className="text-xs font-bold text-destructive">{t('reports.failed')}</span>
                   ) : (
                     <button
                       onClick={() => actualiserStatut(r.id_rapport)}
                       disabled={idEnActualisation === r.id_rapport}
-                      title="Actualiser le statut"
+                      title={t('reports.refresh_status')}
                       className="text-xs font-bold text-muted-foreground hover:text-foreground flex items-center gap-1.5 disabled:opacity-50"
                     >
                       {idEnActualisation === r.id_rapport ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5 animate-pulse" />}
-                      <span>En cours... actualiser</span>
+                      <span>{t('reports.in_progress')}</span>
                     </button>
                   )}
                 </div>

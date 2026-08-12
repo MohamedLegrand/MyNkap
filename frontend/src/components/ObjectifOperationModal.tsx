@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import type { CompteFinancier, ObjectifEpargne } from '../types';
@@ -18,6 +19,7 @@ interface ObjectifOperationModalProps {
 export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
   isOpen, onClose, onSuccess, objectif, operation, comptes,
 }) => {
+  const { t } = useTranslation();
   const [montant, setMontant] = useState('');
   const [idCompte, setIdCompte] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,13 +67,13 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Opération impossible.');
+      setError(err instanceof Error ? err.message : t('modals.objectif_operation.error'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const titre = estAlimentation ? 'Alimenter' : estAbandon ? 'Abandonner' : 'Retirer';
+  const titre = estAlimentation ? t('savings.contribute') : estAbandon ? t('savings.abandon') : t('savings.withdraw');
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -88,19 +90,18 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
             <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-2.5">
               <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
               <p className="text-xs text-destructive leading-relaxed">
-                Cette action verrouille définitivement l'objectif et transfère la totalité du solde épargné
-                (<strong>{Number(objectifAffiche.montant_actuel).toLocaleString('fr-FR')} XAF</strong>) vers le compte choisi ci-dessous.
+                {t('modals.objectif_operation.abandon_warning', { montant: Number(objectifAffiche.montant_actuel).toLocaleString('fr-FR') })}
               </p>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              {estAlimentation ? 'Actuellement épargné' : 'Disponible pour retrait'} : <strong className="text-foreground">{Number(objectifAffiche.montant_actuel).toLocaleString('fr-FR')} XAF</strong>
+              {estAlimentation ? t('modals.objectif_operation.currently_saved') : t('modals.objectif_operation.available_for_withdrawal')} : <strong className="text-foreground">{Number(objectifAffiche.montant_actuel).toLocaleString('fr-FR')} XAF</strong>
             </p>
           )}
 
           {!estAbandon && (
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Montant (XAF)</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette_operation.amount_label')}</label>
               <input
                 type="number"
                 required
@@ -116,7 +117,7 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-muted-foreground">
-              {estAlimentation ? 'Compte source' : 'Compte de destination'}
+              {estAlimentation ? t('modals.objectif_operation.source_account') : t('modals.objectif_operation.destination_account')}
             </label>
             <select
               value={idCompte}
@@ -133,7 +134,7 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -143,7 +144,7 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
               }`}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>{estAbandon ? 'Confirmer l\'abandon' : 'Confirmer'}</span>
+              <span>{estAbandon ? t('modals.objectif_operation.confirm_abandon') : t('common.confirm')}</span>
             </button>
           </div>
         </form>

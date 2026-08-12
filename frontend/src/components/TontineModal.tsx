@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2, Plus, Trash2 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -16,6 +17,7 @@ interface MembreForm {
 const MEMBRE_VIDE: MembreForm = { nom: '', telephone: '' };
 
 export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const { t } = useTranslation();
   const [nom, setNom] = useState('');
   const [montantCotisation, setMontantCotisation] = useState('');
   const [frequence, setFrequence] = useState<'HEBDOMADAIRE' | 'MENSUELLE'>('MENSUELLE');
@@ -35,7 +37,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
     e.preventDefault();
     const membresValides = membres.filter((m) => m.nom.trim());
     if (membresValides.length < 2) {
-      setError('Au moins 2 membres sont requis pour former une tontine.');
+      setError(t('modals.tontine.min_members_error'));
       return;
     }
     setError(null);
@@ -60,7 +62,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Création de la tontine impossible.');
+      setError(err instanceof Error ? err.message : t('modals.tontine.error_create'));
     } finally {
       setIsSubmitting(false);
     }
@@ -70,7 +72,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
-          <h3 className="text-lg font-bold tracking-tight">Créer une tontine</h3>
+          <h3 className="text-lg font-bold tracking-tight">{t('tontines.create')}</h3>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -78,11 +80,11 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Nom de la tontine</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.tontine.name_label')}</label>
             <input
               type="text"
               required
-              placeholder="ex: Tontine du quartier"
+              placeholder={t('modals.tontine.name_placeholder')}
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
@@ -91,7 +93,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Cotisation par membre (XAF)</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.tontine.contribution_label')}</label>
               <input
                 type="number"
                 required
@@ -103,7 +105,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Date du 1er tour</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.tontine.first_round_date_label')}</label>
               <input
                 type="date"
                 required
@@ -115,7 +117,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Fréquence des tours</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.tontine.frequency_label')}</label>
             <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
               <button
                 type="button"
@@ -124,7 +126,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
                   frequence === 'HEBDOMADAIRE' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Hebdomadaire
+                {t('tontines.weekly_label')}
               </button>
               <button
                 type="button"
@@ -133,7 +135,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
                   frequence === 'MENSUELLE' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Mensuelle
+                {t('tontines.monthly_label')}
               </button>
             </div>
           </div>
@@ -141,7 +143,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-muted-foreground">
-                Membres (ordre de réception de la cagnotte)
+                {t('modals.tontine.members_label')}
               </label>
               <button
                 type="button"
@@ -149,7 +151,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
                 className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
               >
                 <Plus className="h-3 w-3" />
-                <span>Ajouter</span>
+                <span>{t('modals.tontine.add_member')}</span>
               </button>
             </div>
             <div className="space-y-2">
@@ -159,14 +161,14 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
                   <input
                     type="text"
                     required
-                    placeholder="Nom du membre"
+                    placeholder={t('modals.tontine.member_name_placeholder')}
                     value={m.nom}
                     onChange={(e) => modifierMembre(index, 'nom', e.target.value)}
                     className="flex-1 bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <input
                     type="text"
-                    placeholder="Téléphone (facultatif)"
+                    placeholder={t('modals.tontine.member_phone_placeholder')}
                     value={m.telephone}
                     onChange={(e) => modifierMembre(index, 'telephone', e.target.value)}
                     className="w-32 bg-background border border-border rounded-lg px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
@@ -175,7 +177,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
                     type="button"
                     onClick={() => retirerMembre(index)}
                     disabled={membres.length <= 2}
-                    title="Retirer ce membre"
+                    title={t('modals.tontine.remove_member')}
                     className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground transition-colors shrink-0"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -189,7 +191,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -197,7 +199,7 @@ export const TontineModal: React.FC<TontineModalProps> = ({ isOpen, onClose, onS
               className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>Créer la tontine</span>
+              <span>{t('tontines.create')}</span>
             </button>
           </div>
         </form>

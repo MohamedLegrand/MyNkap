@@ -1,4 +1,5 @@
 // Utilitaires de formatage (devises, dates, etc.)
+import i18n from '../i18n';
 
 /**
  * Formate un montant numérique en Franc CFA (XAF).
@@ -33,11 +34,11 @@ export const formatDateRelative = (iso: string): string => {
   const dateUTC = new Date(isoUTC);
   const diffMs = Date.now() - dateUTC.getTime();
   const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "À l'instant";
-  if (minutes < 60) return `Il y a ${minutes} min`;
+  if (minutes < 1) return i18n.t('common.just_now');
+  if (minutes < 60) return i18n.t('common.minutes_ago', { count: minutes });
   const heures = Math.floor(minutes / 60);
-  if (heures < 24) return `Il y a ${heures} h`;
+  if (heures < 24) return i18n.t('common.hours_ago', { count: heures });
   const jours = Math.floor(heures / 24);
-  if (jours < 7) return `Il y a ${jours} j`;
-  return dateUTC.toLocaleDateString('fr-FR');
+  if (jours < 7) return i18n.t('common.days_ago', { count: jours });
+  return dateUTC.toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'fr-FR');
 };

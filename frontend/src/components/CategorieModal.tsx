@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { Categorie } from '../types';
@@ -16,6 +17,7 @@ interface CategorieModalProps {
 }
 
 export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose, onSuccess, categorie = null }) => {
+  const { t } = useTranslation();
   const modeEdition = categorie !== null;
 
   const [nom, setNom] = useState('');
@@ -68,7 +70,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `${modeEdition ? 'Modification' : 'Création'} de la catégorie impossible.`);
+      setError(err instanceof Error ? err.message : (modeEdition ? t('modals.categorie.error_edit') : t('modals.categorie.error_create')));
     } finally {
       setIsSubmitting(false);
     }
@@ -78,7 +80,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? 'Modifier catégorie' : 'Créer catégorie'}</h3>
+          <h3 className="text-lg font-bold tracking-tight">{modeEdition ? t('modals.categorie.title_edit') : t('modals.categorie.title_create')}</h3>
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -89,11 +91,11 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Nom de la catégorie</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.categorie.name_label')}</label>
             <input
               type="text"
               required
-              placeholder="ex: Transport, Loyer, Salaire..."
+              placeholder={t('modals.categorie.name_placeholder')}
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
@@ -102,7 +104,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-muted-foreground">
-              Type de catégorie{modeEdition && ' (non modifiable)'}
+              {t('modals.categorie.type_label')}{modeEdition && ` (${t('modals.categorie.type_not_editable')})`}
             </label>
             <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
               <button
@@ -113,7 +115,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
                   type === 'DEPENSE' ? 'bg-destructive text-destructive-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Dépense
+                {t('categories.expense')}
               </button>
               <button
                 type="button"
@@ -123,13 +125,13 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
                   type === 'REVENU' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Revenu
+                {t('categories.income')}
               </button>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Icône</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.categorie.icon_label')}</label>
             <div className="grid grid-cols-7 gap-2 max-h-40 overflow-y-auto p-1">
               {Object.entries(ICONES_CATEGORIE).map(([slug, Icon]) => (
                 <button
@@ -150,13 +152,13 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Couleur</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.categorie.color_label')}</label>
             <div className="flex flex-wrap gap-2 p-1">
               {COULEURS_CATEGORIE.map((c) => (
                 <button
                   key={c.valeur}
                   type="button"
-                  title={c.label}
+                  title={t(c.labelKey)}
                   onClick={() => setCouleur(c.valeur)}
                   className={`h-8 w-8 rounded-full transition-all ${
                     couleur === c.valeur ? 'ring-2 ring-offset-2 ring-offset-card ring-foreground' : 'hover:scale-110'
@@ -171,7 +173,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -179,7 +181,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
               className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>{modeEdition ? 'Enregistrer' : 'Créer catégorie'}</span>
+              <span>{modeEdition ? t('common.save') : t('modals.categorie.title_create')}</span>
             </button>
           </div>
         </form>

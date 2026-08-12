@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bot, Send, Loader2, Mic, Square, History, Plus, Trash2, AlertTriangle, Volume2 } from 'lucide-react';
 import { api } from '../services/api';
 import { formatDateRelative } from '../utils/formatters';
 import type { JarvisConversation, JarvisConversationDetail, JarvisMessage, JarvisMessageVocal } from '../types';
 
 export const JarvisWidget: React.FC = () => {
+  const { t } = useTranslation();
   const [conversations, setConversations] = useState<JarvisConversation[]>([]);
   const [conversationActuelle, setConversationActuelle] = useState<string | null>(null);
   const [messages, setMessages] = useState<JarvisMessage[]>([]);
@@ -24,7 +26,7 @@ export const JarvisWidget: React.FC = () => {
     id_message: 'accueil',
     type: 'REPONSE',
     canal: 'TEXTE',
-    contenu: 'Bonjour ! Je suis JARVIS, votre assistant financier IA. Posez-moi une question sur vos finances, à l\'écrit ou à l\'oral.',
+    contenu: t('jarvis.welcome_message'),
     necessite_clarification: false,
     options_suggerees: null,
     peut_se_permettre: null,
@@ -62,7 +64,7 @@ export const JarvisWidget: React.FC = () => {
       setConversationActuelle(detail.id_conversation);
       setMessages(detail.messages);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Conversation introuvable.');
+      setError(err instanceof Error ? err.message : t('jarvis.conversation_not_found'));
     } finally {
       setIsLoadingConversation(false);
     }
@@ -135,7 +137,7 @@ export const JarvisWidget: React.FC = () => {
       setMessages((prev) => [...prev, reponse]);
       chargerConversations();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'JARVIS est momentanément indisponible.');
+      setError(err instanceof Error ? err.message : t('jarvis.unavailable'));
     } finally {
       setIsSending(false);
     }
@@ -163,7 +165,7 @@ export const JarvisWidget: React.FC = () => {
       setMessages(detail.messages);
       chargerConversations();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'JARVIS est momentanément indisponible.');
+      setError(err instanceof Error ? err.message : t('jarvis.unavailable'));
     } finally {
       setIsTranscribing(false);
     }
@@ -192,7 +194,7 @@ export const JarvisWidget: React.FC = () => {
       recorder.start();
       setIsRecording(true);
     } catch {
-      setError("Impossible d'accéder au microphone. Vérifiez les autorisations de votre navigateur.");
+      setError(t('jarvis.mic_error'));
     }
   };
 
@@ -209,23 +211,23 @@ export const JarvisWidget: React.FC = () => {
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
               <span>JARVIS IA</span>
-              <span className="text-[10px] bg-secondary/20 text-secondary px-1.5 py-0.2 rounded font-black uppercase">Actif</span>
+              <span className="text-[10px] bg-secondary/20 text-secondary px-1.5 py-0.2 rounded font-black uppercase">{t('jarvis.active')}</span>
             </h3>
-            <p className="text-[11px] text-muted-foreground">Conseiller financier personnel</p>
+            <p className="text-[11px] text-muted-foreground">{t('jarvis.tagline')}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 relative" ref={historiqueRef}>
           <button
             onClick={demarrerNouvelleConversation}
-            title="Nouvelle conversation"
+            title={t('jarvis.new_conversation')}
             className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <Plus className="h-4 w-4" />
           </button>
           <button
             onClick={() => setAfficherHistorique((prev) => !prev)}
-            title="Historique des conversations"
+            title={t('jarvis.conversation_history')}
             className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <History className="h-4 w-4" />
@@ -234,11 +236,11 @@ export const JarvisWidget: React.FC = () => {
           {afficherHistorique && (
             <div className="absolute right-0 top-full mt-2 w-64 max-w-[80vw] bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
               <div className="p-3 border-b border-border bg-muted/40">
-                <h4 className="text-xs font-bold text-foreground">Conversations</h4>
+                <h4 className="text-xs font-bold text-foreground">{t('jarvis.conversations')}</h4>
               </div>
               <div className="max-h-64 overflow-y-auto divide-y divide-border">
                 {conversations.length === 0 ? (
-                  <p className="text-[11px] text-muted-foreground text-center py-6">Aucune conversation pour le moment.</p>
+                  <p className="text-[11px] text-muted-foreground text-center py-6">{t('jarvis.none_yet')}</p>
                 ) : (
                   conversations.map((conv) => (
                     <button
@@ -249,7 +251,7 @@ export const JarvisWidget: React.FC = () => {
                       }`}
                     >
                       <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-foreground truncate">{conv.titre || 'Nouvelle conversation'}</p>
+                        <p className="text-[11px] font-bold text-foreground truncate">{conv.titre || t('jarvis.new_conversation')}</p>
                         <p className="text-[10px] text-muted-foreground">{formatDateRelative(conv.date_dernier_message)}</p>
                       </div>
                       <span
@@ -314,7 +316,7 @@ export const JarvisWidget: React.FC = () => {
         <div className="relative flex-1">
           <input
             type="text"
-            placeholder={isRecording ? 'Enregistrement en cours...' : 'Posez votre question à JARVIS...'}
+            placeholder={isRecording ? t('jarvis.recording') : t('jarvis.ask_placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             disabled={enCours || isRecording}
@@ -333,7 +335,7 @@ export const JarvisWidget: React.FC = () => {
           type="button"
           onClick={basculerEnregistrement}
           disabled={enCours}
-          title={isRecording ? "Arrêter l'enregistrement" : 'Poser une question à la voix'}
+          title={isRecording ? t('jarvis.stop_recording') : t('jarvis.ask_by_voice')}
           className={`p-2.5 rounded-xl transition-colors shrink-0 disabled:opacity-60 ${
             isRecording
               ? 'bg-destructive text-destructive-foreground animate-pulse'

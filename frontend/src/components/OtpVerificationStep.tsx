@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, Mail, ArrowLeft, RefreshCw, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface OtpVerificationStepProps {
   email: string;
@@ -17,6 +18,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
   onResend,
   onBackToLogin,
 }) => {
+  const { t } = useTranslation();
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [timer, setTimer] = useState<number>(60);
   // Dérivé de timer plutôt qu'un état séparé synchronisé par effet : évite
@@ -104,7 +106,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
     }
 
     setTimer(60);
-    setResendSuccessMsg('Un nouveau code à 6 chiffres a été envoyé par e-mail.');
+    setResendSuccessMsg(t('otp.resent_success'));
     setDigits(['', '', '', '', '', '']);
     inputRefs.current[0]?.focus();
   };
@@ -113,7 +115,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
     e.preventDefault();
     const fullCode = digits.join('');
     if (fullCode.length < 6) {
-      setErrorMsg('Veuillez saisir le code complet à 6 chiffres.');
+      setErrorMsg(t('otp.incomplete_code'));
       return;
     }
 
@@ -137,9 +139,9 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
           <ShieldCheck className="h-7 w-7 text-primary" />
         </div>
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Double Authentification (OTP)</h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">{t('otp.title')}</h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto leading-relaxed">
-            Un code de sécurité à 6 chiffres a été envoyé par e-mail à :
+            {t('otp.subtitle')}
           </p>
           <span className="inline-block mt-1 text-xs font-black text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
             {email}
@@ -193,7 +195,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
           className="w-full bg-primary hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground font-bold py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
         >
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          <span>{isSubmitting ? 'Vérification du code...' : 'Valider et Accéder au Dashboard'}</span>
+          <span>{isSubmitting ? t('otp.verifying') : t('otp.submit')}</span>
         </button>
       </form>
 
@@ -201,7 +203,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
       <div className="pt-2 border-t border-border flex flex-col items-center gap-3">
         <div className="text-xs text-muted-foreground flex items-center gap-2">
           <Mail className="h-3.5 w-3.5" />
-          <span>Vous n'avez pas reçu le code ?</span>
+          <span>{t('otp.not_received')}</span>
         </div>
 
         {canResend ? (
@@ -212,11 +214,11 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
             className="text-xs font-bold text-secondary hover:underline flex items-center gap-1.5"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isResending ? 'animate-spin' : ''}`} />
-            <span>{isResending ? 'Envoi du code...' : 'Renvoyer un nouveau code'}</span>
+            <span>{isResending ? t('otp.sending') : t('otp.resend')}</span>
           </button>
         ) : (
           <span className="text-xs font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-full border border-border">
-            Renvoyer dans <strong className="text-foreground tabular-nums">00:{timer < 10 ? `0${timer}` : timer}</strong>
+            {t('otp.resend_in')} <strong className="text-foreground tabular-nums">00:{timer < 10 ? `0${timer}` : timer}</strong>
           </span>
         )}
 
@@ -226,7 +228,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
           className="text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 pt-1"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Retour à l'adresse e-mail</span>
+          <span>{t('otp.back_to_email')}</span>
         </button>
       </div>
     </div>

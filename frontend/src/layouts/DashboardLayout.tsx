@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   Wallet,
@@ -26,6 +27,7 @@ import { api } from '../services/api';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { ProfileSettingsModal } from '../components/ProfileSettingsModal';
 import { JarvisFloatingBubble } from '../components/JarvisFloatingBubble';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useDarkMode } from '../hooks/useDarkMode';
 import type { Plan, Abonnement } from '../types';
 
@@ -45,12 +47,6 @@ interface DashboardLayoutProps {
 const joursRestants = (dateFin: string): number =>
   Math.max(0, Math.ceil((new Date(dateFin).getTime() - Date.now()) / 86_400_000));
 
-const LABEL_PLAN: Record<string, string> = {
-  GRATUIT: 'GRATUIT',
-  ESSENTIEL: 'STANDARD',
-  PREMIUM: 'PREMIUM',
-};
-
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   activeTab = 'overview',
@@ -60,6 +56,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   abonnement,
   nombreComptes = 0,
 }) => {
+  const { t } = useTranslation();
+  const LABEL_PLAN: Record<string, string> = {
+    GRATUIT: t('dashboard.plan_free'),
+    ESSENTIEL: t('dashboard.plan_standard'),
+    PREMIUM: t('dashboard.plan_premium'),
+  };
   const nomPlan = plan?.nom ?? 'GRATUIT';
   const estEnEssai = abonnement?.statut === 'ESSAI' && !!abonnement.date_fin;
   // Rien à proposer au-dessus de PREMIUM une fois l'essai terminé — le
@@ -88,23 +90,23 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   const navItems = [
-    { id: 'overview', label: 'Vue d\'ensemble', icon: LayoutDashboard },
-    { id: 'accounts', label: 'Mes Comptes', icon: Wallet, badge: nombreComptes > 0 ? String(nombreComptes) : undefined },
-    { id: 'transactions', label: 'Transactions', icon: Receipt },
-    { id: 'budgets', label: 'Budgets & Alertes', icon: PieChart },
-    { id: 'savings', label: 'Épargne & Projets', icon: PiggyBank, gate: 'acces_epargne' as const },
-    { id: 'debts', label: 'Dettes & Créances', icon: HandCoins, gate: 'acces_dettes' as const },
-    { id: 'tontines', label: 'Tontines', icon: Users, isNew: true, gate: 'acces_tontine' as const },
-    { id: 'jarvis', label: 'Assistant JARVIS IA', icon: Bot, isNew: true, gate: 'acces_jarvis' as const },
-    { id: 'analyse', label: 'Analyse & Prédictions', icon: LineChart, gate: 'acces_analyse' as const },
-    { id: 'automatisations', label: 'Récurrences & Modèles', icon: Repeat, gate: 'acces_recurrentes' as const },
+    { id: 'overview', label: t('dashboard.nav.overview'), icon: LayoutDashboard },
+    { id: 'accounts', label: t('dashboard.nav.accounts'), icon: Wallet, badge: nombreComptes > 0 ? String(nombreComptes) : undefined },
+    { id: 'transactions', label: t('dashboard.nav.transactions'), icon: Receipt },
+    { id: 'budgets', label: t('dashboard.nav.budgets'), icon: PieChart },
+    { id: 'savings', label: t('dashboard.nav.savings'), icon: PiggyBank, gate: 'acces_epargne' as const },
+    { id: 'debts', label: t('dashboard.nav.debts'), icon: HandCoins, gate: 'acces_dettes' as const },
+    { id: 'tontines', label: t('dashboard.nav.tontines'), icon: Users, isNew: true, gate: 'acces_tontine' as const },
+    { id: 'jarvis', label: t('dashboard.nav.jarvis'), icon: Bot, isNew: true, gate: 'acces_jarvis' as const },
+    { id: 'analyse', label: t('dashboard.nav.analyse'), icon: LineChart, gate: 'acces_analyse' as const },
+    { id: 'automatisations', label: t('dashboard.nav.automations'), icon: Repeat, gate: 'acces_recurrentes' as const },
     // Pas de `gate` ici : RELEVE_TRANSACTIONS et BILAN_BUDGETAIRE sont
     // gratuits pour tous les paliers (seuls certains types de rapports,
     // filtrés à l'intérieur de la page elle-même, sont réservés — voir
     // TYPES_RAPPORT dans ClientDashboard.tsx). `acces_rapport` n'est encore
     // activé par aucun plan, gater l'onglet dessus le cacherait pour tout
     // le monde.
-    { id: 'reports', label: 'Rapports PDF', icon: FileText },
+    { id: 'reports', label: t('dashboard.nav.reports'), icon: FileText },
   ];
 
   // Un item sans `gate` est toujours visible ; un item gaté n'apparaît que
@@ -125,7 +127,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 MyNkap
               </span>
               <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-                Finances Personnelles
+                {t('dashboard.tagline')}
               </span>
             </div>
           </div>
@@ -135,7 +137,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <div className="p-4 border-b border-border bg-muted/30">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground">
-              {estEnEssai ? 'Essai gratuit' : 'Formule Actuelle'}
+              {estEnEssai ? t('dashboard.trial_label') : t('dashboard.current_plan_label')}
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
               <Crown className="h-3 w-3" />
@@ -144,14 +146,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
           {estEnEssai && abonnement?.date_fin && (
             <p className="text-[11px] text-muted-foreground mb-2">
-              Accès complet, JARVIS inclus — encore{' '}
-              <strong className="text-foreground">{joursRestants(abonnement.date_fin)} jour{joursRestants(abonnement.date_fin) > 1 ? 's' : ''}</strong>.
+              {t('dashboard.trial_prefix')}{' '}
+              <strong className="text-foreground">{t('dashboard.days_count', { count: joursRestants(abonnement.date_fin) })}</strong>.
             </p>
           )}
           {dejaAuMaximum ? (
             <p className="text-[11px] font-semibold text-forest-600 dark:text-forest-400 flex items-center justify-center gap-1.5 py-1.5">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Toutes les fonctionnalités débloquées</span>
+              <span>{t('dashboard.all_unlocked')}</span>
             </p>
           ) : (
             <button
@@ -159,7 +161,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               className="w-full text-xs font-semibold py-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center justify-center gap-1.5"
             >
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              <span>{estEnEssai ? "Garder l'accès après l'essai" : 'Passer à la vitesse supérieure'}</span>
+              <span>{estEnEssai ? t('dashboard.keep_access') : t('dashboard.upgrade')}</span>
             </button>
           )}
         </div>
@@ -205,23 +207,23 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
         {/* Footer Sidebar */}
         <div className="p-4 border-t border-border space-y-2">
-          <button
-            onClick={toggleTheme}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-border/50"
-          >
-            <span className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher className="flex-1 justify-center" />
+            <button
+              onClick={toggleTheme}
+              title={t('common.toggle_theme')}
+              className="p-2 rounded-xl bg-muted hover:bg-accent text-foreground border border-border transition-colors duration-150"
+            >
               {theme === 'light' ? <Moon className="h-4 w-4 text-secondary" /> : <Sun className="h-4 w-4 text-secondary" />}
-              <span>{theme === 'light' ? 'Mode Sombre' : 'Mode Clair'}</span>
-            </span>
-            <span className="text-[10px] text-muted-foreground uppercase">{theme}</span>
-          </button>
+            </button>
+          </div>
 
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
           >
             <LogOut className="h-4 w-4" />
-            <span>Déconnexion</span>
+            <span>{t('dashboard.logout')}</span>
           </button>
         </div>
       </aside>
@@ -236,9 +238,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           <button
             onClick={toggleTheme}
-            aria-label="Basculer le thème"
+            aria-label={t('common.toggle_theme')}
             className="p-2 rounded-xl bg-muted text-foreground border border-border"
           >
             {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4 text-secondary" />}
@@ -290,7 +293,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             className="w-full py-3 rounded-xl bg-destructive/10 text-destructive font-bold flex items-center justify-center gap-2"
           >
             <LogOut className="h-5 w-5" />
-            <span>Déconnexion</span>
+            <span>{t('dashboard.logout')}</span>
           </button>
         </div>
       )}
@@ -301,18 +304,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <header className="hidden md:flex items-center justify-between h-16 px-8 border-b border-border bg-card sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-bold text-foreground capitalize tracking-tight">
-              {navItems.find(i => i.id === activeTab)?.label || 'Tableau de bord'}
+              {navItems.find(i => i.id === activeTab)?.label || t('dashboard.default_title')}
             </h1>
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+
             {/* Notifications */}
             <NotificationsBell basePath="/notifications" />
 
             {/* User Profile Info — cliquable pour ouvrir les préférences du profil */}
             <button
               onClick={() => setIsProfileModalOpen(true)}
-              title="Mon profil"
+              title={t('dashboard.my_profile')}
               className="flex items-center gap-3 pl-2 rounded-xl hover:bg-muted transition-colors py-1 pr-2"
             >
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary to-secondary text-primary-foreground font-bold flex items-center justify-center shadow-sm">

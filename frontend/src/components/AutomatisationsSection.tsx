@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Repeat, FileStack, Plus, Loader2, MoreVertical, Pencil, Power, PowerOff, Play, Lock,
 } from 'lucide-react';
@@ -17,11 +18,11 @@ interface AutomatisationsSectionProps {
   onDataChange: () => void;
 }
 
-const FREQUENCE_LABEL: Record<TransactionRecurrente['frequence'], string> = {
-  HEBDOMADAIRE: 'Chaque semaine',
-  MENSUELLE: 'Chaque mois',
-  TRIMESTRIELLE: 'Chaque trimestre',
-  ANNUELLE: 'Chaque année',
+const FREQUENCE_LABEL_KEY: Record<TransactionRecurrente['frequence'], string> = {
+  HEBDOMADAIRE: 'modals.transaction_recurrente.freq_weekly',
+  MENSUELLE: 'modals.transaction_recurrente.freq_monthly',
+  TRIMESTRIELLE: 'modals.transaction_recurrente.freq_quarterly',
+  ANNUELLE: 'modals.transaction_recurrente.freq_yearly',
 };
 
 interface ActionMenuItem {
@@ -73,17 +74,21 @@ const MenuActions: React.FC<{ items: ActionMenuItem[]; ariaLabel?: string }> = (
   );
 };
 
-const Verrouille: React.FC<{ titre: string }> = ({ titre }) => (
-  <div className="p-8 rounded-2xl border border-dashed border-border text-center space-y-2">
-    <Lock className="h-6 w-6 mx-auto text-muted-foreground" />
-    <p className="text-sm font-semibold text-foreground">{titre} n'est pas inclus dans votre forfait actuel</p>
-    <p className="text-xs text-muted-foreground">Passez à un forfait supérieur pour débloquer cette fonctionnalité.</p>
-  </div>
-);
+const Verrouille: React.FC<{ titre: string }> = ({ titre }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="p-8 rounded-2xl border border-dashed border-border text-center space-y-2">
+      <Lock className="h-6 w-6 mx-auto text-muted-foreground" />
+      <p className="text-sm font-semibold text-foreground">{t('automations.not_included', { titre })}</p>
+      <p className="text-xs text-muted-foreground">{t('automations.upgrade_hint')}</p>
+    </div>
+  );
+};
 
 export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
   comptesActifs, categories, accesRecurrentes, accesTemplates, nomCompte, nomCategorie, onDataChange,
 }) => {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'recurrentes' | 'templates'>(accesRecurrentes ? 'recurrentes' : 'templates');
   const [recurrentes, setRecurrentes] = useState<TransactionRecurrente[]>([]);
   const [templates, setTemplates] = useState<TemplateTransaction[]>([]);
@@ -107,10 +112,11 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
         setTemplates(await api.request<TemplateTransaction[]>('/templates?include_inactifs=true'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Chargement impossible.');
+      setError(err instanceof Error ? err.message : t('automations.error_load'));
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, accesRecurrentes, accesTemplates]);
 
   useEffect(() => {
@@ -129,34 +135,34 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
       }
       charger();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action impossible.');
+      setError(err instanceof Error ? err.message : t('common.error_action'));
     }
   };
 
-  const toggleActifTemplate = async (t: TemplateTransaction) => {
+  const toggleActifTemplate = async (tpl: TemplateTransaction) => {
     try {
-      if (t.est_actif) {
-        await api.request(`/templates/${t.id_template}`, { method: 'DELETE' });
+      if (tpl.est_actif) {
+        await api.request(`/templates/${tpl.id_template}`, { method: 'DELETE' });
       } else {
-        await api.request(`/templates/${t.id_template}/reactiver`, { method: 'POST' });
+        await api.request(`/templates/${tpl.id_template}/reactiver`, { method: 'POST' });
       }
       charger();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action impossible.');
+      setError(err instanceof Error ? err.message : t('common.error_action'));
     }
   };
 
-  const rejouerTemplate = async (t: TemplateTransaction) => {
-    setRejouerEnCours(t.id_template);
+  const rejouerTemplate = async (tpl: TemplateTransaction) => {
+    setRejouerEnCours(tpl.id_template);
     setMessageRejoue(null);
     setError(null);
     try {
-      await api.request(`/templates/${t.id_template}/rejouer`, { method: 'POST' });
-      setMessageRejoue(`"${t.nom}" a été enregistré comme nouvelle transaction.`);
+      await api.request(`/templates/${tpl.id_template}/rejouer`, { method: 'POST' });
+      setMessageRejoue(t('automations.replayed', { nom: tpl.nom }));
       charger();
       onDataChange();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de rejouer ce modèle.');
+      setError(err instanceof Error ? err.message : t('automations.error_replay'));
     } finally {
       setRejouerEnCours(null);
     }
@@ -170,26 +176,26 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
           className={`flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg transition-colors ${mode === 'recurrentes' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
         >
           <Repeat className="h-3.5 w-3.5" />
-          <span>Récurrentes</span>
+          <span>{t('automations.recurring_tab')}</span>
         </button>
         <button
           onClick={() => setMode('templates')}
           className={`flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg transition-colors ${mode === 'templates' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
         >
           <FileStack className="h-3.5 w-3.5" />
-          <span>Modèles</span>
+          <span>{t('automations.templates_tab')}</span>
         </button>
       </div>
 
       {mode === 'recurrentes' ? (
         !accesRecurrentes ? (
-          <Verrouille titre="Les transactions récurrentes" />
+          <Verrouille titre={t('automations.recurring_title')} />
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <Repeat className="h-5 w-5 text-primary" />
-                <span>Transactions récurrentes</span>
+                <span>{t('automations.recurring_title')}</span>
               </h3>
               <button
                 onClick={() => setIsRecurrenceModalOpen(true)}
@@ -197,7 +203,7 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
                 className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" />
-                <span>Planifier</span>
+                <span>{t('modals.transaction_recurrente.submit')}</span>
               </button>
             </div>
 
@@ -207,7 +213,7 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
               <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
             ) : recurrentes.length === 0 ? (
               <div className="p-8 rounded-2xl border border-dashed border-border text-center">
-                <p className="text-sm text-muted-foreground">Aucune transaction récurrente planifiée.</p>
+                <p className="text-sm text-muted-foreground">{t('automations.none_recurring')}</p>
               </div>
             ) : (
               <div className="bg-card rounded-2xl border border-border shadow-sm divide-y divide-border">
@@ -221,20 +227,20 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${r.type === 'DEPENSE' ? 'bg-destructive/10 text-destructive' : 'bg-forest-500/10 text-forest-600'}`}>
                           {r.type}
                         </span>
-                        {!r.est_active && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Désactivée</span>}
+                        {!r.est_active && <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">{t('common.disabled_fem')}</span>}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {nomCompte(r.id_compte)} • {FREQUENCE_LABEL[r.frequence]} • prochaine le {new Date(r.prochaine_execution).toLocaleDateString('fr-FR')}
+                        {nomCompte(r.id_compte)} • {t(FREQUENCE_LABEL_KEY[r.frequence])} • {t('automations.next_on', { date: new Date(r.prochaine_execution).toLocaleDateString('fr-FR') })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-sm font-black text-foreground tabular-nums">{Number(r.montant).toLocaleString('fr-FR')} XAF</span>
                       <MenuActions
-                        ariaLabel="Actions de la récurrence"
+                        ariaLabel={t('automations.recurring_actions_aria')}
                         items={[
-                          { label: 'Modifier', icon: Pencil, onClick: () => setRecurrenceEnEdition(r) },
+                          { label: t('common.edit'), icon: Pencil, onClick: () => setRecurrenceEnEdition(r) },
                           {
-                            label: r.est_active ? 'Désactiver' : 'Réactiver',
+                            label: r.est_active ? t('common.disable') : t('common.reactivate'),
                             icon: r.est_active ? PowerOff : Power,
                             onClick: () => toggleActifRecurrence(r),
                             tone: r.est_active ? 'destructive' : 'positive',
@@ -249,13 +255,13 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
           </div>
         )
       ) : !accesTemplates ? (
-        <Verrouille titre="Les modèles de transaction" />
+        <Verrouille titre={t('automations.templates_title')} />
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground flex items-center gap-2">
               <FileStack className="h-5 w-5 text-primary" />
-              <span>Modèles de transaction</span>
+              <span>{t('automations.templates_title')}</span>
             </h3>
             <button
               onClick={() => setIsTemplateModalOpen(true)}
@@ -263,7 +269,7 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
               className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
-              <span>Créer un modèle</span>
+              <span>{t('automations.create_template')}</span>
             </button>
           </div>
 
@@ -274,44 +280,44 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : templates.length === 0 ? (
             <div className="p-8 rounded-2xl border border-dashed border-border text-center">
-              <p className="text-sm text-muted-foreground">Aucun modèle de transaction pour le moment.</p>
+              <p className="text-sm text-muted-foreground">{t('automations.none_templates')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {templates.map((t) => (
-                <div key={t.id_template} className={`p-4 rounded-2xl border bg-card shadow-sm space-y-2.5 ${!t.est_actif ? 'opacity-60' : ''}`}>
+              {templates.map((tpl) => (
+                <div key={tpl.id_template} className={`p-4 rounded-2xl border bg-card shadow-sm space-y-2.5 ${!tpl.est_actif ? 'opacity-60' : ''}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-foreground truncate">{t.nom}</h4>
-                      <span className="text-xs text-muted-foreground">{nomCompte(t.id_compte)} • {nomCategorie(t.id_categorie)}</span>
+                      <h4 className="text-sm font-bold text-foreground truncate">{tpl.nom}</h4>
+                      <span className="text-xs text-muted-foreground">{nomCompte(tpl.id_compte)} • {nomCategorie(tpl.id_categorie)}</span>
                     </div>
                     <MenuActions
-                      ariaLabel={`Actions modèle ${t.nom}`}
+                      ariaLabel={t('automations.template_actions_aria', { nom: tpl.nom })}
                       items={[
-                        { label: 'Modifier', icon: Pencil, onClick: () => setTemplateEnEdition(t) },
+                        { label: t('common.edit'), icon: Pencil, onClick: () => setTemplateEnEdition(tpl) },
                         {
-                          label: t.est_actif ? 'Désactiver' : 'Réactiver',
-                          icon: t.est_actif ? PowerOff : Power,
-                          onClick: () => toggleActifTemplate(t),
-                          tone: t.est_actif ? 'destructive' : 'positive',
+                          label: tpl.est_actif ? t('common.disable') : t('common.reactivate'),
+                          icon: tpl.est_actif ? PowerOff : Power,
+                          onClick: () => toggleActifTemplate(tpl),
+                          tone: tpl.est_actif ? 'destructive' : 'positive',
                         },
                       ]}
                     />
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className={`font-bold ${t.type === 'DEPENSE' ? 'text-destructive' : 'text-forest-600 dark:text-forest-400'}`}>
-                      {Number(t.montant).toLocaleString('fr-FR')} XAF
+                    <span className={`font-bold ${tpl.type === 'DEPENSE' ? 'text-destructive' : 'text-forest-600 dark:text-forest-400'}`}>
+                      {Number(tpl.montant).toLocaleString('fr-FR')} XAF
                     </span>
-                    <span className="text-muted-foreground">{t.nombre_utilisations} utilisation{t.nombre_utilisations > 1 ? 's' : ''}</span>
+                    <span className="text-muted-foreground">{t('automations.usage_count', { count: tpl.nombre_utilisations })}</span>
                   </div>
-                  {t.est_actif && (
+                  {tpl.est_actif && (
                     <button
-                      onClick={() => rejouerTemplate(t)}
-                      disabled={rejouerEnCours === t.id_template}
+                      onClick={() => rejouerTemplate(tpl)}
+                      disabled={rejouerEnCours === tpl.id_template}
                       className="w-full py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                     >
-                      {rejouerEnCours === t.id_template ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                      <span>Rejouer maintenant</span>
+                      {rejouerEnCours === tpl.id_template ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                      <span>{t('automations.replay_now')}</span>
                     </button>
                   )}
                 </div>

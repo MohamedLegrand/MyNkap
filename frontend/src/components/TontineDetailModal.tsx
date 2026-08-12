@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2, Users, CheckCircle2, Circle, Ban, PartyPopper } from 'lucide-react';
 import { api } from '../services/api';
 import type { TontineDetail } from '../types';
@@ -25,6 +26,7 @@ const STATUT_TOUR_STYLE: Record<string, string> = {
 };
 
 export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, idTontine, onClose, onChange }) => {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<TontineDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
     api
       .request<TontineDetail>(`/tontines/${idTontine}`)
       .then(setDetail)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger cette tontine.'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('modals.tontine_detail.error_load')))
       .finally(() => setIsLoading(false));
   };
 
@@ -62,7 +64,7 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
       );
       setDetail(maj);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action impossible.');
+      setError(err instanceof Error ? err.message : t('common.error_action'));
     } finally {
       setBusy(false);
     }
@@ -78,14 +80,14 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
       setDetail(maj);
       onChange?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Clôture impossible.');
+      setError(err instanceof Error ? err.message : t('modals.tontine_detail.error_close'));
     } finally {
       setBusy(false);
     }
   };
 
   const annulerTontine = async () => {
-    if (!window.confirm('Annuler définitivement cette tontine ? Les tours et cotisations déjà enregistrés resteront consultables.')) return;
+    if (!window.confirm(t('modals.tontine_detail.confirm_cancel'))) return;
     setBusy(true);
     setError(null);
     try {
@@ -93,7 +95,7 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
       onChange?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Annulation impossible.');
+      setError(err instanceof Error ? err.message : t('modals.tontine_detail.error_cancel'));
     } finally {
       setBusy(false);
     }
@@ -105,7 +107,7 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <Users className="h-5 w-5 text-primary shrink-0" />
-            <h3 className="text-base font-bold truncate">{detail?.nom ?? 'Tontine'}</h3>
+            <h3 className="text-base font-bold truncate">{detail?.nom ?? t('dashboard.nav.tontines')}</h3>
             {detail && (
               <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${STATUT_TONTINE_STYLE[detail.statut]}`}>
                 {detail.statut}
@@ -124,21 +126,21 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
             <>
               <div className="grid grid-cols-3 gap-3 text-xs">
                 <div className="p-3 rounded-xl border border-border">
-                  <p className="text-muted-foreground">Cotisation / membre</p>
+                  <p className="text-muted-foreground">{t('modals.tontine_detail.contribution_per_member')}</p>
                   <p className="font-black text-foreground text-sm">{formatXAF(detail.montant_cotisation)}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border">
-                  <p className="text-muted-foreground">Cagnotte / tour</p>
+                  <p className="text-muted-foreground">{t('modals.tontine_detail.pot_per_round')}</p>
                   <p className="font-black text-primary text-sm">{formatXAF(detail.montant_total_par_tour)}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border">
-                  <p className="text-muted-foreground">Fréquence</p>
-                  <p className="font-black text-foreground text-sm">{detail.frequence === 'HEBDOMADAIRE' ? 'Hebdo' : 'Mensuelle'}</p>
+                  <p className="text-muted-foreground">{t('tontines.frequency')}</p>
+                  <p className="font-black text-foreground text-sm">{detail.frequence === 'HEBDOMADAIRE' ? t('modals.tontine_detail.weekly_short') : t('tontines.monthly_label')}</p>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Membres ({detail.membres.length})</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('modals.tontine_detail.members_count', { count: detail.membres.length })}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {detail.membres.map((m) => (
                     <span key={m.id_membre} className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-muted text-foreground">
@@ -149,35 +151,35 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
               </div>
 
               <div className="space-y-3">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tours de rotation</p>
-                {detail.tours.map((t) => (
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('modals.tontine_detail.rounds_title')}</p>
+                {detail.tours.map((tour) => (
                   <div
-                    key={t.id_tour}
-                    className={`p-4 rounded-xl border space-y-3 ${t.statut === 'EN_COURS' ? 'border-primary/40 bg-primary/5' : 'border-border bg-muted/20'}`}
+                    key={tour.id_tour}
+                    className={`p-4 rounded-xl border space-y-3 ${tour.statut === 'EN_COURS' ? 'border-primary/40 bg-primary/5' : 'border-border bg-muted/20'}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <h4 className="text-sm font-bold text-foreground truncate">
-                          Tour {t.numero} — {t.nom_beneficiaire}
+                          {t('modals.tontine_detail.round_label', { numero: tour.numero, beneficiaire: tour.nom_beneficiaire })}
                         </h4>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(t.date_prevue).toLocaleDateString('fr-FR')} • {t.nombre_cotisations_versees}/{t.nombre_cotisations_total} versées
+                          {new Date(tour.date_prevue).toLocaleDateString('fr-FR')} • {t('modals.tontine_detail.contributions_paid', { versees: tour.nombre_cotisations_versees, total: tour.nombre_cotisations_total })}
                         </span>
                       </div>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${STATUT_TOUR_STYLE[t.statut]}`}>
-                        {t.statut}
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${STATUT_TOUR_STYLE[tour.statut]}`}>
+                        {tour.statut}
                       </span>
                     </div>
 
-                    {t.statut === 'EN_COURS' && (
+                    {tour.statut === 'EN_COURS' && (
                       <>
                         <div className="space-y-1.5">
-                          {t.cotisations.map((c) => (
+                          {tour.cotisations.map((c) => (
                             <button
                               key={c.id_cotisation}
                               type="button"
                               disabled={busy || detail.statut !== 'ACTIVE'}
-                              onClick={() => toggleCotisation(t.id_tour, c.id_membre, c.est_versee)}
+                              onClick={() => toggleCotisation(tour.id_tour, c.id_membre, c.est_versee)}
                               className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 text-left disabled:opacity-60 transition-colors"
                             >
                               {c.est_versee ? (
@@ -193,12 +195,12 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
                         </div>
                         {detail.statut === 'ACTIVE' && (
                           <button
-                            onClick={() => cloturerTour(t.id_tour)}
-                            disabled={busy || t.nombre_cotisations_versees < t.nombre_cotisations_total}
+                            onClick={() => cloturerTour(tour.id_tour)}
+                            disabled={busy || tour.nombre_cotisations_versees < tour.nombre_cotisations_total}
                             className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-40"
                           >
                             <PartyPopper className="h-3.5 w-3.5" />
-                            <span>Clôturer et remettre la cagnotte</span>
+                            <span>{t('modals.tontine_detail.close_round')}</span>
                           </button>
                         )}
                       </>
@@ -216,7 +218,7 @@ export const TontineDetailModal: React.FC<TontineDetailModalProps> = ({ isOpen, 
                   className="w-full py-2.5 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60"
                 >
                   <Ban className="h-3.5 w-3.5" />
-                  <span>Annuler la tontine</span>
+                  <span>{t('modals.tontine_detail.cancel_tontine')}</span>
                 </button>
               )}
             </>

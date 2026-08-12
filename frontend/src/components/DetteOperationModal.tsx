@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { CompteFinancier, Dette } from '../types';
@@ -14,6 +15,7 @@ interface DetteOperationModalProps {
 // Rembourser une dette ou encaisser une créance : même formulaire, seul
 // l'endpoint et le libellé changent selon dette.type.
 export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen, onClose, onSuccess, dette, comptes }) => {
+  const { t } = useTranslation();
   const [montant, setMontant] = useState('');
   const [idCompte, setIdCompte] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,7 +62,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Opération impossible.');
+      setError(err instanceof Error ? err.message : t('modals.dette_operation.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -70,7 +72,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">{estDette ? 'Rembourser' : 'Encaisser'} — {detteAffichee.nom}</h3>
+          <h3 className="text-lg font-bold tracking-tight">{estDette ? t('debts.repay') : t('debts.collect')} — {detteAffichee.nom}</h3>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -78,11 +80,11 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <p className="text-xs text-muted-foreground">
-            Restant à {estDette ? 'rembourser' : 'encaisser'} : <strong className="text-foreground">{Number(detteAffichee.montant_restant).toLocaleString('fr-FR')} XAF</strong>
+            {estDette ? t('modals.dette_operation.remaining_to_repay') : t('modals.dette_operation.remaining_to_collect')} : <strong className="text-foreground">{Number(detteAffichee.montant_restant).toLocaleString('fr-FR')} XAF</strong>
           </p>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Montant (XAF)</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette_operation.amount_label')}</label>
             <input
               type="number"
               required
@@ -97,7 +99,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-muted-foreground">
-              {estDette ? 'Compte à débiter' : 'Compte à créditer'}
+              {estDette ? t('modals.dette_operation.account_debit') : t('modals.dette_operation.account_credit')}
             </label>
             <select
               value={idCompte}
@@ -114,7 +116,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -122,7 +124,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
               className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>Confirmer</span>
+              <span>{t('common.confirm')}</span>
             </button>
           </div>
         </form>

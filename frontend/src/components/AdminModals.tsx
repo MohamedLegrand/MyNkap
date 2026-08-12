@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, ShieldCheck, Key, Sliders, CheckCircle2, FileCode, Loader2, UserCog, Crown, AlertOctagon } from 'lucide-react';
 import { api } from '../services/api';
 import type { AdminClientDetail, AdminTransactionSuspecteDetail, Plan } from '../types';
@@ -11,6 +12,7 @@ interface CreateAdminModalProps {
 }
 
 export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onClose, onSubmit }) => {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -35,7 +37,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
-            <h3 className="text-base font-bold">Créer un Administrateur</h3>
+            <h3 className="text-base font-bold">{t('admin.modals.create_admin.title')}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
             <X className="h-5 w-5" />
@@ -44,11 +46,11 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Nom d'utilisateur (Username)</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.create_admin.username_label')}</label>
             <input
               type="text"
               required
-              placeholder="ex: admin_support"
+              placeholder={t('admin.modals.create_admin.username_placeholder')}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
@@ -56,11 +58,11 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Adresse e-mail</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('auth.email')}</label>
             <input
               type="email"
               required
-              placeholder="admin@mynkap.cm"
+              placeholder={t('admin.modals.create_admin.email_placeholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
@@ -68,7 +70,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Mot de passe temporaire</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.create_admin.password_label')}</label>
             <input
               type="password"
               required
@@ -81,21 +83,21 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Niveau d'Accès</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.create_admin.access_level_label')}</label>
             <select
               value={niveauAcces}
               onChange={(e) => setNiveauAcces(Number(e.target.value))}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
             >
-              <option value={1}>Niveau 1 : Support & Consultation</option>
-              <option value={2}>Niveau 2 : Modérateur (Config & Fraude)</option>
-              <option value={3}>Niveau 3 : Superadmin (Gestion Équipe & Droits)</option>
+              <option value={1}>{t('admin.modals.create_admin.access_level_1')}</option>
+              <option value={2}>{t('admin.modals.create_admin.access_level_2')}</option>
+              <option value={3}>{t('admin.modals.create_admin.access_level_3')}</option>
             </select>
           </div>
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -103,7 +105,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
               className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>Créer l'Admin</span>
+              <span>{t('admin.modals.create_admin.submit')}</span>
             </button>
           </div>
         </form>
@@ -128,6 +130,7 @@ export const ResetClientPasswordModal: React.FC<ResetClientPasswordModalProps> =
   onConfirm,
   tempPasswordResult,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -136,7 +139,7 @@ export const ResetClientPasswordModal: React.FC<ResetClientPasswordModalProps> =
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
             <Key className="h-5 w-5 text-primary" />
-            <h3 className="text-base font-bold">Réinitialisation de Mot de Passe</h3>
+            <h3 className="text-base font-bold">{t('admin.modals.reset_password.title')}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
             <X className="h-5 w-5" />
@@ -147,17 +150,19 @@ export const ResetClientPasswordModal: React.FC<ResetClientPasswordModalProps> =
           {!tempPasswordResult ? (
             <>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Êtes-vous sûr de vouloir réinitialiser le mot de passe du client <strong className="text-foreground">{clientName}</strong> ? Ses sessions actives seront révoquées.
+                {t('admin.modals.reset_password.confirm_part1')}{' '}
+                <strong className="text-foreground">{clientName}</strong>
+                {' '}{t('admin.modals.reset_password.confirm_part2')}
               </p>
               <div className="pt-2 flex gap-3">
                 <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted">
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={onConfirm}
                   className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold shadow-md hover:bg-destructive/90"
                 >
-                  Générer mot de passe
+                  {t('admin.modals.reset_password.generate')}
                 </button>
               </div>
             </>
@@ -165,16 +170,16 @@ export const ResetClientPasswordModal: React.FC<ResetClientPasswordModalProps> =
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-forest-500/10 border border-forest-500/20 text-forest-600 dark:text-forest-400 space-y-2">
                 <CheckCircle2 className="h-8 w-8 mx-auto" />
-                <h4 className="text-sm font-bold">Mot de passe temporaire généré !</h4>
+                <h4 className="text-sm font-bold">{t('admin.modals.reset_password.generated_title')}</h4>
                 <div className="bg-background px-4 py-2 rounded-lg border border-border font-mono text-base font-black text-foreground select-all">
                   {tempPasswordResult}
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Transmettez ce mot de passe temporaire au client. Il sera invité à le modifier lors de sa prochaine connexion.
+                {t('admin.modals.reset_password.transmit_hint')}
               </p>
               <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold">
-                Fermer
+                {t('common.close')}
               </button>
             </div>
           )}
@@ -202,6 +207,7 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const { t } = useTranslation();
   const [valeur, setValeur] = useState(initialValue);
 
   useEffect(() => {
@@ -221,7 +227,7 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
             <Sliders className="h-5 w-5 text-primary" />
-            <h3 className="text-base font-bold">Modifier la Configuration Système</h3>
+            <h3 className="text-base font-bold">{t('admin.modals.edit_config.title')}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
             <X className="h-5 w-5" />
@@ -230,14 +236,14 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
 
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(valeur); onClose(); }} className="p-6 space-y-4">
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-muted-foreground">Clé Système</span>
+            <span className="text-xs font-semibold text-muted-foreground">{t('admin.modals.edit_config.system_key_label')}</span>
             <div className="bg-muted px-3 py-2 rounded-xl text-xs font-mono font-bold text-foreground">
               {configKey} ({typeDonnee})
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Nouvelle Valeur à chaud</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.edit_config.new_value_label')}</label>
             <textarea
               rows={3}
               required
@@ -249,10 +255,10 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button type="submit" className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90">
-              Appliquer à chaud
+              {t('admin.modals.edit_config.submit')}
             </button>
           </div>
         </form>
@@ -281,6 +287,7 @@ interface ViewAuditDetailModalProps {
 }
 
 export const ViewAuditDetailModal: React.FC<ViewAuditDetailModalProps> = ({ isOpen, auditItem, onClose }) => {
+  const { t } = useTranslation();
   if (!isOpen || !auditItem) return null;
 
   return (
@@ -289,7 +296,7 @@ export const ViewAuditDetailModal: React.FC<ViewAuditDetailModalProps> = ({ isOp
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2">
             <FileCode className="h-5 w-5 text-primary" />
-            <h3 className="text-base font-bold">Détail d'Événement d'Audit #{auditItem.id_log}</h3>
+            <h3 className="text-base font-bold">{t('admin.modals.audit_detail.title', { id: auditItem.id_log })}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
             <X className="h-5 w-5" />
@@ -299,26 +306,26 @@ export const ViewAuditDetailModal: React.FC<ViewAuditDetailModalProps> = ({ isOp
         <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
           <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border border-border">
             <div>
-              <span className="text-muted-foreground font-semibold">Utilisateur :</span>{' '}
+              <span className="text-muted-foreground font-semibold">{t('admin.modals.audit_detail.user_label')}</span>{' '}
               <strong className="text-foreground">{auditItem.utilisateur_email || `ID ${auditItem.id_utilisateur}`}</strong>
             </div>
             <div>
-              <span className="text-muted-foreground font-semibold">Action :</span>{' '}
+              <span className="text-muted-foreground font-semibold">{t('admin.modals.audit_detail.action_label')}</span>{' '}
               <span className="bg-primary/10 text-primary font-bold px-2 py-0.5 rounded">{auditItem.action}</span>
             </div>
             <div>
-              <span className="text-muted-foreground font-semibold">Ressource :</span>{' '}
+              <span className="text-muted-foreground font-semibold">{t('admin.modals.audit_detail.resource_label')}</span>{' '}
               <strong className="text-foreground">{auditItem.ressource} (ID {auditItem.id_ressource})</strong>
             </div>
             <div>
-              <span className="text-muted-foreground font-semibold">Horodatage :</span>{' '}
+              <span className="text-muted-foreground font-semibold">{t('admin.modals.audit_detail.timestamp_label')}</span>{' '}
               <span className="text-foreground">{auditItem.date_action}</span>
             </div>
           </div>
 
           {/* JSON Donnees Avant */}
           <div className="space-y-1">
-            <span className="font-bold text-muted-foreground uppercase text-[10px]">Données Avant (JSON)</span>
+            <span className="font-bold text-muted-foreground uppercase text-[10px]">{t('admin.modals.audit_detail.data_before')}</span>
             <pre className="bg-slate-950 text-slate-200 p-3 rounded-xl overflow-x-auto text-[11px] font-mono border border-slate-800">
               {auditItem.donnees_avant ? JSON.stringify(auditItem.donnees_avant, null, 2) : 'null'}
             </pre>
@@ -326,7 +333,7 @@ export const ViewAuditDetailModal: React.FC<ViewAuditDetailModalProps> = ({ isOp
 
           {/* JSON Donnees Apres */}
           <div className="space-y-1">
-            <span className="font-bold text-muted-foreground uppercase text-[10px]">Données Après (JSON)</span>
+            <span className="font-bold text-muted-foreground uppercase text-[10px]">{t('admin.modals.audit_detail.data_after')}</span>
             <pre className="bg-slate-950 text-forest-400 p-3 rounded-xl overflow-x-auto text-[11px] font-mono border border-slate-800">
               {auditItem.donnees_apres ? JSON.stringify(auditItem.donnees_apres, null, 2) : 'null'}
             </pre>
@@ -348,6 +355,7 @@ interface ClientDetailModalProps {
 const formatXAF2 = (valeur: number) => `${Number(valeur).toLocaleString('fr-FR')} XAF`;
 
 export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, idClient, onClose, onForced }) => {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<AdminClientDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -375,9 +383,9 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
         setPlans(p);
         if (p.length > 0) setIdPlan(String(p[0].id_plan));
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger ce client.'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('admin.modals.client_detail.error_load')))
       .finally(() => setIsLoading(false));
-  }, [isOpen, idClient]);
+  }, [isOpen, idClient, t]);
 
   if (!isOpen || idClient === null) return null;
 
@@ -396,10 +404,10 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
           duree_jours: dureeJours ? Number(dureeJours) : undefined,
         }),
       });
-      setMessageForcage('Plan attribué avec succès.');
+      setMessageForcage(t('admin.modals.client_detail.plan_assigned_success'));
       onForced();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Attribution du plan impossible.");
+      setError(err instanceof Error ? err.message : t('admin.modals.client_detail.error_assign'));
     } finally {
       setIsForcing(false);
     }
@@ -411,7 +419,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2">
             <UserCog className="h-5 w-5 text-primary" />
-            <h3 className="text-base font-bold">Fiche client détaillée</h3>
+            <h3 className="text-base font-bold">{t('admin.modals.client_detail.title')}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
             <X className="h-5 w-5" />
@@ -422,34 +430,34 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
           {isLoading ? (
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : !detail ? (
-            <p className="text-sm text-destructive text-center">{error ?? 'Client introuvable.'}</p>
+            <p className="text-sm text-destructive text-center">{error ?? t('admin.modals.client_detail.not_found')}</p>
           ) : (
             <>
               <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-1 text-xs">
                 <p className="font-bold text-foreground text-sm">{detail.first_name} {detail.last_name}</p>
                 <p className="text-muted-foreground">{detail.email} • {detail.phone}</p>
-                <p className="text-muted-foreground">Client depuis le {new Date(detail.date_creation).toLocaleDateString('fr-FR')}</p>
+                <p className="text-muted-foreground">{t('admin.modals.client_detail.client_since', { date: new Date(detail.date_creation).toLocaleDateString('fr-FR') })}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3 rounded-xl border border-border">
-                  <p className="text-muted-foreground">Solde principal</p>
+                  <p className="text-muted-foreground">{t('admin.modals.client_detail.main_balance')}</p>
                   <p className="font-black text-foreground text-sm">{formatXAF2(detail.solde_compte_principal)}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border">
-                  <p className="text-muted-foreground">Plan actuel</p>
+                  <p className="text-muted-foreground">{t('admin.modals.client_detail.current_plan')}</p>
                   <p className="font-black text-primary text-sm">{detail.plan_abonnement}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border">
-                  <p className="text-muted-foreground">Comptes financiers</p>
+                  <p className="text-muted-foreground">{t('admin.modals.client_detail.financial_accounts')}</p>
                   <p className="font-black text-foreground text-sm">{detail.nombre_comptes_financiers}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border">
-                  <p className="text-muted-foreground">Transactions</p>
+                  <p className="text-muted-foreground">{t('dashboard.nav.transactions')}</p>
                   <p className="font-black text-foreground text-sm">{detail.nombre_transactions}</p>
                 </div>
                 <div className="p-3 rounded-xl border border-border col-span-2">
-                  <p className="text-muted-foreground">Dettes/créances actives</p>
+                  <p className="text-muted-foreground">{t('admin.modals.client_detail.active_debts_claims')}</p>
                   <p className="font-black text-foreground text-sm">{detail.nombre_dettes_actives}</p>
                 </div>
               </div>
@@ -457,7 +465,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
               <form onSubmit={handleForcer} className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
                 <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   <Crown className="h-3.5 w-3.5 text-primary" />
-                  <span>Forcer/attribuer un plan (geste commercial, litige)</span>
+                  <span>{t('admin.modals.client_detail.force_plan_title')}</span>
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <select value={idPlan} onChange={(e) => setIdPlan(e.target.value)} className="bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
@@ -475,13 +483,13 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
                   min={1}
                   value={dureeJours}
                   onChange={(e) => setDureeJours(e.target.value)}
-                  placeholder="Durée (jours)"
+                  placeholder={t('admin.modals.client_detail.duration_placeholder')}
                   className="w-full bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 {messageForcage && <p className="text-xs font-semibold text-forest-600 dark:text-forest-400">{messageForcage}</p>}
                 <button type="submit" disabled={isForcing} className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50">
                   {isForcing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  <span>Attribuer ce plan</span>
+                  <span>{t('admin.modals.client_detail.assign_plan')}</span>
                 </button>
               </form>
 
@@ -522,15 +530,15 @@ interface PlanModalProps {
 // admin.service.PLANS_SYSTEME.
 const PLANS_SYSTEME = ['GRATUIT', 'ESSENTIEL', 'PREMIUM'];
 
-const ACCES_OPTIONS: { key: keyof PlanFormData; label: string }[] = [
-  { key: 'acces_dettes', label: 'Dettes & Créances' },
-  { key: 'acces_epargne', label: 'Épargne & Projets' },
-  { key: 'acces_recurrentes', label: 'Transactions récurrentes' },
-  { key: 'acces_templates', label: 'Modèles de transaction' },
-  { key: 'acces_analyse', label: 'Analyse & Prédictions' },
-  { key: 'acces_jarvis', label: 'Assistant JARVIS IA' },
-  { key: 'acces_rapport', label: 'Rapports PDF' },
-  { key: 'acces_tontine', label: 'Tontines & Épargne Collective' },
+const ACCES_OPTIONS: { key: keyof PlanFormData; labelKey: string }[] = [
+  { key: 'acces_dettes', labelKey: 'dashboard.nav.debts' },
+  { key: 'acces_epargne', labelKey: 'dashboard.nav.savings' },
+  { key: 'acces_recurrentes', labelKey: 'automations.recurring_title' },
+  { key: 'acces_templates', labelKey: 'automations.templates_title' },
+  { key: 'acces_analyse', labelKey: 'dashboard.nav.analyse' },
+  { key: 'acces_jarvis', labelKey: 'dashboard.nav.jarvis' },
+  { key: 'acces_rapport', labelKey: 'dashboard.nav.reports' },
+  { key: 'acces_tontine', labelKey: 'admin.modals.plan.feature_tontines' },
 ];
 
 const ACCES_VIDES = {
@@ -545,6 +553,7 @@ const ACCES_VIDES = {
 };
 
 export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onSubmit }) => {
+  const { t } = useTranslation();
   const [nom, setNom] = useState('');
   const [prixMensuel, setPrixMensuel] = useState('0');
   const [prixAnnuel, setPrixAnnuel] = useState('0');
@@ -601,7 +610,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Opération impossible.');
+      setError(err instanceof Error ? err.message : t('modals.dette_operation.error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -613,7 +622,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2">
             <Crown className="h-5 w-5 text-primary" />
-            <h3 className="text-base font-bold">{plan ? 'Modifier le plan' : 'Créer un plan tarifaire'}</h3>
+            <h3 className="text-base font-bold">{plan ? t('admin.modals.plan.title_edit') : t('admin.modals.plan.title_create')}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
             <X className="h-5 w-5" />
@@ -622,24 +631,24 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Nom du plan</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.plan.name_label')}</label>
             <input
               type="text"
               required
               disabled={estPlanSysteme}
               value={nom}
               onChange={(e) => setNom(e.target.value.toUpperCase())}
-              placeholder="ex: ENTREPRISE"
+              placeholder={t('admin.modals.plan.name_placeholder')}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-60"
             />
             {estPlanSysteme && (
-              <p className="text-[10px] text-muted-foreground">Plan système : le nom ne peut pas être modifié (utilisé par l'inscription et le paiement).</p>
+              <p className="text-[10px] text-muted-foreground">{t('admin.modals.plan.system_plan_hint')}</p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Prix mensuel</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.plan.monthly_price_label')}</label>
               <input
                 type="number"
                 min={0}
@@ -651,7 +660,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground">Prix annuel</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.plan.yearly_price_label')}</label>
               <input
                 type="number"
                 min={0}
@@ -665,7 +674,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">Devise</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.plan.currency_label')}</label>
             <input
               type="text"
               required
@@ -676,7 +685,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
           </div>
 
           <div className="space-y-2">
-            <span className="text-xs font-semibold text-muted-foreground">Accès fonctionnels inclus</span>
+            <span className="text-xs font-semibold text-muted-foreground">{t('admin.modals.plan.features_label')}</span>
             <div className="grid grid-cols-2 gap-2">
               {ACCES_OPTIONS.map((opt) => (
                 <label key={opt.key} className="flex items-center gap-2 text-xs font-medium p-2 rounded-lg border border-border cursor-pointer hover:bg-muted/50">
@@ -686,7 +695,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
                     onChange={(e) => setAcces((prev) => ({ ...prev, [opt.key]: e.target.checked }))}
                     className="accent-primary"
                   />
-                  <span>{opt.label}</span>
+                  <span>{t(opt.labelKey)}</span>
                 </label>
               ))}
             </div>
@@ -696,7 +705,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -704,7 +713,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
               className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>{plan ? 'Enregistrer' : 'Créer le plan'}</span>
+              <span>{plan ? t('common.save') : t('admin.modals.plan.submit_create')}</span>
             </button>
           </div>
         </form>
@@ -721,6 +730,7 @@ interface TransactionSuspecteDetailModalProps {
 }
 
 export const TransactionSuspecteDetailModal: React.FC<TransactionSuspecteDetailModalProps> = ({ isOpen, idTransaction, onClose }) => {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<AdminTransactionSuspecteDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -733,9 +743,9 @@ export const TransactionSuspecteDetailModal: React.FC<TransactionSuspecteDetailM
     api
       .request<AdminTransactionSuspecteDetail>(`/admin/fraude/transactions/${idTransaction}`)
       .then(setDetail)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger cette transaction.'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('modals.transaction_detail.error_load')))
       .finally(() => setIsLoading(false));
-  }, [isOpen, idTransaction]);
+  }, [isOpen, idTransaction, t]);
 
   if (!isOpen || idTransaction === null) return null;
 
@@ -745,7 +755,7 @@ export const TransactionSuspecteDetailModal: React.FC<TransactionSuspecteDetailM
         <div className="p-5 border-b border-border flex items-center justify-between bg-destructive/10 shrink-0">
           <div className="flex items-center gap-2">
             <AlertOctagon className="h-5 w-5 text-destructive" />
-            <h3 className="text-base font-bold text-destructive">Fiche d'investigation</h3>
+            <h3 className="text-base font-bold text-destructive">{t('admin.modals.transaction_suspecte.title')}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
             <X className="h-5 w-5" />
@@ -756,18 +766,18 @@ export const TransactionSuspecteDetailModal: React.FC<TransactionSuspecteDetailM
           {isLoading ? (
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : !detail ? (
-            <p className="text-sm text-destructive text-center">{error ?? 'Transaction introuvable.'}</p>
+            <p className="text-sm text-destructive text-center">{error ?? t('modals.transaction_detail.not_found')}</p>
           ) : (
             <>
-              <div className="flex justify-between"><span className="text-muted-foreground">Client</span><strong className="text-foreground">{detail.nom_client} ({detail.email_client})</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Compte</span><strong className="text-foreground">{detail.nom_compte}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Catégorie</span><strong className="text-foreground">{detail.nom_categorie ?? '—'}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Montant</span><strong className="text-destructive">{formatXAF2(detail.montant)}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Type</span><strong className="text-foreground">{detail.type}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Date</span><strong className="text-foreground">{new Date(detail.date).toLocaleDateString('fr-FR')}</strong></div>
-              <div className="pt-2 mt-2 border-t border-border flex justify-between"><span className="text-muted-foreground">Solde principal du client</span><strong className="text-foreground">{formatXAF2(detail.solde_compte_principal)}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Transactions totales</span><strong className="text-foreground">{detail.nombre_total_transactions_client}</strong></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Dont suspectes</span><strong className="text-destructive">{detail.nombre_transactions_suspectes_client}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('admin.modals.transaction_suspecte.client_label')}</span><strong className="text-foreground">{detail.nom_client} ({detail.email_client})</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('modals.transaction_detail.account')}</span><strong className="text-foreground">{detail.nom_compte}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('modals.transaction_detail.category')}</span><strong className="text-foreground">{detail.nom_categorie ?? '—'}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('transfers.amount')}</span><strong className="text-destructive">{formatXAF2(detail.montant)}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('modals.transaction_detail.type')}</span><strong className="text-foreground">{detail.type}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('common.date')}</span><strong className="text-foreground">{new Date(detail.date).toLocaleDateString('fr-FR')}</strong></div>
+              <div className="pt-2 mt-2 border-t border-border flex justify-between"><span className="text-muted-foreground">{t('admin.modals.transaction_suspecte.main_balance_label')}</span><strong className="text-foreground">{formatXAF2(detail.solde_compte_principal)}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('admin.modals.transaction_suspecte.total_transactions_label')}</span><strong className="text-foreground">{detail.nombre_total_transactions_client}</strong></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('admin.modals.transaction_suspecte.suspicious_count_label')}</span><strong className="text-destructive">{detail.nombre_transactions_suspectes_client}</strong></div>
             </>
           )}
         </div>

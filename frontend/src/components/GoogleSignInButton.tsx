@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GOOGLE_CLIENT_ID } from '../config';
 
 declare global {
@@ -39,6 +40,7 @@ const chargerScriptGoogle = (): Promise<void> => {
 };
 
 export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onCredential }) => {
+  const { i18n } = useTranslation();
   const conteneurRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onCreden
           size: 'large',
           text: 'continue_with',
           shape: 'pill',
-          locale: 'fr',
+          locale: i18n.language === 'en' ? 'en' : 'fr',
           width: 320,
         });
       })
@@ -72,7 +74,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onCreden
       annule = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [i18n.language]);
 
   if (!GOOGLE_CLIENT_ID) return null;
 

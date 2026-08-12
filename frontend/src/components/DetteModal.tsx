@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { CompteFinancier } from '../types';
@@ -11,6 +12,7 @@ interface DetteModalProps {
 }
 
 export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSuccess, comptes }) => {
+  const { t } = useTranslation();
   const [type, setType] = useState<'DETTE' | 'CREANCE'>('DETTE');
   const [nom, setNom] = useState('');
   const [montantTotal, setMontantTotal] = useState('');
@@ -57,7 +59,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Création impossible.');
+      setError(err instanceof Error ? err.message : t('modals.dette.error_create'));
     } finally {
       setIsSubmitting(false);
     }
@@ -67,7 +69,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
-          <h3 className="text-lg font-bold tracking-tight">Déclarer une dette / créance</h3>
+          <h3 className="text-lg font-bold tracking-tight">{t('debts.declare')}</h3>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -82,7 +84,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
                 type === 'DETTE' ? 'bg-destructive text-destructive-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Dette (je dois)
+              {t('modals.dette.type_debt')}
             </button>
             <button
               type="button"
@@ -91,16 +93,16 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
                 type === 'CREANCE' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Créance (on me doit)
+              {t('modals.dette.type_claim')}
             </button>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Nom / motif</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette.name_label')}</label>
             <input
               type="text"
               required
-              placeholder="ex: Prêt voiture, Avance à Paul..."
+              placeholder={t('modals.dette.name_placeholder')}
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
@@ -108,7 +110,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Montant total (XAF)</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette.total_amount_label')}</label>
             <input
               type="number"
               required
@@ -121,7 +123,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Compte concerné</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette.account_label')}</label>
             <select
               value={idCompte}
               onChange={(e) => setIdCompte(e.target.value)}
@@ -134,7 +136,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Personne concernée (facultatif)</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette.person_label')}</label>
             <input
               type="text"
               placeholder="ex: Paul"
@@ -145,7 +147,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Échéance (facultatif)</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette.due_date_label')}</label>
             <input
               type="date"
               value={dateEcheance}
@@ -158,7 +160,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
 
           <div className="pt-2 flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -166,7 +168,7 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
               className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>Enregistrer</span>
+              <span>{t('common.save')}</span>
             </button>
           </div>
         </form>

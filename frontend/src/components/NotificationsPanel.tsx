@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Trash2, CheckCheck, Loader2, Bell } from 'lucide-react';
 import { api } from '../services/api';
 import { formatDateRelative } from '../utils/formatters';
@@ -20,6 +21,7 @@ interface NotificationsPanelProps {
 export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   isOpen, onClose, basePath, notificationCiblee, onChange,
 }) => {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -107,7 +109,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            <span>Notifications</span>
+            <span>{t('notifications.title')}</span>
           </h3>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
@@ -122,7 +124,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
               className="text-xs font-semibold text-primary hover:underline flex items-center gap-1.5 disabled:opacity-40 disabled:no-underline"
             >
               <CheckCheck className="h-3.5 w-3.5" />
-              <span>Tout marquer lu</span>
+              <span>{t('notifications.mark_all_read')}</span>
             </button>
             <button
               onClick={supprimerTout}
@@ -131,7 +133,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
               }`}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span>{confirmationSuppressionTout ? 'Confirmer la suppression ?' : 'Tout supprimer'}</span>
+              <span>{confirmationSuppressionTout ? t('notifications.confirm_delete_all') : t('notifications.delete_all')}</span>
             </button>
           </div>
         )}
@@ -142,7 +144,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : notifications.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">Aucune notification pour le moment.</p>
+            <p className="text-sm text-muted-foreground text-center py-12">{t('notifications.none_yet')}</p>
           ) : (
             <div className="divide-y divide-border">
               {notifications.map((notification) => {
@@ -176,7 +178,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                     </div>
                     <button
                       onClick={(e) => supprimer(e, notification.id_notification)}
-                      title="Supprimer cette notification"
+                      title={t('notifications.delete_one')}
                       className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
