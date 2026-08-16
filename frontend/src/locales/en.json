@@ -1,4 +1,20 @@
 {
+  "seo": {
+    "landing_title": "MyNkap — Budget, Mobile Money & Tontine Management for Central Africa",
+    "landing_description": "Manage your budget, Orange Money and MTN MoMo accounts, and tontines in one place. AI-powered personal finance app built for Cameroon and Central Africa.",
+    "about_title": "About MyNkap — Personal Finance App for Central Africa",
+    "about_description": "Discover MyNkap, the app that brings Mobile Money, bank accounts and cash together for a clear view of your personal finances in the CEMAC zone (XAF).",
+    "contact_title": "Contact — MyNkap",
+    "contact_description": "Have a question about MyNkap, the budget and Mobile Money management app for Central Africa? Reach our team directly via WhatsApp.",
+    "login_title": "Log In — MyNkap",
+    "login_description": "Log in to your MyNkap account to track your budget, Mobile Money accounts and personal finances.",
+    "register_title": "Create an Account — MyNkap",
+    "register_description": "Create your free MyNkap account and start managing your budget, Mobile Money accounts and tontines today.",
+    "forgot_password_title": "Forgot Password — MyNkap",
+    "forgot_password_description": "Reset your MyNkap account password in a few seconds.",
+    "reset_password_title": "Reset Password — MyNkap",
+    "reset_password_description": "Choose a new password for your MyNkap account."
+  },
   "common": {
     "error_load_dashboard": "Unable to load your dashboard.",
     "error_action": "Action failed.",

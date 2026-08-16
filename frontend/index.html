@@ -4,7 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="MyNkap est l'application intelligente de gestion des finances personnelles pour l'Afrique Centrale. Suivez vos comptes Mobile Money, bancaires et espèces en XAF, avec un assistant financier propulsé par l'intelligence artificielle." />
+    <!-- Titre par défaut uniquement : la description est gérée exclusivement
+         par react-helmet-async (voir src/components/Seo.tsx), une par page.
+         Une balise meta description statique ici en plus de celle injectée
+         par Helmet créait deux balises meta[name=description] en même temps
+         — les navigateurs/robots ne lisent que la première (l'ancienne,
+         statique), rendant la personnalisation par page invisible pour
+         Google. -->
     <title>MyNkap — Gestion des finances personnelles intelligente</title>
   </head>
   <body>

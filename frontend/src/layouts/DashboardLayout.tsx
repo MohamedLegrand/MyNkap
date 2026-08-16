@@ -29,6 +29,7 @@ import { ProfileSettingsModal } from '../components/ProfileSettingsModal';
 import { JarvisFloatingBubble } from '../components/JarvisFloatingBubble';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { NoIndex } from '../components/NoIndex';
 import type { Plan, Abonnement } from '../types';
 
 interface DashboardLayoutProps {
@@ -116,6 +117,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans transition-colors duration-200">
+      <NoIndex />
       {/* 1. Sidebar Latérale Desktop */}
       <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card/60 backdrop-blur-md sticky top-0 h-screen z-30">
         {/* Brand Header */}

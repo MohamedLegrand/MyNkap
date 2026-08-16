@@ -22,6 +22,7 @@ import { useAuthStore } from '../store';
 import { api } from '../services/api';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { NoIndex } from '../components/NoIndex';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -65,6 +66,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans transition-colors duration-200 selection:bg-primary/20">
+      <NoIndex />
       {/* 1. Sidebar Latérale Desktop Admin */}
       <aside className="hidden md:flex flex-col w-68 border-r border-border bg-card/80 backdrop-blur-xl sticky top-0 h-screen z-30">
         {/* Brand Header Admin */}

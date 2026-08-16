@@ -13,6 +13,8 @@ import type { TokenResponse, Client } from '../types';
 import { OtpVerificationStep } from '../components/OtpVerificationStep';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { Seo } from '../components/Seo';
+import { StructuredData } from '../components/StructuredData';
 import { useDarkMode } from '../hooks/useDarkMode';
 
 // Décode la charge utile d'un jeton d'identité Google (JWT) côté client,
@@ -391,6 +393,8 @@ const LandingPage = () => {
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
+      <Seo title={t('seo.landing_title')} description={t('seo.landing_description')} path="/" />
+      <StructuredData />
       {/* 1. Header (Navigation) */}
       <SiteHeader />
 
@@ -725,6 +729,7 @@ const AboutPage = () => {
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
+      <Seo title={t('seo.about_title')} description={t('seo.about_description')} path="/a-propos" />
       <SiteHeader />
 
       {/* Hero */}
@@ -843,6 +848,7 @@ const ContactPage = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
+      <Seo title={t('seo.contact_title')} description={t('seo.contact_description')} path="/contact" />
       <SiteHeader />
 
       <section className="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
@@ -1143,10 +1149,12 @@ const LoginPage = () => {
   };
 
   return (
-    <AuthLayout
-      title={step === 1 ? t('auth.login_title') : t('auth.otp_title')}
-      subtitle={step === 1 ? t('auth.login_subtitle') : t('auth.otp_subtitle')}
-    >
+    <>
+      <Seo title={t('seo.login_title')} description={t('seo.login_description')} path="/login" />
+      <AuthLayout
+        title={step === 1 ? t('auth.login_title') : t('auth.otp_title')}
+        subtitle={step === 1 ? t('auth.login_subtitle') : t('auth.otp_subtitle')}
+      >
       {step === 1 ? (
         <form onSubmit={handleSubmit} className="space-y-4">
           {compteVientDetreCree && (
@@ -1218,7 +1226,8 @@ const LoginPage = () => {
           onBackToLogin={() => { setStep(1); setGoogleCredential(null); }}
         />
       )}
-    </AuthLayout>
+      </AuthLayout>
+    </>
   );
 };
 
@@ -1336,11 +1345,13 @@ const RegisterPage = () => {
   };
 
   return (
-    <AuthLayout
-      title={t('auth.register_title')}
-      subtitle={t('auth.register_subtitle')}
-      maxWidthClassName="max-w-lg"
-    >
+    <>
+      <Seo title={t('seo.register_title')} description={t('seo.register_description')} path="/register" />
+      <AuthLayout
+        title={t('auth.register_title')}
+        subtitle={t('auth.register_subtitle')}
+        maxWidthClassName="max-w-lg"
+      >
       <form onSubmit={handleSubmit} className="space-y-4">
         <GoogleSignInButton onCredential={handleGoogleCredential} />
         {prerempliParGoogle && (
@@ -1456,7 +1467,8 @@ const RegisterPage = () => {
           <Link to="/login" className="text-secondary hover:underline font-medium">{t('auth.login_button')}</Link>
         </p>
       </form>
-    </AuthLayout>
+      </AuthLayout>
+    </>
   );
 };
 
@@ -1485,10 +1497,12 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <AuthLayout
-      title={t('auth.forgot_password_title')}
-      subtitle={t('auth.forgot_password_subtitle')}
-    >
+    <>
+      <Seo title={t('seo.forgot_password_title')} description={t('seo.forgot_password_description')} path="/forgot-password" />
+      <AuthLayout
+        title={t('auth.forgot_password_title')}
+        subtitle={t('auth.forgot_password_subtitle')}
+      >
       {isSubmitted ? (
         <div className="text-center space-y-4">
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
@@ -1533,7 +1547,8 @@ const ForgotPasswordPage = () => {
           </p>
         </form>
       )}
-    </AuthLayout>
+      </AuthLayout>
+    </>
   );
 };
 
@@ -1574,7 +1589,9 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <AuthLayout title={t('auth.reset_password_title')} subtitle={t('auth.reset_password_subtitle')}>
+    <>
+      <Seo title={t('seo.reset_password_title')} description={t('seo.reset_password_description')} path="/reset-password" />
+      <AuthLayout title={t('auth.reset_password_title')} subtitle={t('auth.reset_password_subtitle')}>
       {!token ? (
         <p className="text-sm text-destructive text-center">
           {t('auth.invalid_reset_link_part1')}{' '}
@@ -1628,7 +1645,8 @@ const ResetPasswordPage = () => {
           </button>
         </form>
       )}
-    </AuthLayout>
+      </AuthLayout>
+    </>
   );
 };
 
