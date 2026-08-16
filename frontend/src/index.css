@@ -18,9 +18,11 @@
     --primary: 127.3 35.5% 22.7%;
     --primary-foreground: 120 20% 98%;
 
-    /* Vert Forêt clair (Secondary) - HSL correspondant à #42834a (forest-500) */
-    --secondary: 127 33% 38.6%;
-    --secondary-foreground: 210 40% 98%;
+    /* Un seul thème de vert : secondary reprend exactement primary (vert
+       forêt), plutôt qu'une nuance plus claire distincte — évite tout
+       dégradé/mélange à deux verts (ex: le nom "MyNkap" en dégradé). */
+    --secondary: 127.3 35.5% 22.7%;
+    --secondary-foreground: 120 20% 98%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
@@ -53,9 +55,9 @@
     --primary: 127 33% 38.6%;
     --primary-foreground: 120 20% 98%;
 
-    /* Vert forêt très clair pour le mode sombre - HSL de #98c39e (forest-300) */
-    --secondary: 128 26% 68%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Même principe qu'en mode clair : un seul vert, secondary = primary. */
+    --secondary: 127 33% 38.6%;
+    --secondary-foreground: 120 20% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
