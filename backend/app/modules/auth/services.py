@@ -9,7 +9,7 @@ from google.oauth2 import id_token as google_id_token
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash, verify_password, create_access_token
 from app.modules.auth.models import Utilisateur, Client, Profile, RefreshToken
 from app.modules.auth.schemas import UserRegister, UserLogin, ResetPasswordRequest
 from app.modules.budgets import service as budgets_service
@@ -90,7 +90,10 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
 
 def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utilisateur]:
     """
-    Valide les identifiants de l'utilisateur et retourne son modèle s'il est valide.
+    Valide les identifiants de l'utilisateur, ouvre directement la session
+    (plus de double authentification par OTP à la connexion, réservée à la
+    vérification de l'e-mail à l'inscription — voir verifier_otp) et
+    retourne son modèle s'il est valide.
     """
     utilisateur = db.query(Utilisateur).filter(Utilisateur.email == login_in.email).first()
     if not utilisateur or not utilisateur.est_actif:
@@ -98,6 +101,10 @@ def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utili
     if not verify_password(login_in.mot_de_passe, utilisateur.mot_de_passe):
         _signaler_tentative_echouee(db, utilisateur)
         return None
+
+    _reinitialiser_tentatives_echouees(utilisateur)
+    db.commit()
+    _notifier_connexion_reussie(db, utilisateur)
     return utilisateur
 
 
@@ -137,13 +144,48 @@ def _reinitialiser_tentatives_echouees(utilisateur: Utilisateur) -> None:
     utilisateur.tentatives_echouees = 0
     utilisateur.alerte_tentatives_envoyee = False
 
-# --- Services de double authentification par code OTP (e-mail) ---
+
+def _notifier_connexion_reussie(db: Session, utilisateur: Utilisateur) -> None:
+    """Notifie le client (jamais les administrateurs, canal individuel
+    uniquement) d'une connexion réussie — appelée après authentifier_utilisateur
+    ET authentifier_avec_google, les deux seules façons d'ouvrir une session."""
+    if utilisateur.type == "client":
+        notifications_service.creer_notification_client(
+            db, utilisateur.id_utilisateur, "CONNEXION_REUSSIE",
+            "Nouvelle connexion à votre compte",
+            f"Connexion réussie le {datetime.utcnow().strftime('%d/%m/%Y à %H:%M')} UTC. "
+            "Si ce n'est pas vous, changez votre mot de passe immédiatement.",
+        )
+
+# --- Émission de la session (jetons) ---
+
+def emettre_session(db: Session, utilisateur: Utilisateur) -> dict:
+    """
+    Émet les jetons de session (access + refresh) pour un utilisateur déjà
+    authentifié — factorisé entre /auth/login et /auth/google, les deux
+    seules routes qui ouvrent une session directement.
+    """
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        subject=utilisateur.id_utilisateur, expires_delta=access_token_expires
+    )
+    _, refresh_token_str = creer_refresh_token(db, utilisateur.id_utilisateur)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token_str,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user_type": utilisateur.type,
+    }
+
+# --- Services de vérification d'e-mail par code OTP (inscription) ---
 
 def generer_et_envoyer_otp(db: Session, utilisateur: Utilisateur) -> None:
     """
     Génère un code à 6 chiffres valable 5 minutes et l'envoie par e-mail
-    (Brevo). Appelé après validation du mot de passe, avant l'émission des
-    jetons de session — voir verifier_otp() pour la seconde étape.
+    (Brevo). Appelé uniquement à l'inscription (voir router.register), pour
+    confirmer que l'adresse fournie est bien joignable — voir verifier_otp()
+    pour la seconde étape.
     """
     code = f"{secrets.randbelow(1_000_000):06d}"
     utilisateur.otp_code = code
@@ -154,16 +196,18 @@ def generer_et_envoyer_otp(db: Session, utilisateur: Utilisateur) -> None:
         f"<p>Bonjour,</p>"
         f"<p>Voici votre code de vérification MyNkap, valable 5 minutes :</p>"
         f'<p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#254E2A;">{code}</p>'
-        f"<p>Si vous n'êtes pas à l'origine de cette connexion, ignorez cet e-mail et changez votre mot de passe.</p>"
+        f"<p>Si vous n'êtes pas à l'origine de cette inscription, ignorez cet e-mail.</p>"
     )
     _envoyer_email_brevo(utilisateur.email, "Votre code de vérification MyNkap", contenu_html)
 
 
 def verifier_otp(db: Session, email: str, code: str) -> Optional[Utilisateur]:
     """
-    Valide le code OTP soumis pour l'e-mail donné. Retourne l'utilisateur si
-    le code est correct, non expiré, et le compte toujours actif — invalide
-    le code dans tous les cas (usage unique).
+    Valide le code OTP envoyé à l'inscription pour l'e-mail donné et marque
+    l'adresse comme vérifiée. Retourne l'utilisateur si le code est
+    correct, non expiré, et le compte toujours actif — invalide le code
+    dans tous les cas (usage unique). N'ouvre aucune session : voir
+    authentifier_utilisateur (POST /auth/login) pour se connecter ensuite.
     """
     utilisateur = db.query(Utilisateur).filter(Utilisateur.email == email).first()
     if not utilisateur or not utilisateur.est_actif:
@@ -181,14 +225,8 @@ def verifier_otp(db: Session, email: str, code: str) -> Optional[Utilisateur]:
 
     if code_valide:
         _reinitialiser_tentatives_echouees(utilisateur)
+        utilisateur.email_verifie = True
         db.commit()
-        if utilisateur.type == "client":
-            notifications_service.creer_notification_client(
-                db, utilisateur.id_utilisateur, "CONNEXION_REUSSIE",
-                "Nouvelle connexion à votre compte",
-                f"Connexion réussie le {datetime.utcnow().strftime('%d/%m/%Y à %H:%M')} UTC. "
-                "Si ce n'est pas vous, changez votre mot de passe immédiatement.",
-            )
         return utilisateur
 
     db.commit()
@@ -213,14 +251,14 @@ def _verifier_id_token_google(id_token_str: str) -> dict:
 
 def authentifier_avec_google(db: Session, id_token_str: str) -> Utilisateur:
     """
-    Étape 1 (alternative au mot de passe) de la connexion via Google :
-    vérifie le jeton d'identité et retrouve le compte MyNkap existant
-    associé à son adresse e-mail. Ne crée jamais de compte à la volée —
-    Google ne fournit pas de numéro de téléphone, requis à l'inscription
-    (Mobile Money) — l'utilisateur doit d'abord s'inscrire normalement.
-    Toujours suivie de la même étape OTP que le mot de passe (voir
-    generer_et_envoyer_otp) : Google Sign-In ne contourne jamais la double
-    authentification.
+    Connexion via Google (alternative au mot de passe) : vérifie le jeton
+    d'identité, retrouve le compte MyNkap existant associé à son adresse
+    e-mail et ouvre directement la session, comme authentifier_utilisateur
+    — Google étant déjà un fournisseur d'identité vérifié (email_verified),
+    aucune étape OTP supplémentaire n'est nécessaire. Ne crée jamais de
+    compte à la volée — Google ne fournit pas de numéro de téléphone,
+    requis à l'inscription (Mobile Money) — l'utilisateur doit d'abord
+    s'inscrire normalement.
     """
     try:
         payload = _verifier_id_token_google(id_token_str)
@@ -235,6 +273,9 @@ def authentifier_avec_google(db: Session, id_token_str: str) -> Utilisateur:
     if not utilisateur or not utilisateur.est_actif:
         raise CompteInexistantPourGoogleError()
 
+    _reinitialiser_tentatives_echouees(utilisateur)
+    db.commit()
+    _notifier_connexion_reussie(db, utilisateur)
     return utilisateur
 
 # --- Services de gestion des Refresh Tokens ---

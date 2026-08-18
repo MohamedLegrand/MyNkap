@@ -21,6 +21,7 @@ import {
   Sparkles,
   CheckCircle2,
   Users,
+  Lock,
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
@@ -110,10 +111,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'reports', label: t('dashboard.nav.reports'), icon: FileText },
   ];
 
-  // Un item sans `gate` est toujours visible ; un item gaté n'apparaît que
-  // si le forfait actif y donne accès — évite d'afficher des fonctionnalités
-  // inutilisables et de saturer le menu avant un upgrade.
-  const navItemsVisibles = navItems.filter((item) => !item.gate || plan?.[item.gate]);
+  // Tous les items restent visibles, même ceux réservés à un palier
+  // supérieur — un cadenas les distingue (voir le rendu plus bas) mais
+  // l'onglet reste cliquable : la page affiche alors une LockedFeatureBanner
+  // (voir ClientDashboard.tsx) plutôt que de faire disparaître le module
+  // sans explication, notamment quand le client y a déjà des données
+  // enregistrées avant un downgrade ou la fin de son essai.
+  const navItemsVisibles = navItems;
+  const estVerrouille = (item: (typeof navItems)[number]) => !!item.gate && !plan?.[item.gate];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans transition-colors duration-200">
@@ -173,6 +178,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           {navItemsVisibles.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
+            const verrouille = estVerrouille(item);
 
             return (
               <button
@@ -183,13 +189,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                    : verrouille
+                    ? 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/60'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-primary-foreground' : verrouille ? 'text-muted-foreground/60' : 'text-muted-foreground'}`} />
                   <span>{item.label}</span>
                 </div>
+                {verrouille && <Lock className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-primary-foreground' : 'text-muted-foreground/60'}`} />}
                 {item.badge && (
                   <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
                     isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
@@ -197,7 +206,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     {item.badge}
                   </span>
                 )}
-                {item.isNew && (
+                {item.isNew && !verrouille && (
                   <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded-md bg-secondary/15 text-secondary border border-secondary/30">
                     IA
                   </span>
@@ -272,6 +281,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <nav className="space-y-2 flex-1">
             {navItemsVisibles.map((item) => {
               const Icon = item.icon;
+              const verrouille = estVerrouille(item);
               return (
                 <button
                   key={item.id}
@@ -280,11 +290,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     setMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-base ${
-                    activeTab === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                    activeTab === item.id ? 'bg-primary text-primary-foreground' : verrouille ? 'text-muted-foreground/60' : 'text-muted-foreground'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
-                  <span>{item.label}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {verrouille && <Lock className="h-4 w-4 shrink-0" />}
                 </button>
               );
             })}

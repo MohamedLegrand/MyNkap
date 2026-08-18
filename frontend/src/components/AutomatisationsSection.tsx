@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Repeat, FileStack, Plus, Loader2, MoreVertical, Pencil, Power, PowerOff, Play, Lock,
+  Repeat, FileStack, Plus, Loader2, MoreVertical, Pencil, Power, PowerOff, Play,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { TransactionRecurrenteModal } from './TransactionRecurrenteModal';
 import { TemplateTransactionModal } from './TemplateTransactionModal';
+import { LockedFeatureBanner } from './LockedFeatureBanner';
 import type { Categorie, CompteFinancier, TemplateTransaction, TransactionRecurrente } from '../types';
 
 interface AutomatisationsSectionProps {
@@ -13,6 +14,11 @@ interface AutomatisationsSectionProps {
   categories: Categorie[];
   accesRecurrentes: boolean;
   accesTemplates: boolean;
+  // Nombre d'éléments déjà enregistrés (voir GET /abonnement/donnees-verrouillees)
+  // affiché dans la bannière quand le forfait actuel ne couvre plus l'accès.
+  nombreRecurrentesVerrouillees?: number;
+  nombreTemplatesVerrouilles?: number;
+  onOpenUpgradeModal?: () => void;
   nomCompte: (idCompte: number) => string;
   nomCategorie: (idCategorie: number | null) => string;
   onDataChange: () => void;
@@ -74,19 +80,10 @@ const MenuActions: React.FC<{ items: ActionMenuItem[]; ariaLabel?: string }> = (
   );
 };
 
-const Verrouille: React.FC<{ titre: string }> = ({ titre }) => {
-  const { t } = useTranslation();
-  return (
-    <div className="p-8 rounded-2xl border border-dashed border-border text-center space-y-2">
-      <Lock className="h-6 w-6 mx-auto text-muted-foreground" />
-      <p className="text-sm font-semibold text-foreground">{t('automations.not_included', { titre })}</p>
-      <p className="text-xs text-muted-foreground">{t('automations.upgrade_hint')}</p>
-    </div>
-  );
-};
-
 export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
-  comptesActifs, categories, accesRecurrentes, accesTemplates, nomCompte, nomCategorie, onDataChange,
+  comptesActifs, categories, accesRecurrentes, accesTemplates,
+  nombreRecurrentesVerrouillees, nombreTemplatesVerrouilles, onOpenUpgradeModal,
+  nomCompte, nomCategorie, onDataChange,
 }) => {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'recurrentes' | 'templates'>(accesRecurrentes ? 'recurrentes' : 'templates');
@@ -189,7 +186,11 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
 
       {mode === 'recurrentes' ? (
         !accesRecurrentes ? (
-          <Verrouille titre={t('automations.recurring_title')} />
+          <LockedFeatureBanner
+            titre={t('automations.recurring_title')}
+            count={nombreRecurrentesVerrouillees}
+            onUpgrade={onOpenUpgradeModal}
+          />
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -255,7 +256,11 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
           </div>
         )
       ) : !accesTemplates ? (
-        <Verrouille titre={t('automations.templates_title')} />
+        <LockedFeatureBanner
+          titre={t('automations.templates_title')}
+          count={nombreTemplatesVerrouilles}
+          onUpgrade={onOpenUpgradeModal}
+        />
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">

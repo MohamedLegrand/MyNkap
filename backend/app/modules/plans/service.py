@@ -8,6 +8,11 @@ from app.core.config import settings
 from app.modules.audit.service import enregistrer_action
 from app.modules.notifications import service as notifications_service
 from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
+from app.modules.dettes.models import Dette
+from app.modules.epargne.models import ObjectifEpargne
+from app.modules.tontines.models import Tontine
+from app.modules.transactions.models import TransactionRecurrente, TemplateTransaction
+from app.modules.jarvis.models import Conversation
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +133,33 @@ def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
         db.refresh(abonnement)
 
     return abonnement
+
+
+def compter_donnees_verrouillees(db: Session, id_client: int) -> dict:
+    """
+    Compte les données déjà existantes du client dans chaque module à
+    palier (dettes, épargne, tontines, récurrentes, templates, JARVIS) —
+    qu'elles soient actuellement accessibles ou non avec le forfait actif.
+    Un changement de palier (fin d'essai, downgrade, échec de paiement) ne
+    supprime jamais ces données, seul l'accès via l'API est restreint (voir
+    dependencies.exiger_fonctionnalite) ; ces compteurs permettent au
+    frontend d'afficher « vous avez N dettes enregistrées » plutôt que de
+    faire disparaître le module sans explication. Ne renvoie que des
+    comptes, jamais les données elles-mêmes : accessible quel que soit le
+    forfait (voir router.obtenir_donnees_verrouillees, non gaté).
+    """
+    return {
+        "dettes": db.query(Dette).filter(Dette.id_client == id_client, Dette.est_actif.is_(True)).count(),
+        "epargne": db.query(ObjectifEpargne).filter(ObjectifEpargne.id_client == id_client).count(),
+        "tontines": db.query(Tontine).filter(Tontine.id_client == id_client).count(),
+        "transactions_recurrentes": db.query(TransactionRecurrente).filter(
+            TransactionRecurrente.id_client == id_client, TransactionRecurrente.est_active.is_(True)
+        ).count(),
+        "templates": db.query(TemplateTransaction).filter(
+            TemplateTransaction.id_client == id_client, TemplateTransaction.est_actif.is_(True)
+        ).count(),
+        "jarvis": db.query(Conversation).filter(Conversation.id_client == id_client).count(),
+    }
 
 
 def notifier_essai_actif(db: Session, id_client: int) -> None:

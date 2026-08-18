@@ -283,6 +283,15 @@ export interface Abonnement {
   renouvellement_auto: boolean;
 }
 
+export interface DonneesVerrouillees {
+  dettes: number;
+  epargne: number;
+  tontines: number;
+  transactions_recurrentes: number;
+  templates: number;
+  jarvis: number;
+}
+
 export interface PaiementAbonnement {
   id_paiement: number;
   plan_demande: Plan;

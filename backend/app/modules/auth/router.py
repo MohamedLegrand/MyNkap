@@ -18,8 +18,9 @@ from app.modules.auth.schemas import (
     ProfileUpdate,
     ForgotPasswordRequest,
     ResetPasswordRequest,
-    LoginOtpResponse,
+    RegisterOtpResponse,
     VerifyOtpRequest,
+    VerifyOtpResponse,
     GoogleLoginRequest,
 )
 from app.modules.auth import services
@@ -27,11 +28,16 @@ from app.modules.audit.service import enregistrer_action
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
-@router.post("/register", response_model=ClientOut, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=RegisterOtpResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 def register(request: Request, client_in: UserRegister, db: Session = Depends(get_db)):
     """
     Inscription d'un nouveau client et initialisation de son profil financier.
+    Le compte est créé immédiatement, mais aucun jeton n'est émis ici : un
+    code de vérification à 6 chiffres part par e-mail (même mécanisme que
+    la double authentification à la connexion, voir services.generer_et_envoyer_otp)
+    pour confirmer que l'adresse fournie est bien joignable avant tout accès
+    réel — voir POST /auth/verify-otp pour la seconde étape.
     """
     # Vérifier si l'email existe déjà
     utilisateur_existant = db.query(Utilisateur).filter(Utilisateur.email == client_in.email).first()
@@ -40,7 +46,7 @@ def register(request: Request, client_in: UserRegister, db: Session = Depends(ge
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cette adresse e-mail est déjà enregistrée."
         )
-    
+
     # Créer le client
     nouveau_client = services.creer_client(db, client_in)
 
@@ -54,15 +60,22 @@ def register(request: Request, client_in: UserRegister, db: Session = Depends(ge
         request=request,
     )
 
-    return nouveau_client
+    services.generer_et_envoyer_otp(db, nouveau_client)
 
-@router.post("/login", response_model=LoginOtpResponse)
+    return {
+        "otp_requis": True,
+        "message": "Compte créé. Un code de vérification a été envoyé par e-mail.",
+        "expires_in": 300,
+    }
+
+@router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
     """
-    Étape 1 de la connexion : valide l'e-mail/mot de passe puis envoie un
-    code de vérification à 6 chiffres par e-mail. Aucun jeton n'est émis
-    ici — voir POST /auth/verify-otp pour la seconde étape.
+    Connexion par e-mail et mot de passe : émet directement les jetons de
+    session. La double authentification par OTP ne s'applique plus qu'à
+    l'inscription, pour vérifier l'adresse e-mail une seule fois (voir
+    POST /auth/register puis POST /auth/verify-otp), pas à chaque connexion.
     """
     utilisateur = services.authentifier_utilisateur(db, login_in)
     if not utilisateur:
@@ -71,25 +84,28 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
             detail="Adresse e-mail ou mot de passe incorrect."
         )
 
-    services.generer_et_envoyer_otp(db, utilisateur)
+    session = services.emettre_session(db, utilisateur)
 
-    return {
-        "otp_requis": True,
-        "message": "Un code de vérification a été envoyé par e-mail.",
-        "expires_in": 300,
-    }
+    enregistrer_action(
+        db,
+        id_utilisateur=utilisateur.id_utilisateur,
+        action="CONNEXION",
+        ressource="Utilisateur",
+        id_ressource=utilisateur.id_utilisateur,
+        request=request,
+    )
 
-@router.post("/google", response_model=LoginOtpResponse)
+    return session
+
+@router.post("/google", response_model=TokenResponse)
 @limiter.limit("10/minute")
 def login_google(request: Request, payload: GoogleLoginRequest, db: Session = Depends(get_db)):
     """
-    Étape 1 de la connexion via Google (alternative au mot de passe) :
-    vérifie le jeton d'identité Google et envoie le même code de
-    vérification à 6 chiffres par e-mail que /auth/login — la double
-    authentification s'applique aussi à Google Sign-In, sans exception.
-    Ne fonctionne que pour un compte MyNkap déjà existant (voir
-    services.authentifier_avec_google) : Google ne fournit pas de numéro
-    de téléphone, requis à l'inscription.
+    Connexion via Google (alternative au mot de passe) : vérifie le jeton
+    d'identité Google et émet directement les jetons de session, comme
+    /auth/login. Ne fonctionne que pour un compte MyNkap déjà existant
+    (voir services.authentifier_avec_google) : Google ne fournit pas de
+    numéro de téléphone, requis à l'inscription.
     """
     try:
         utilisateur = services.authentifier_avec_google(db, payload.id_token)
@@ -104,35 +120,7 @@ def login_google(request: Request, payload: GoogleLoginRequest, db: Session = De
             detail="Aucun compte MyNkap n'est associé à cette adresse Google. Créez d'abord un compte.",
         )
 
-    services.generer_et_envoyer_otp(db, utilisateur)
-
-    return {
-        "otp_requis": True,
-        "message": "Un code de vérification a été envoyé par e-mail.",
-        "expires_in": 300,
-    }
-
-@router.post("/verify-otp", response_model=TokenResponse)
-@limiter.limit("10/minute")
-def verify_otp(request: Request, payload: VerifyOtpRequest, db: Session = Depends(get_db)):
-    """
-    Étape 2 de la connexion : valide le code OTP reçu par e-mail et émet
-    les jetons de session (comme le faisait /auth/login avant l'ajout de
-    la double authentification).
-    """
-    utilisateur = services.verifier_otp(db, payload.email, payload.code)
-    if not utilisateur:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Code de vérification invalide ou expiré."
-        )
-
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        subject=utilisateur.id_utilisateur, expires_delta=access_token_expires
-    )
-
-    _, refresh_token_str = services.creer_refresh_token(db, utilisateur.id_utilisateur)
+    session = services.emettre_session(db, utilisateur)
 
     enregistrer_action(
         db,
@@ -143,13 +131,25 @@ def verify_otp(request: Request, payload: VerifyOtpRequest, db: Session = Depend
         request=request,
     )
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token_str,
-        "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "user_type": utilisateur.type,
-    }
+    return session
+
+@router.post("/verify-otp", response_model=VerifyOtpResponse)
+@limiter.limit("10/minute")
+def verify_otp(request: Request, payload: VerifyOtpRequest, db: Session = Depends(get_db)):
+    """
+    Confirme le code de vérification envoyé à l'inscription (voir POST
+    /auth/register) et marque l'adresse e-mail comme vérifiée. N'émet
+    aucun jeton de session : le client doit ensuite se connecter
+    normalement via POST /auth/login.
+    """
+    utilisateur = services.verifier_otp(db, payload.email, payload.code)
+    if not utilisateur:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Code de vérification invalide ou expiré."
+        )
+
+    return {"message": "Adresse e-mail vérifiée avec succès. Vous pouvez maintenant vous connecter."}
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit("20/minute")

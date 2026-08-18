@@ -77,33 +77,14 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
-def se_connecter_avec_otp(client, email: str, mot_de_passe: str, db_session=None):
+def se_connecter(client, email: str, mot_de_passe: str):
     """
-    Effectue le flux de connexion complet à 2 étapes (mot de passe puis code
-    OTP envoyé par e-mail) et renvoie la réponse de /auth/verify-otp
-    (mêmes champs que l'ancien /auth/login direct : access_token,
-    refresh_token, user_type...). Lit le code directement en base plutôt
-    que dans un e-mail réel — voir auth.services.generer_et_envoyer_otp.
-
-    db_session est facultatif : sans lui, ouvre une session jetable via
-    TestingSessionLocal — StaticPool fait qu'elle partage la même connexion
-    SQLite que celle de l'app (même principe que _upgrader_plan dans les
-    autres fichiers de test), donc aucun fichier de test n'a besoin de faire
-    remonter db_session jusqu'à ses helpers _register_and_login existants.
+    Connecte un utilisateur via /auth/login (e-mail + mot de passe, plus de
+    double authentification par OTP à cette étape — réservée à la
+    vérification de l'e-mail à l'inscription, voir auth.services.verifier_otp)
+    et renvoie directement la réponse (access_token, refresh_token,
+    user_type...).
     """
-    from app.modules.auth.models import Utilisateur
-
-    login_response = client.post(
+    return client.post(
         "/api/v1/auth/login", json={"email": email, "mot_de_passe": mot_de_passe}
     )
-    assert login_response.status_code == 200, login_response.text
-
-    session = db_session or TestingSessionLocal()
-    try:
-        utilisateur = session.query(Utilisateur).filter(Utilisateur.email == email).first()
-        code = utilisateur.otp_code
-    finally:
-        if db_session is None:
-            session.close()
-
-    return client.post("/api/v1/auth/verify-otp", json={"email": email, "code": code})

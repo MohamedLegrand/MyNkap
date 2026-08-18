@@ -6,7 +6,7 @@ from app.modules.plans import service as plans_service
 from app.modules.transactions.models import Transaction, TransactionRecurrente
 from app.modules.transactions.service import _avancer_date, verifier_et_executer_recurrences
 from tests.conftest import TestingSessionLocal
-from tests.conftest import se_connecter_avec_otp
+from tests.conftest import se_connecter
 
 
 def _upgrader_plan(id_client, nom_plan):
@@ -30,7 +30,7 @@ def _register_and_login(client, email="recurrentes.test@example.com", mot_de_pas
             "phone": "+237600000000",
         },
     )
-    access_token = se_connecter_avec_otp(client, email, mot_de_passe).json()["access_token"]
+    access_token = se_connecter(client, email, mot_de_passe).json()["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # Récurrentes/Templates sont réservés au palier ESSENTIEL et plus (voir

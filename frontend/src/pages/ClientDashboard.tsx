@@ -54,6 +54,7 @@ import { TontineModal } from '../components/TontineModal';
 import { TontineDetailModal } from '../components/TontineDetailModal';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
+import { LockedFeatureBanner } from '../components/LockedFeatureBanner';
 import type {
   Abonnement,
   CompteFinancier,
@@ -66,6 +67,7 @@ import type {
   Rapport,
   Transfert,
   Tontine,
+  DonneesVerrouillees,
 } from '../types';
 
 const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
@@ -108,6 +110,7 @@ export const ClientDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [abonnement, setAbonnement] = useState<Abonnement | null>(null);
+  const [donneesVerrouillees, setDonneesVerrouillees] = useState<DonneesVerrouillees | null>(null);
   const [comptePrincipal, setComptePrincipal] = useState<ComptePrincipal | null>(null);
   const [comptes, setComptes] = useState<CompteFinancier[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -127,6 +130,18 @@ export const ClientDashboard: React.FC = () => {
       setAbonnement(await api.request<Abonnement>('/abonnement'));
     } catch {
       setAbonnement(null);
+    }
+  }, []);
+
+  const chargerDonneesVerrouillees = useCallback(async () => {
+    // Toujours accessible quel que soit le forfait (voir GET
+    // /abonnement/donnees-verrouillees, non gaté) : sert uniquement à
+    // afficher « vous avez N éléments enregistrés » sur les modules dont
+    // l'accès a été restreint, jamais les données elles-mêmes.
+    try {
+      setDonneesVerrouillees(await api.request<DonneesVerrouillees>('/abonnement/donnees-verrouillees'));
+    } catch {
+      setDonneesVerrouillees(null);
     }
   }, []);
 
@@ -171,8 +186,9 @@ export const ClientDashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     chargerDonnees();
     chargerAbonnement();
+    chargerDonneesVerrouillees();
     chargerRapports();
-  }, [chargerDonnees, chargerAbonnement, chargerRapports]);
+  }, [chargerDonnees, chargerAbonnement, chargerDonneesVerrouillees, chargerRapports]);
 
   useEffect(() => {
     // Ne tente /epargne que si le forfait y donne accès — évite un 403
@@ -569,37 +585,79 @@ export const ClientDashboard: React.FC = () => {
               categorieParId={categorieParId}
             />
           ) : activeTab === 'savings' ? (
-            <EpargneSection
-              objectifs={objectifsEpargne}
-              onOpenObjectifModal={() => setIsObjectifModalOpen(true)}
-              onAlimenter={(o) => setObjectifOperation({ objectif: o, operation: 'alimenter' })}
-              onRetirer={(o) => setObjectifOperation({ objectif: o, operation: 'retirer' })}
-              onAbandonner={(o) => setObjectifOperation({ objectif: o, operation: 'abandonner' })}
-            />
+            !abonnement?.plan.acces_epargne ? (
+              <LockedFeatureBanner
+                titre={t('dashboard.nav.savings')}
+                count={donneesVerrouillees?.epargne}
+                onUpgrade={() => setIsUpgradeModalOpen(true)}
+              />
+            ) : (
+              <EpargneSection
+                objectifs={objectifsEpargne}
+                onOpenObjectifModal={() => setIsObjectifModalOpen(true)}
+                onAlimenter={(o) => setObjectifOperation({ objectif: o, operation: 'alimenter' })}
+                onRetirer={(o) => setObjectifOperation({ objectif: o, operation: 'retirer' })}
+                onAbandonner={(o) => setObjectifOperation({ objectif: o, operation: 'abandonner' })}
+              />
+            )
           ) : activeTab === 'debts' ? (
-            <DettesSection
-              dettes={dettes}
-              onOpenDetteModal={() => setIsDetteModalOpen(true)}
-              onOperation={(d) => setDetteOperation(d)}
-              onMarquerPerte={marquerDettePerte}
-              onSupprimer={supprimerDette}
-            />
+            !abonnement?.plan.acces_dettes ? (
+              <LockedFeatureBanner
+                titre={t('dashboard.nav.debts')}
+                count={donneesVerrouillees?.dettes}
+                onUpgrade={() => setIsUpgradeModalOpen(true)}
+              />
+            ) : (
+              <DettesSection
+                dettes={dettes}
+                onOpenDetteModal={() => setIsDetteModalOpen(true)}
+                onOperation={(d) => setDetteOperation(d)}
+                onMarquerPerte={marquerDettePerte}
+                onSupprimer={supprimerDette}
+              />
+            )
           ) : activeTab === 'tontines' ? (
-            <TontinesSection
-              tontines={tontines}
-              onOpenTontineModal={() => setIsTontineModalOpen(true)}
-              onOpenDetail={(id) => setIdTontineDetail(id)}
-            />
+            !abonnement?.plan.acces_tontine ? (
+              <LockedFeatureBanner
+                titre={t('dashboard.nav.tontines')}
+                count={donneesVerrouillees?.tontines}
+                onUpgrade={() => setIsUpgradeModalOpen(true)}
+              />
+            ) : (
+              <TontinesSection
+                tontines={tontines}
+                onOpenTontineModal={() => setIsTontineModalOpen(true)}
+                onOpenDetail={(id) => setIdTontineDetail(id)}
+              />
+            )
           ) : activeTab === 'jarvis' ? (
-            <JarvisWidget />
+            !abonnement?.plan.acces_jarvis ? (
+              <LockedFeatureBanner
+                titre={t('dashboard.nav.jarvis')}
+                count={donneesVerrouillees?.jarvis}
+                onUpgrade={() => setIsUpgradeModalOpen(true)}
+              />
+            ) : (
+              <JarvisWidget />
+            )
           ) : activeTab === 'analyse' ? (
-            <AnalyseSection />
+            !abonnement?.plan.acces_analyse ? (
+              <LockedFeatureBanner
+                titre={t('dashboard.nav.analyse')}
+                onUpgrade={() => setIsUpgradeModalOpen(true)}
+              />
+            ) : (
+              <AnalyseSection />
+            )
           ) : activeTab === 'automatisations' ? (
             <AutomatisationsSection
               comptesActifs={comptesActifs}
               categories={categories}
               accesRecurrentes={abonnement?.plan.acces_recurrentes ?? false}
               accesTemplates={abonnement?.plan.acces_templates ?? false}
+              nombreRecurrentesVerrouillees={donneesVerrouillees?.transactions_recurrentes}
+              nombreTemplatesVerrouilles={donneesVerrouillees?.templates}
+              onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
               nomCompte={nomCompte}
               nomCategorie={nomCategorie}
               onDataChange={chargerDonnees}

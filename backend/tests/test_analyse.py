@@ -4,7 +4,7 @@ from decimal import Decimal
 from app.modules.analyse.service import _limites_mois, _mois_precedents, generer_snapshots_mensuels_tous_clients
 from app.modules.plans import service as plans_service
 from tests.conftest import TestingSessionLocal
-from tests.conftest import se_connecter_avec_otp
+from tests.conftest import se_connecter
 
 
 def _upgrader_plan(id_client, nom_plan):
@@ -28,7 +28,7 @@ def _register_and_login(client, email="analyse.test@example.com", mot_de_passe="
             "phone": "+237600000000",
         },
     )
-    access_token = se_connecter_avec_otp(client, email, mot_de_passe).json()["access_token"]
+    access_token = se_connecter(client, email, mot_de_passe).json()["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # Analyse & Prédictions est réservé au palier PREMIUM (voir module

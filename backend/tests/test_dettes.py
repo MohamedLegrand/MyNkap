@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from app.modules.plans import service as plans_service
 from tests.conftest import TestingSessionLocal
-from tests.conftest import se_connecter_avec_otp
+from tests.conftest import se_connecter
 
 
 def _upgrader_plan(id_client, nom_plan):
@@ -31,7 +31,7 @@ def _register_and_login(client, email="dettes.test@example.com", mot_de_passe="m
             "phone": "+237600000000",
         },
     )
-    access_token = se_connecter_avec_otp(client, email, mot_de_passe).json()["access_token"]
+    access_token = se_connecter(client, email, mot_de_passe).json()["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
 
     # Dettes & Créances est réservé au palier ESSENTIEL et plus (voir

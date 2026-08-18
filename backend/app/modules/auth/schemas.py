@@ -40,15 +40,23 @@ class TokenResponse(BaseModel):
 class TokenRefreshRequest(BaseModel):
     refresh_token: str
 
-# --- Schémas pour la double authentification par code OTP (e-mail) ---
-class LoginOtpResponse(BaseModel):
+# --- Schémas pour la vérification d'e-mail par code OTP à l'inscription ---
+# (n'intervient qu'à l'inscription, voir POST /auth/register puis
+# POST /auth/verify-otp — la connexion, elle, n'a plus d'étape OTP)
+class RegisterOtpResponse(BaseModel):
     otp_requis: bool = True
-    message: str = "Un code de vérification a été envoyé par e-mail."
+    message: str = "Compte créé. Un code de vérification a été envoyé par e-mail."
     expires_in: int
 
 class VerifyOtpRequest(BaseModel):
     email: EmailStr
     code: str = Field(..., min_length=6, max_length=6)
+
+class VerifyOtpResponse(BaseModel):
+    """N'émet aucun jeton de session : confirme seulement que l'adresse
+    e-mail est vérifiée. Le client doit ensuite se connecter normalement
+    via POST /auth/login (e-mail + mot de passe)."""
+    message: str = "Adresse e-mail vérifiée avec succès. Vous pouvez maintenant vous connecter."
 
 # --- Schéma pour la connexion via Google (Google Identity Services) ---
 class GoogleLoginRequest(BaseModel):

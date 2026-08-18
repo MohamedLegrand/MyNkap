@@ -36,6 +36,17 @@ class AbonnementOut(BaseModel):
         from_attributes = True
 
 
+class DonneesVerrouilleesOut(BaseModel):
+    """Compteurs uniquement (jamais les données) — voir
+    service.compter_donnees_verrouillees."""
+    dettes: int
+    epargne: int
+    tontines: int
+    transactions_recurrentes: int
+    templates: int
+    jarvis: int
+
+
 class ChangerPlanRequest(BaseModel):
     # Uniquement pour revenir à GRATUIT (aucun paiement requis) — voir
     # InitierPaiementRequest pour souscrire à un plan payant.

@@ -1,7 +1,7 @@
 from app.core.security import create_access_token, get_password_hash
 from app.modules.auth.models import Administrateur
 from app.modules.plans import service as plans_service
-from tests.conftest import se_connecter_avec_otp
+from tests.conftest import se_connecter
 
 
 def _register_and_login(client, email="notif.test@example.com", mot_de_passe="motdepasse123"):
@@ -15,7 +15,7 @@ def _register_and_login(client, email="notif.test@example.com", mot_de_passe="mo
             "phone": "+237600000000",
         },
     )
-    access_token = se_connecter_avec_otp(client, email, mot_de_passe).json()["access_token"]
+    access_token = se_connecter(client, email, mot_de_passe).json()["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
 
 

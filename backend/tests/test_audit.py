@@ -1,6 +1,6 @@
 from app.modules.audit.models import AuditLog
 from app.modules.audit.service import get_config, set_config
-from tests.conftest import se_connecter_avec_otp
+from tests.conftest import se_connecter
 
 
 def _register_payload(**overrides):
@@ -17,10 +17,7 @@ def _register_payload(**overrides):
 
 def test_register_and_login_are_audited(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    # CONNEXION n'est journalisée qu'à l'étape 2 (verify-otp), une fois la
-    # session réellement établie — l'étape 1 (mot de passe) seule ne compte
-    # pas encore comme une connexion.
-    se_connecter_avec_otp(client, "audit.test@example.com", "motdepasse123", db_session)
+    se_connecter(client, "audit.test@example.com", "motdepasse123")
 
     actions = [entry.action for entry in db_session.query(AuditLog).all()]
     assert "CREER" in actions
@@ -29,7 +26,7 @@ def test_register_and_login_are_audited(client, db_session):
 
 def test_logout_is_audited(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    login_response = se_connecter_avec_otp(client, "audit.test@example.com", "motdepasse123", db_session)
+    login_response = se_connecter(client, "audit.test@example.com", "motdepasse123")
     refresh_token = login_response.json()["refresh_token"]
 
     client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})

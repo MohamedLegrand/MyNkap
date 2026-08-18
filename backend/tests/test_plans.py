@@ -5,7 +5,7 @@ import hrpay
 
 from app.modules.plans import service as plans_service
 from app.modules.plans.models import Abonnement, PaiementAbonnement
-from tests.conftest import se_connecter_avec_otp
+from tests.conftest import se_connecter
 
 
 def _register_and_login(client, email="plans.test@example.com", mot_de_passe="motdepasse123"):
@@ -19,7 +19,7 @@ def _register_and_login(client, email="plans.test@example.com", mot_de_passe="mo
             "phone": "+237600000000",
         },
     )
-    access_token = se_connecter_avec_otp(client, email, mot_de_passe).json()["access_token"]
+    access_token = se_connecter(client, email, mot_de_passe).json()["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
 
 
@@ -324,3 +324,57 @@ def test_creer_abonnement_gratuit_est_idempotent_via_get_or_create(client, db_se
 
     abonnement = plans_service.obtenir_abonnement_actif(db_session, id_client)
     assert abonnement.plan.nom == "GRATUIT"
+
+
+# --- Compteurs de données verrouillées (voir dashboard : « vous avez N
+# dettes enregistrées » plutôt qu'un module qui disparaît sans explication) ---
+
+def test_donnees_verrouillees_est_accessible_meme_en_gratuit(client):
+    headers = _register_and_login(client, "plans.verrouille.gratuit@example.com")
+    client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "GRATUIT"}, headers=headers)
+
+    # Contrairement à /dettes, /epargne, etc. (403 en GRATUIT), ce compteur
+    # reste toujours accessible : voir router.obtenir_donnees_verrouillees.
+    reponse = client.get("/api/v1/abonnement/donnees-verrouillees", headers=headers)
+    assert reponse.status_code == 200
+    assert reponse.json() == {
+        "dettes": 0, "epargne": 0, "tontines": 0,
+        "transactions_recurrentes": 0, "templates": 0, "jarvis": 0,
+    }
+
+
+def test_donnees_verrouillees_reflete_les_donnees_existantes_apres_un_downgrade(client, db_session):
+    """
+    Un client crée une dette et un objectif d'épargne pendant son essai
+    PREMIUM, puis redescend en GRATUIT : les données restent en base (voir
+    plans.service.compter_donnees_verrouillees) et le compteur les reflète
+    toujours, même si /dettes et /epargne renvoient désormais 403.
+    """
+    headers = _register_and_login(client, "plans.verrouille.donnees@example.com")
+
+    compte = client.post(
+        "/api/v1/comptes",
+        json={"nom": "Compte", "type": "ESPECES", "solde_initial": 10000},
+        headers=headers,
+    ).json()
+    client.post(
+        "/api/v1/dettes",
+        json={"id_compte": compte["id_compte"], "type": "DETTE", "nom": "Prêt Paul", "montant_total": 5000, "personne_impliquee": "Paul"},
+        headers=headers,
+    )
+    client.post(
+        "/api/v1/epargne",
+        json={"nom": "Acheter une moto", "montant_cible": 500000, "date_echeance": "2026-12-31"},
+        headers=headers,
+    )
+
+    client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "GRATUIT"}, headers=headers)
+    assert client.get("/api/v1/dettes", headers=headers).status_code == 403
+    assert client.get("/api/v1/epargne", headers=headers).status_code == 403
+
+    reponse = client.get("/api/v1/abonnement/donnees-verrouillees", headers=headers)
+    assert reponse.status_code == 200
+    body = reponse.json()
+    assert body["dettes"] == 1
+    assert body["epargne"] == 1
+    assert body["tontines"] == 0

@@ -2,8 +2,8 @@ from decimal import Decimal
 import pytest
 from app.core.security import create_access_token, get_password_hash
 from app.modules.audit.models import AuditLog
-from app.modules.auth.models import Administrateur, RefreshToken
-from tests.conftest import se_connecter_avec_otp
+from app.modules.auth.models import Administrateur, Client, RefreshToken
+from tests.conftest import se_connecter, TestingSessionLocal
 
 def _create_admin(db_session, username="superadmin", email="admin@mynkap.cm", password="adminpassword123", niveau_acces=1):
     admin = Administrateur(
@@ -20,7 +20,14 @@ def _create_admin(db_session, username="superadmin", email="admin@mynkap.cm", pa
     token = create_access_token(subject=admin.id_administrateur)
     return admin, {"Authorization": f"Bearer {token}"}
 
-def _register_client(client, email="client1@example.com", mot_de_passe="clientpassword123", first_name="Paul", last_name="Biya", phone="+237699999999"):
+def _register_client(client, email="client1@example.com", mot_de_passe="clientpassword123", first_name="Paul", last_name="Biya", phone="+237699999999", db_session=None):
+    """
+    Renvoie {id_client, email} : /auth/register ne renvoie plus le client
+    directement (voir test_auth.py), on va donc chercher son id en base
+    quand un appelant en a besoin (db_session facultatif, StaticPool
+    partage la même connexion que celle de l'app — même principe que
+    tests.conftest.se_connecter).
+    """
     res = client.post(
         "/api/v1/auth/register",
         json={
@@ -32,7 +39,16 @@ def _register_client(client, email="client1@example.com", mot_de_passe="clientpa
         },
     )
     assert res.status_code == 201
-    return res.json()
+
+    session = db_session or TestingSessionLocal()
+    try:
+        db_client = session.query(Client).filter(Client.email == email).first()
+        id_client = db_client.id_client
+    finally:
+        if db_session is None:
+            session.close()
+
+    return {"id_client": id_client, "email": email}
 
 def test_admin_routes_forbidden_for_clients_and_guests(client, db_session):
     # 1. Accès invité sans token -> 401
@@ -41,7 +57,7 @@ def test_admin_routes_forbidden_for_clients_and_guests(client, db_session):
 
     # 2. Accès avec token d'un simple client -> 403
     _register_client(client, "simple.client@example.com")
-    login_res = se_connecter_avec_otp(client, "simple.client@example.com", "clientpassword123", db_session).json()
+    login_res = se_connecter(client, "simple.client@example.com", "clientpassword123").json()
     client_headers = {"Authorization": f"Bearer {login_res['access_token']}"}
 
     res_client = client.get("/api/v1/admin/clients", headers=client_headers)

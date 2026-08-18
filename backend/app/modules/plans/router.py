@@ -9,6 +9,7 @@ from app.modules.plans import service
 from app.modules.plans.schemas import (
     AbonnementOut,
     ChangerPlanRequest,
+    DonneesVerrouilleesOut,
     InitierPaiementRequest,
     PaiementAbonnementOut,
     PlanOut,
@@ -29,6 +30,22 @@ def obtenir_mon_abonnement(
     client: Client = Depends(get_current_active_client),
 ):
     return service.obtenir_abonnement_actif(db, client.id_client)
+
+
+@router.get("/abonnement/donnees-verrouillees", response_model=DonneesVerrouilleesOut)
+def obtenir_donnees_verrouillees(
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """
+    Comptage des données déjà existantes dans les modules à palier —
+    volontairement accessible quel que soit le forfait actif (pas de
+    exiger_fonctionnalite ici) pour permettre au frontend d'afficher un
+    message d'incitation précis (« vous avez N dettes enregistrées ») au
+    lieu de faire disparaître un module sans explication après un
+    downgrade ou la fin de l'essai. Ne renvoie que des compteurs.
+    """
+    return service.compter_donnees_verrouillees(db, client.id_client)
 
 
 @router.post("/abonnement/changer-plan", response_model=AbonnementOut)

@@ -1,7 +1,7 @@
 from app.modules.auth import services as auth_services
 from app.modules.auth.models import Client, Utilisateur
 from app.modules.notifications.models import Notification
-from tests.conftest import se_connecter_avec_otp
+from tests.conftest import se_connecter
 
 
 def _register_payload(**overrides):
@@ -16,14 +16,60 @@ def _register_payload(**overrides):
     return payload
 
 
-def test_register_creates_client_with_default_profile(client):
+def test_register_creates_client_with_default_profile(client, db_session):
+    """
+    /auth/register ne renvoie pas le client directement : un code de
+    vérification part par e-mail et la réponse ne contient que
+    otp_requis/message/expires_in — voir test_register_declenche_un_otp.
+    Le client et son profil par défaut existent bien en base dès cet appel,
+    avant même toute vérification OTP.
+    """
     response = client.post("/api/v1/auth/register", json=_register_payload())
 
     assert response.status_code == 201
     body = response.json()
-    assert body["email"] == "jean.dupont@example.com"
-    assert body["profile"]["devise"] == "XAF"
-    assert body["profile"]["langue"] == "FR"
+    assert body["otp_requis"] is True
+    assert body["expires_in"] == 300
+
+    db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
+    assert db_client is not None
+    assert db_client.profile.devise == "XAF"
+    assert db_client.profile.langue == "FR"
+    assert db_client.email_verifie is False
+
+
+def test_register_declenche_un_otp(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+
+    db_utilisateur = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    assert db_utilisateur.otp_code is not None
+    assert db_utilisateur.otp_expiration is not None
+
+
+def test_verifier_otp_apres_inscription_confirme_lemail_sans_ouvrir_de_session(client, db_session):
+    """
+    /auth/verify-otp ne sert plus qu'à confirmer l'e-mail à l'inscription :
+    il n'émet plus de jetons — le client doit se connecter séparément via
+    /auth/login (voir test_login_avec_identifiants_corrects_renvoie_les_jetons).
+    """
+    client.post("/api/v1/auth/register", json=_register_payload())
+
+    db_utilisateur = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    code = db_utilisateur.otp_code
+
+    response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": "jean.dupont@example.com", "code": code},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "access_token" not in body
+    assert "refresh_token" not in body
+    assert body["message"]
+
+    db_session.refresh(db_utilisateur)
+    assert db_utilisateur.email_verifie is True
 
 
 def test_register_rejects_duplicate_email(client):
@@ -33,7 +79,11 @@ def test_register_rejects_duplicate_email(client):
     assert response.status_code == 400
 
 
-def test_login_step1_avec_identifiants_corrects_declenche_un_otp(client, db_session):
+def test_login_avec_identifiants_corrects_renvoie_les_jetons(client):
+    """
+    La connexion n'a plus d'étape OTP : /auth/login émet directement les
+    jetons de session (l'e-mail est déjà vérifié à l'inscription).
+    """
     client.post("/api/v1/auth/register", json=_register_payload())
 
     response = client.post(
@@ -43,13 +93,10 @@ def test_login_step1_avec_identifiants_corrects_declenche_un_otp(client, db_sess
 
     assert response.status_code == 200
     body = response.json()
-    assert body["otp_requis"] is True
-    assert "access_token" not in body
-
-    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
-    assert db_client.otp_code is not None
-    assert len(db_client.otp_code) == 6
-    assert db_client.otp_expiration is not None
+    assert body["access_token"]
+    assert body["refresh_token"]
+    assert body["token_type"] == "bearer"
+    assert body["user_type"] == "client"
 
 
 def test_login_with_wrong_password_is_rejected(client):
@@ -63,25 +110,8 @@ def test_login_with_wrong_password_is_rejected(client):
     assert response.status_code == 400
 
 
-def test_verify_otp_avec_code_correct_renvoie_les_jetons(client, db_session):
+def test_verify_otp_avec_code_incorrect_est_rejete(client):
     client.post("/api/v1/auth/register", json=_register_payload())
-
-    response = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session)
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["access_token"]
-    assert body["refresh_token"]
-    assert body["token_type"] == "bearer"
-    assert body["user_type"] == "client"
-
-
-def test_verify_otp_avec_code_incorrect_est_rejete(client, db_session):
-    client.post("/api/v1/auth/register", json=_register_payload())
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
-    )
 
     response = client.post(
         "/api/v1/auth/verify-otp",
@@ -92,10 +122,6 @@ def test_verify_otp_avec_code_incorrect_est_rejete(client, db_session):
 
 def test_verify_otp_est_a_usage_unique(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
-    )
 
     db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
     code = db_client.otp_code
@@ -116,10 +142,6 @@ def test_verify_otp_expire_est_rejete(client, db_session):
     from datetime import datetime, timedelta
 
     client.post("/api/v1/auth/register", json=_register_payload())
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
-    )
 
     db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
     code = db_client.otp_code
@@ -140,7 +162,7 @@ def test_me_requires_authentication(client):
 
 def test_me_returns_current_client_with_valid_token(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
 
     response = client.get(
         "/api/v1/auth/me",
@@ -153,7 +175,7 @@ def test_me_returns_current_client_with_valid_token(client, db_session):
 
 def test_refresh_token_issues_new_access_token(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
 
     response = client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
 
@@ -163,7 +185,7 @@ def test_refresh_token_issues_new_access_token(client, db_session):
 
 def test_refresh_token_tourne_et_invalide_lancien(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
     ancien_refresh_token = tokens["refresh_token"]
 
     premiere_reponse = client.post("/api/v1/auth/refresh", json={"refresh_token": ancien_refresh_token})
@@ -186,7 +208,7 @@ def test_refresh_token_nest_jamais_stocke_en_clair(client, db_session):
     from app.modules.auth.models import RefreshToken
 
     client.post("/api/v1/auth/register", json=_register_payload())
-    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
 
     db_token = db_session.query(RefreshToken).order_by(RefreshToken.id_refresh_token.desc()).first()
     assert db_token.token_hash != tokens["refresh_token"]
@@ -195,7 +217,7 @@ def test_refresh_token_nest_jamais_stocke_en_clair(client, db_session):
 
 def test_logout_revokes_refresh_token(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
-    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
     refresh_token = tokens["refresh_token"]
 
     logout_response = client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
@@ -247,12 +269,13 @@ def test_reset_password_avec_jeton_valide_permet_de_se_reconnecter(client, db_se
     )
     assert old_login.status_code == 400
 
-    # Le nouveau mot de passe fonctionne (étape 1 : déclenche l'envoi de l'OTP)
+    # Le nouveau mot de passe fonctionne et renvoie directement les jetons
     new_login = client.post(
         "/api/v1/auth/login",
         json={"email": "jean.dupont@example.com", "mot_de_passe": "nouveaumotdepasse456"},
     )
     assert new_login.status_code == 200
+    assert new_login.json()["access_token"]
 
 
 def test_reset_password_avec_jeton_invalide_est_rejete(client):
@@ -291,17 +314,16 @@ def _mocker_id_token_google(monkeypatch, email="jean.dupont@example.com"):
     )
 
 
-def test_login_google_pour_un_compte_existant_declenche_un_otp(client, db_session, monkeypatch):
+def test_login_google_pour_un_compte_existant_renvoie_les_jetons(client, monkeypatch):
     client.post("/api/v1/auth/register", json=_register_payload())
     _mocker_id_token_google(monkeypatch)
 
     response = client.post("/api/v1/auth/google", json={"id_token": "faux-jeton-google"})
 
     assert response.status_code == 200
-    assert response.json()["otp_requis"] is True
-
-    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
-    assert db_client.otp_code is not None
+    body = response.json()
+    assert body["access_token"]
+    assert body["user_type"] == "client"
 
 
 def test_login_google_pour_un_compte_inexistant_est_rejete(client, monkeypatch):
@@ -321,26 +343,11 @@ def test_login_google_avec_jeton_invalide_est_rejete(client, monkeypatch):
     assert response.status_code == 400
 
 
-def test_login_google_complete_le_meme_flux_otp_que_le_mot_de_passe(client, db_session, monkeypatch):
-    client.post("/api/v1/auth/register", json=_register_payload())
-    _mocker_id_token_google(monkeypatch)
-    client.post("/api/v1/auth/google", json={"id_token": "faux-jeton-google"})
-
-    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
-    code = db_client.otp_code
-
-    reponse = client.post(
-        "/api/v1/auth/verify-otp", json={"email": "jean.dupont@example.com", "code": code}
-    )
-    assert reponse.status_code == 200
-    assert reponse.json()["access_token"]
-
-
 # --- Tentatives de connexion échouées & notifications ---
 
-def test_connexion_reussie_cree_une_notification_client(client, db_session):
+def test_connexion_reussie_cree_une_notification_client(client):
     client.post("/api/v1/auth/register", json=_register_payload())
-    tokens = se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session).json()
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
 
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
     notifs = client.get("/api/v1/notifications", headers=headers).json()
@@ -378,7 +385,7 @@ def test_une_connexion_reussie_reinitialise_le_compteur_de_tentatives(client, db
             json={"email": "jean.dupont@example.com", "mot_de_passe": "mauvais-mot-de-passe"},
         )
 
-    se_connecter_avec_otp(client, "jean.dupont@example.com", "motdepasse123", db_session)
+    se_connecter(client, "jean.dupont@example.com", "motdepasse123")
 
     db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
     assert db_client.tentatives_echouees == 0

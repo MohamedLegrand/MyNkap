@@ -255,9 +255,11 @@ const SiteFooter = () => {
           </p>
         </div>
 
-        <div className="flex gap-4 text-xs font-semibold whitespace-nowrap">
-          <a href="#" className="hover:text-foreground transition-colors">{t('footer.privacy')}</a>
-          <a href="#" className="hover:text-foreground transition-colors">{t('footer.terms')}</a>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold whitespace-nowrap justify-center md:justify-end">
+          <Link to="/confidentialite" className="hover:text-foreground transition-colors">{t('footer.privacy')}</Link>
+          <Link to="/conditions-utilisation" className="hover:text-foreground transition-colors">{t('footer.terms')}</Link>
+          <Link to="/conditions-vente" className="hover:text-foreground transition-colors">{t('footer.terms_of_sale')}</Link>
+          <Link to="/mentions-legales" className="hover:text-foreground transition-colors">{t('footer.legal_notice')}</Link>
         </div>
       </div>
 
@@ -957,6 +959,139 @@ const ContactPage = () => {
   );
 };
 
+// --- Pages légales (confidentialité, CGU, mentions légales, CGV) ---
+// Structure commune : Seo + SiteHeader + un article en prose (titre, date de
+// mise à jour, sections numérotées lues depuis les fichiers de traduction)
+// + SiteFooter, même squelette que AboutPage/ContactPage ci-dessus.
+
+const LegalSection = ({ title, body }: { title: string; body: string }) => (
+  <div className="space-y-2">
+    <h2 className="text-lg font-bold text-foreground">{title}</h2>
+    <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
+  </div>
+);
+
+const LegalPageShell = ({
+  seoTitle,
+  seoDescription,
+  path,
+  title,
+  intro,
+  sections,
+}: {
+  seoTitle: string;
+  seoDescription: string;
+  path: string;
+  title: string;
+  intro: string;
+  sections: { title: string; body: string }[];
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
+      <Seo title={seoTitle} description={seoDescription} path={path} />
+      <SiteHeader />
+
+      <section className="py-16 md:py-20">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="space-y-2 text-center">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">{title}</h1>
+            <p className="text-xs text-muted-foreground">
+              {t('legal_page.updated_label')} {t('legal_page.updated_date')}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 text-xs text-secondary leading-relaxed">
+            {t('legal_page.draft_notice')}
+          </div>
+
+          <p className="text-sm text-muted-foreground leading-relaxed">{intro}</p>
+
+          <div className="space-y-8">
+            {sections.map((section) => (
+              <LegalSection key={section.title} title={section.title} body={section.body} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <SiteFooter />
+    </div>
+  );
+};
+
+const PrivacyPolicyPage = () => {
+  const { t } = useTranslation();
+  const sections = Array.from({ length: 12 }, (_, i) => i + 1).map((n) => ({
+    title: t(`privacy_page.s${n}_title`),
+    body: t(`privacy_page.s${n}_body`),
+  }));
+  return (
+    <LegalPageShell
+      seoTitle={t('seo.privacy_title')}
+      seoDescription={t('seo.privacy_description')}
+      path="/confidentialite"
+      title={t('privacy_page.title')}
+      intro={t('privacy_page.intro')}
+      sections={sections}
+    />
+  );
+};
+
+const TermsOfServicePage = () => {
+  const { t } = useTranslation();
+  const sections = Array.from({ length: 13 }, (_, i) => i + 1).map((n) => ({
+    title: t(`terms_page.s${n}_title`),
+    body: t(`terms_page.s${n}_body`),
+  }));
+  return (
+    <LegalPageShell
+      seoTitle={t('seo.terms_title')}
+      seoDescription={t('seo.terms_description')}
+      path="/conditions-utilisation"
+      title={t('terms_page.title')}
+      intro={t('terms_page.intro')}
+      sections={sections}
+    />
+  );
+};
+
+const LegalNoticePage = () => {
+  const { t } = useTranslation();
+  const sections = Array.from({ length: 6 }, (_, i) => i + 1).map((n) => ({
+    title: t(`legal_notice_page.s${n}_title`),
+    body: t(`legal_notice_page.s${n}_body`),
+  }));
+  return (
+    <LegalPageShell
+      seoTitle={t('seo.legal_notice_title')}
+      seoDescription={t('seo.legal_notice_description')}
+      path="/mentions-legales"
+      title={t('legal_notice_page.title')}
+      intro={t('legal_notice_page.intro')}
+      sections={sections}
+    />
+  );
+};
+
+const TermsOfSalePage = () => {
+  const { t } = useTranslation();
+  const sections = Array.from({ length: 10 }, (_, i) => i + 1).map((n) => ({
+    title: t(`terms_of_sale_page.s${n}_title`),
+    body: t(`terms_of_sale_page.s${n}_body`),
+  }));
+  return (
+    <LegalPageShell
+      seoTitle={t('seo.terms_of_sale_title')}
+      seoDescription={t('seo.terms_of_sale_description')}
+      path="/conditions-vente"
+      title={t('terms_of_sale_page.title')}
+      intro={t('terms_of_sale_page.intro')}
+      sections={sections}
+    />
+  );
+};
+
 // Mise en page partagée par les pages Connexion et Inscription
 const AuthLayout = ({
   title,
@@ -1052,15 +1187,20 @@ const LoginPage = () => {
   const setSession = useAuthStore((state) => state.setSession);
   const setClient = useAuthStore((state) => state.setClient);
 
-  const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Jeton Google en attente de vérification OTP — distinct de motDePasse
-  // pour que handleResend sache quel endpoint rappeler (voir plus bas).
-  const [googleCredential, setGoogleCredential] = useState<string | null>(null);
-  const compteVientDetreCree = searchParams.get('compte_cree') === '1';
+  // Affichée une seule fois après une inscription tout juste vérifiée
+  // (voir RegisterPage.handleVerifyCode) — plus de double authentification
+  // par OTP à la connexion, la vérification n'a lieu qu'à l'inscription.
+  const compteVientDetreVerifie = searchParams.get('compte_verifie') === '1';
+
+  const ouvrirLaSession = (tokens: TokenResponse) => {
+    const isAdminUser = tokens.user_type === 'administrateur';
+    setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token }, isAdminUser);
+    return isAdminUser;
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1068,13 +1208,19 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
-      // Étape 1 : mot de passe vérifié, un code à 6 chiffres est envoyé
-      // par e-mail (aucun jeton n'est émis à ce stade — voir /auth/verify-otp).
-      await api.request('/auth/login', {
+      const tokens = await api.request<TokenResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, mot_de_passe: motDePasse }),
       });
-      setStep(2);
+      const isAdminUser = ouvrirLaSession(tokens);
+
+      if (!isAdminUser) {
+        // /auth/me n'existe que pour les clients (403 pour un administrateur).
+        const moi = await api.request<Client>('/auth/me');
+        setClient(moi);
+      }
+
+      navigate(isAdminUser ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.login_error_generic'));
     } finally {
@@ -1086,15 +1232,18 @@ const LoginPage = () => {
     setError(null);
     setIsSubmitting(true);
     try {
-      // Même étape 1 que le mot de passe : un code OTP est envoyé par
-      // e-mail, la double authentification s'applique aussi à Google.
-      await api.request('/auth/google', {
+      const tokens = await api.request<TokenResponse>('/auth/google', {
         method: 'POST',
         body: JSON.stringify({ id_token: credential }),
       });
-      setGoogleCredential(credential);
-      setEmail(decoderProfilGoogle(credential).email);
-      setStep(2);
+      const isAdminUser = ouvrirLaSession(tokens);
+
+      if (!isAdminUser) {
+        const moi = await api.request<Client>('/auth/me');
+        setClient(moi);
+      }
+
+      navigate(isAdminUser ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.google_login_error'));
     } finally {
@@ -1102,62 +1251,12 @@ const LoginPage = () => {
     }
   };
 
-  const handleVerifyCode = async (code: string): Promise<string | null> => {
-    try {
-      const tokens = await api.request<TokenResponse>('/auth/verify-otp', {
-        method: 'POST',
-        body: JSON.stringify({ email, code }),
-      });
-
-      const isAdminUser = tokens.user_type === 'administrateur';
-      setSession({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token }, isAdminUser);
-
-      if (!isAdminUser) {
-        // /auth/me n'existe que pour les clients (403 pour un administrateur).
-        const moi = await api.request<Client>('/auth/me');
-        setClient(moi);
-      }
-
-      navigate(isAdminUser ? '/admin' : '/dashboard');
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : t('auth.invalid_otp');
-    }
-  };
-
-  const handleResend = async (): Promise<string | null> => {
-    try {
-      // Réutilise /auth/login ou /auth/google (identifiants déjà validés
-      // une première fois à l'étape 1, toujours en mémoire côté client)
-      // plutôt qu'un endpoint dédié : évite d'exposer une route de renvoi
-      // d'OTP sans ré-authentification.
-      if (googleCredential) {
-        await api.request('/auth/google', {
-          method: 'POST',
-          body: JSON.stringify({ id_token: googleCredential }),
-        });
-      } else {
-        await api.request('/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ email, mot_de_passe: motDePasse }),
-        });
-      }
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : t('auth.resend_error');
-    }
-  };
-
   return (
     <>
       <Seo title={t('seo.login_title')} description={t('seo.login_description')} path="/login" />
-      <AuthLayout
-        title={step === 1 ? t('auth.login_title') : t('auth.otp_title')}
-        subtitle={step === 1 ? t('auth.login_subtitle') : t('auth.otp_subtitle')}
-      >
-      {step === 1 ? (
+      <AuthLayout title={t('auth.login_title')} subtitle={t('auth.login_subtitle')}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {compteVientDetreCree && (
+          {compteVientDetreVerifie && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-secondary/10 border border-secondary/20 text-sm text-secondary font-medium">
               <Check className="h-4 w-4 shrink-0" />
               <span>{t('auth.account_created')}</span>
@@ -1218,14 +1317,6 @@ const LoginPage = () => {
 
           <GoogleSignInButton onCredential={handleGoogleCredential} />
         </form>
-      ) : (
-        <OtpVerificationStep
-          email={email}
-          onVerifyCode={handleVerifyCode}
-          onResend={handleResend}
-          onBackToLogin={() => { setStep(1); setGoogleCredential(null); }}
-        />
-      )}
       </AuthLayout>
     </>
   );
@@ -1258,6 +1349,10 @@ export const AppRoutes: React.FC = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/a-propos" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/confidentialite" element={<PrivacyPolicyPage />} />
+        <Route path="/conditions-utilisation" element={<TermsOfServicePage />} />
+        <Route path="/mentions-legales" element={<LegalNoticePage />} />
+        <Route path="/conditions-vente" element={<TermsOfSalePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -1288,6 +1383,7 @@ const RegisterPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const [step, setStep] = useState<1 | 2>(1);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -1322,7 +1418,11 @@ const RegisterPage = () => {
 
     setIsSubmitting(true);
     try {
-      await api.request<Client>('/auth/register', {
+      // Le compte est créé immédiatement, mais /auth/register ne renvoie
+      // aucun jeton : un code à 6 chiffres part par e-mail pour confirmer
+      // que l'adresse saisie est bien joignable avant tout accès réel —
+      // voir handleVerifyCode ci-dessous.
+      await api.request('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           email,
@@ -1332,11 +1432,7 @@ const RegisterPage = () => {
           phone,
         }),
       });
-
-      // Pas de connexion automatique : l'inscription ne renvoie aucun
-      // jeton, seule /auth/login (suivi du code OTP envoyé par e-mail)
-      // établit une session. On redirige vers /login pour ce vrai flux.
-      navigate('/login?compte_cree=1');
+      setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.generic_error'));
     } finally {
@@ -1344,14 +1440,60 @@ const RegisterPage = () => {
     }
   };
 
+  const handleVerifyCode = async (code: string): Promise<string | null> => {
+    try {
+      // /auth/verify-otp ne renvoie plus de jetons : il confirme seulement
+      // l'e-mail. Le client se connecte ensuite normalement sur /login
+      // (plus de double authentification par OTP à la connexion).
+      await api.request('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+      });
+
+      navigate('/login?compte_verifie=1');
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : t('auth.invalid_otp');
+    }
+  };
+
+  const handleResend = async (): Promise<string | null> => {
+    try {
+      // Réutilise /auth/register plutôt qu'un endpoint dédié : l'e-mail
+      // existe déjà (voir la vérification côté serveur), la requête ne
+      // fait donc que régénérer et renvoyer un nouveau code.
+      await api.request('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          mot_de_passe: motDePasse,
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+        }),
+      });
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : t('auth.resend_error');
+    }
+  };
+
   return (
     <>
       <Seo title={t('seo.register_title')} description={t('seo.register_description')} path="/register" />
       <AuthLayout
-        title={t('auth.register_title')}
-        subtitle={t('auth.register_subtitle')}
+        title={step === 1 ? t('auth.register_title') : t('auth.otp_title')}
+        subtitle={step === 1 ? t('auth.register_subtitle') : t('auth.otp_subtitle')}
         maxWidthClassName="max-w-lg"
       >
+      {step === 2 ? (
+        <OtpVerificationStep
+          email={email}
+          onVerifyCode={handleVerifyCode}
+          onResend={handleResend}
+          onBackToLogin={() => setStep(1)}
+        />
+      ) : (
       <form onSubmit={handleSubmit} className="space-y-4">
         <GoogleSignInButton onCredential={handleGoogleCredential} />
         {prerempliParGoogle && (
@@ -1467,6 +1609,7 @@ const RegisterPage = () => {
           <Link to="/login" className="text-secondary hover:underline font-medium">{t('auth.login_button')}</Link>
         </p>
       </form>
+      )}
       </AuthLayout>
     </>
   );

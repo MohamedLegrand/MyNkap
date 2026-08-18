@@ -2,7 +2,7 @@ from decimal import Decimal
 import pytest
 from app.modules.budgets.models import Budget, Categorie
 from app.modules.audit.models import AuditLog
-from tests.conftest import se_connecter_avec_otp
+from tests.conftest import se_connecter
 
 def _register_and_login(client, email="budgets.test@example.com", mot_de_passe="motdepasse123"):
     client.post(
@@ -15,7 +15,7 @@ def _register_and_login(client, email="budgets.test@example.com", mot_de_passe="
             "phone": "+237600000000",
         },
     )
-    access_token = se_connecter_avec_otp(client, email, mot_de_passe).json()["access_token"]
+    access_token = se_connecter(client, email, mot_de_passe).json()["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
 
 def _creer_compte(client, headers, solde_initial=100000, nom="Compte principal"):

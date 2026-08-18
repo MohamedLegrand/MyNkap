@@ -23,6 +23,14 @@ class Utilisateur(Base):
     otp_code = Column(String(6), nullable=True)
     otp_expiration = Column(DateTime, nullable=True)
 
+    # Passe à True dès la toute première vérification OTP réussie (que ce
+    # soit le code envoyé à l'inscription ou, si elle a été ignorée, celui
+    # d'une connexion ultérieure — voir auth.services.verifier_otp). Ne
+    # conditionne aucun accès (la double authentification par OTP est déjà
+    # obligatoire à chaque connexion) : sert de signal de confiance sur
+    # l'adresse e-mail, visible côté support/admin.
+    email_verifie = Column(Boolean, default=False, nullable=False)
+
     # Suivi des tentatives de connexion échouées (mot de passe OU code OTP
     # incorrect) — remis à zéro dès une connexion réussie. Sert à notifier
     # le client au-delà d'un seuil (voir auth.services.SEUIL_ALERTE_TENTATIVES)
