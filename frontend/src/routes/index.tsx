@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, L
 import {
   Sun, Moon, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
-  HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff, Wallet, RefreshCw,
+  HelpCircle, Mail, Loader2, User, Phone, Wallet, RefreshCw,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Seo } from '../components/Seo';
 import { StructuredData } from '../components/StructuredData';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { PasswordInput } from '../components/PasswordInput';
 
 // Décode la charge utile d'un jeton d'identité Google (JWT) côté client,
 // uniquement pour connaître l'e-mail (et, à l'inscription, le prénom/nom) à
@@ -1146,34 +1147,6 @@ const IconInput = ({
     <input {...props} className={className ?? inputClassName} />
   </div>
 );
-
-// Champ mot de passe avec bouton afficher/masquer, pour un rendu plus professionnel
-const PasswordInput = ({
-  className,
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) => {
-  const { t } = useTranslation();
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <div className="relative">
-      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-      <input
-        {...props}
-        type={visible ? 'text' : 'password'}
-        className={className ?? `${baseInputClassName} pl-11 pr-11`}
-      />
-      <button
-        type="button"
-        onClick={() => setVisible((prev) => !prev)}
-        aria-label={visible ? t('auth.hide_password') : t('auth.show_password')}
-        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
-    </div>
-  );
-};
 
 const LoginPage = () => {
   const { t } = useTranslation();

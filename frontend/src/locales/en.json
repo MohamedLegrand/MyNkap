@@ -981,10 +981,11 @@
         "username_placeholder": "e.g. admin_support",
         "email_placeholder": "admin@mynkap.cm",
         "password_label": "Temporary password",
+        "generate_password": "Generate",
         "access_level_label": "Access Level",
-        "access_level_1": "Level 1: Support & Consultation",
-        "access_level_2": "Level 2: Moderator (Config & Fraud)",
-        "access_level_3": "Level 3: Superadmin (Team & Rights Management)",
+        "access_level_1": "Support & Consultation",
+        "access_level_2": "Moderator (Config & Fraud)",
+        "access_level_3": "Superadmin (Team & Rights Management)",
         "submit": "Create Admin"
       },
       "reset_password": {
@@ -1037,6 +1038,15 @@
         "features_label": "Included features",
         "feature_tontines": "Tontines & Group Savings",
         "submit_create": "Create plan"
+      },
+      "retrait": {
+        "title": "New withdrawal",
+        "available_balance": "Available balance:",
+        "amount_label": "Amount to withdraw",
+        "reason_label": "Reason (optional)",
+        "reason_placeholder": "e.g. Monthly revenue withdrawal",
+        "submit": "Start withdrawal",
+        "error_generic": "Unable to start this withdrawal."
       },
       "transaction_suspecte": {
         "title": "Investigation record",
@@ -1107,7 +1117,7 @@
         "th_admin": "Admin",
         "th_access_level": "Access Level",
         "th_created_on": "Created on",
-        "level_display": "Level {{level}} ({{role}})",
+        "level_display": "{{role}}",
         "role_superadmin": "Superadmin",
         "role_moderator": "Moderator",
         "role_support": "Support",
@@ -1158,6 +1168,15 @@
         "th_action_single": "Action",
         "validate_manually": "Validate manually",
         "none_payments": "No payments.",
+        "tab_retraits": "Withdrawals",
+        "new_retrait": "New withdrawal",
+        "wallet_available": "Available balance",
+        "wallet_pending": "Pending (48h)",
+        "wallet_status": "Wallet status",
+        "wallet_frozen": "Frozen",
+        "wallet_active": "Active",
+        "th_requested_by": "Requested by",
+        "none_retraits": "No withdrawals yet.",
         "access_badges": {
           "dettes": "Debts",
           "epargne": "Savings",

@@ -467,6 +467,28 @@ export interface AdminPaiementItem {
   date_confirmation: string | null;
 }
 
+export interface AdminWalletSolde {
+  devise: string;
+  disponible: number;
+  en_attente: number;
+  gele: boolean;
+}
+
+export interface AdminRetraitItem {
+  id_retrait: number;
+  id_administrateur: number;
+  username_administrateur: string;
+  montant: number;
+  devise: string;
+  pays: string;
+  phone_number: string;
+  operator: string;
+  reference_hrpay: string;
+  statut: 'PENDING' | 'SUCCESS' | 'FAILED';
+  date_creation: string;
+  date_confirmation: string | null;
+}
+
 export interface AdminFraudeOverview {
   total_transactions_suspectes: number;
   nombre_clients_concernes: number;

@@ -1,8 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, ShieldCheck, Key, Sliders, CheckCircle2, FileCode, Loader2, UserCog, Crown, AlertOctagon } from 'lucide-react';
+import { X, ShieldCheck, Key, Sliders, CheckCircle2, FileCode, Loader2, UserCog, Crown, AlertOctagon, ArrowDownToLine, AlertTriangle, Wand2 } from 'lucide-react';
 import { api } from '../services/api';
-import type { AdminClientDetail, AdminTransactionSuspecteDetail, Plan } from '../types';
+import { PasswordInput } from './PasswordInput';
+import { genererMotDePasse } from '../utils/genererMotDePasse';
+import type { AdminClientDetail, AdminTransactionSuspecteDetail, Plan, PaysOperateur } from '../types';
+
+// Libellés d'affichage des opérateurs Mobile Money couverts par HR-Skills
+// Pay — même table que PlanUpgradeModal (côté client, autre point d'entrée
+// du même catalogue pays/opérateurs).
+const OPERATEUR_LABELS: Record<string, string> = {
+  ORANGE: 'Orange Money', MTN: 'MTN MoMo', MOOV: 'Moov Money', AIRTEL: 'Airtel Money',
+  MPESA: 'M-Pesa', WAVE: 'Wave', FREE: 'Free Money', TMONEY: 'TMoney', AFRIMONEY: 'AfriMoney',
+  CAMTEL: 'Camtel Money', NEXTTEL: 'Nexttel', CORIS: 'Coris Money', EXPRESSO: 'Expresso',
+  FLOOZ: 'Flooz', QMONEY: 'QMoney',
+};
 
 // --- 1. Modal Créer un Administrateur ---
 interface CreateAdminModalProps {
@@ -70,15 +82,24 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.create_admin.password_label')}</label>
-            <input
-              type="password"
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.create_admin.password_label')}</label>
+              <button
+                type="button"
+                onClick={() => setMotDePasse(genererMotDePasse())}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+              >
+                <Wand2 className="h-3 w-3" />
+                <span>{t('admin.modals.create_admin.generate_password')}</span>
+              </button>
+            </div>
+            <PasswordInput
               required
               minLength={6}
               placeholder="••••••••"
               value={motDePasse}
               onChange={(e) => setMotDePasse(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+              showLockIcon={false}
             />
           </div>
 
@@ -781,6 +802,198 @@ export const TransactionSuspecteDetailModal: React.FC<TransactionSuspecteDetailM
             </>
           )}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// --- 7. Modal Nouveau Retrait (Cash-Out HR-Skills Pay) ---
+export interface CreateRetraitData {
+  montant: number;
+  devise: string;
+  pays: string;
+  operator: string;
+  phone_number: string;
+  raison: string;
+}
+
+interface CreateRetraitModalProps {
+  isOpen: boolean;
+  soldeDisponible: number | null;
+  soldeDevise: string;
+  onClose: () => void;
+  // Rejette en cas d'échec (solde insuffisant, pays/opérateur refusés...) —
+  // la modale reste ouverte et affiche l'erreur au lieu de se refermer
+  // optimistiquement, contrairement aux autres modales admin : un retrait
+  // déplace de l'argent réel, une erreur silencieuse coûterait cher.
+  onSubmit: (data: CreateRetraitData) => Promise<void>;
+}
+
+export const CreateRetraitModal: React.FC<CreateRetraitModalProps> = ({
+  isOpen, soldeDisponible, soldeDevise, onClose, onSubmit,
+}) => {
+  const { t } = useTranslation();
+  const [paysDisponibles, setPaysDisponibles] = useState<PaysOperateur[]>([]);
+  const [pays, setPays] = useState('CM');
+  const [operator, setOperator] = useState('ORANGE');
+  const [montant, setMontant] = useState('');
+  const [phone, setPhone] = useState('');
+  const [raison, setRaison] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setError(null);
+    setMontant('');
+    setPhone('');
+    setRaison('');
+    setPays('CM');
+    setOperator('ORANGE');
+    api.request<PaysOperateur[]>('/abonnement/pays-disponibles').then(setPaysDisponibles).catch(() => {});
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const paysActuel = paysDisponibles.find((p) => p.pays === pays);
+  const operateursDuPays = paysActuel?.operateurs ?? ['ORANGE', 'MTN'];
+  const deviseDuPays = paysActuel?.devise ?? 'XAF';
+
+  const handleChangerPays = (nouveauPays: string) => {
+    setPays(nouveauPays);
+    const operateurs = paysDisponibles.find((p) => p.pays === nouveauPays)?.operateurs;
+    if (operateurs && operateurs.length > 0) setOperator(operateurs[0]);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const montantNombre = Number(montant);
+    if (!montantNombre || montantNombre <= 0 || !phone.trim()) return;
+
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        montant: montantNombre, devise: deviseDuPays, pays, operator,
+        phone_number: phone.trim(), raison: raison.trim(),
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.modals.retrait.error_generic'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden">
+        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
+          <div className="flex items-center gap-2">
+            <ArrowDownToLine className="h-5 w-5 text-primary" />
+            <h3 className="text-base font-bold">{t('admin.modals.retrait.title')}</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {soldeDisponible !== null && (
+            <p className="text-xs text-muted-foreground">
+              {t('admin.modals.retrait.available_balance')} <strong className="text-foreground">{soldeDisponible.toLocaleString('fr-FR')} {soldeDevise}</strong>
+            </p>
+          )}
+
+          {error && (
+            <p className="text-xs text-destructive flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <span>{error}</span>
+            </p>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.retrait.amount_label')}</label>
+            <input
+              type="number"
+              required
+              min={1}
+              value={montant}
+              onChange={(e) => setMontant(e.target.value)}
+              placeholder="50000"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.plan_upgrade.country_label')}</label>
+            <select
+              value={pays}
+              onChange={(e) => handleChangerPays(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+            >
+              {(paysDisponibles.length > 0 ? paysDisponibles : [{ pays: 'CM', nom: 'Cameroun', devise: 'XAF', operateurs: [] }]).map((p) => (
+                <option key={p.pays} value={p.pays}>{p.nom}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.plan_upgrade.operator_label')}</label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl">
+              {operateursDuPays.map((op) => (
+                <button
+                  key={op}
+                  type="button"
+                  onClick={() => setOperator(op)}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                    operator === op ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {OPERATEUR_LABELS[op] ?? op}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">{t('modals.plan_upgrade.phone_label')}</label>
+            <input
+              type="tel"
+              required
+              placeholder="ex: 237690000000"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted-foreground">{t('admin.modals.retrait.reason_label')}</label>
+            <textarea
+              rows={2}
+              value={raison}
+              onChange={(e) => setRaison(e.target.value)}
+              placeholder={t('admin.modals.retrait.reason_placeholder')}
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm resize-none focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted">
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md hover:bg-primary/90 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>{t('admin.modals.retrait.submit')}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

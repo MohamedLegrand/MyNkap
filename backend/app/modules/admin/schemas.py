@@ -238,6 +238,42 @@ class AdminForceAbonnementPayload(BaseModel):
 class AdminValiderPaiementManuelPayload(BaseModel):
     raison: Optional[str] = Field(None, description="Raison de la confirmation manuelle (AuditLog)")
 
+# --- Schémas pour le Wallet & les Retraits (Cash-Out HR-Skills Pay) ---
+
+class AdminWalletSoldeOut(BaseModel):
+    devise: str
+    disponible: Decimal
+    en_attente: Decimal
+    gele: bool
+
+class AdminRetraitRequest(BaseModel):
+    montant: Decimal
+    devise: str
+    phone_number: str
+    operator: str
+    pays: str
+    raison: Optional[str] = Field(None, description="Raison du retrait (AuditLog)")
+
+class AdminRetraitItem(BaseModel):
+    id_retrait: int
+    id_administrateur: int
+    username_administrateur: str
+    montant: Decimal
+    devise: str
+    pays: str
+    phone_number: str
+    operator: str
+    reference_hrpay: str
+    statut: str
+    date_creation: datetime
+    date_confirmation: Optional[datetime] = None
+
+class AdminRetraitListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[AdminRetraitItem]
+
 # --- Schémas pour la Surveillance Anti-Fraude ---
 class TypeTransactionCountItem(BaseModel):
     type: str

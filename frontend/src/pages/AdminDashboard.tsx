@@ -20,6 +20,7 @@ import {
   Trash2,
   Crown,
   X,
+  ArrowDownToLine,
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { api } from '../services/api';
@@ -31,7 +32,9 @@ import {
   ClientDetailModal,
   TransactionSuspecteDetailModal,
   PlanModal,
+  CreateRetraitModal,
 } from '../components/AdminModals';
+import type { CreateRetraitData } from '../components/AdminModals';
 import type {
   AdminClientListItem,
   AdminListItem,
@@ -45,6 +48,8 @@ import type {
   AdminAbonnementOverview,
   AdminPaiementItem,
   AdminFraudeOverview,
+  AdminWalletSolde,
+  AdminRetraitItem,
   Plan,
 } from '../types';
 
@@ -75,10 +80,11 @@ export const AdminDashboard: React.FC = () => {
 
   const [idClientDetail, setIdClientDetail] = useState<number | null>(null);
   const [idTransactionDetail, setIdTransactionDetail] = useState<number | null>(null);
-  const [modeSubscriptions, setModeSubscriptions] = useState<'abonnements' | 'paiements' | 'plans'>('abonnements');
+  const [modeSubscriptions, setModeSubscriptions] = useState<'abonnements' | 'paiements' | 'plans' | 'retraits'>('abonnements');
 
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [planEnEdition, setPlanEnEdition] = useState<Plan | null>(null);
+  const [isRetraitModalOpen, setIsRetraitModalOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -93,6 +99,8 @@ export const AdminDashboard: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<AdminAbonnementItem[]>([]);
   const [subscriptionsOverview, setSubscriptionsOverview] = useState<AdminAbonnementOverview | null>(null);
   const [paiements, setPaiements] = useState<AdminPaiementItem[]>([]);
+  const [soldeWallet, setSoldeWallet] = useState<AdminWalletSolde | null>(null);
+  const [retraits, setRetraits] = useState<AdminRetraitItem[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [fraudTransactions, setFraudTransactions] = useState<AdminTransactionSuspecteItem[]>([]);
   const [fraudOverview, setFraudOverview] = useState<AdminFraudeOverview | null>(null);
@@ -161,6 +169,21 @@ export const AdminDashboard: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin.dashboard.errors.subscriptions'));
     }
+
+    // Séparé du Promise.all ci-dessus : réservé aux admins niveau 2+, un
+    // 403 ici (admin niveau 1) ne doit pas faire échouer le reste de
+    // l'onglet Abonnements & Paiements, qui reste consultable par tous.
+    try {
+      const [solde, retraitsRes] = await Promise.all([
+        api.request<AdminWalletSolde>('/admin/wallet/solde'),
+        api.request<Paginated<AdminRetraitItem>>('/admin/retraits'),
+      ]);
+      setSoldeWallet(solde);
+      setRetraits(retraitsRes.items);
+    } catch {
+      setSoldeWallet(null);
+      setRetraits([]);
+    }
   }, [t]);
 
   const handleOuvrirCreationPlan = () => {
@@ -224,6 +247,19 @@ export const AdminDashboard: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin.dashboard.errors.validate_payment_failed'));
     }
+  };
+
+  const handleCreateRetraitSubmit = async (data: CreateRetraitData) => {
+    // Rejette volontairement (pas de catch ici) : CreateRetraitModal garde
+    // le formulaire ouvert et affiche l'erreur au lieu de se refermer,
+    // contrairement aux autres modales admin — un retrait déplace de
+    // l'argent réel.
+    const retrait = await api.request<AdminRetraitItem>('/admin/retraits', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    setRetraits((prev) => [retrait, ...prev]);
+    api.request<AdminWalletSolde>('/admin/wallet/solde').then(setSoldeWallet).catch(() => {});
   };
 
   const fetchFraudTransactions = useCallback(async () => {
@@ -582,7 +618,6 @@ export const AdminDashboard: React.FC = () => {
                         a.niveau_acces === 3 ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-muted text-muted-foreground'
                       }`}>
                         {t('admin.dashboard.admins.level_display', {
-                          level: a.niveau_acces,
                           role: a.niveau_acces === 3 ? t('admin.dashboard.admins.role_superadmin') : a.niveau_acces === 2 ? t('admin.dashboard.admins.role_moderator') : t('admin.dashboard.admins.role_support'),
                         })}
                       </span>
@@ -789,6 +824,12 @@ export const AdminDashboard: React.FC = () => {
               >
                 {t('admin.dashboard.subscriptions.tab_plans')}
               </button>
+              <button
+                onClick={() => setModeSubscriptions('retraits')}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'retraits' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                {t('admin.dashboard.subscriptions.tab_retraits')}
+              </button>
             </div>
 
             {modeSubscriptions === 'plans' && (
@@ -800,7 +841,35 @@ export const AdminDashboard: React.FC = () => {
                 <span>{t('admin.dashboard.subscriptions.new_plan')}</span>
               </button>
             )}
+            {modeSubscriptions === 'retraits' && (
+              <button
+                onClick={() => setIsRetraitModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90"
+              >
+                <ArrowDownToLine className="h-3.5 w-3.5" />
+                <span>{t('admin.dashboard.subscriptions.new_retrait')}</span>
+              </button>
+            )}
           </div>
+
+          {modeSubscriptions === 'retraits' && soldeWallet && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.subscriptions.wallet_available')}</span>
+                <p className="text-2xl font-black text-primary tabular-nums mt-1">{soldeWallet.disponible.toLocaleString('fr-FR')} {soldeWallet.devise}</p>
+              </div>
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.subscriptions.wallet_pending')}</span>
+                <p className="text-2xl font-black text-secondary tabular-nums mt-1">{soldeWallet.en_attente.toLocaleString('fr-FR')} {soldeWallet.devise}</p>
+              </div>
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase mb-1 block">{t('admin.dashboard.subscriptions.wallet_status')}</span>
+                <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${soldeWallet.gele ? 'bg-destructive/10 text-destructive' : 'bg-forest-500/10 text-forest-600'}`}>
+                  {soldeWallet.gele ? t('admin.dashboard.subscriptions.wallet_frozen') : t('admin.dashboard.subscriptions.wallet_active')}
+                </span>
+              </div>
+            </div>
+          )}
 
           {modeSubscriptions === 'plans' ? (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
@@ -896,6 +965,42 @@ export const AdminDashboard: React.FC = () => {
                 </tbody>
               </table>
               {subscriptions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_subscriptions')}</p>}
+            </div>
+          ) : modeSubscriptions === 'retraits' ? (
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
+                  <tr>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_requested_by')}</th>
+                    <th className="p-4">{t('transfers.amount')}</th>
+                    <th className="p-4">{t('modals.plan_upgrade.country_label')}</th>
+                    <th className="p-4">{t('modals.plan_upgrade.operator_label')}</th>
+                    <th className="p-4">{t('modals.plan_upgrade.phone_label')}</th>
+                    <th className="p-4">{t('modals.plan_upgrade.reference')}</th>
+                    <th className="p-4">{t('admin.dashboard.common.th_status')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-medium">
+                  {retraits.map((r) => (
+                    <tr key={r.id_retrait} className="hover:bg-muted/30">
+                      <td className="p-4 font-bold text-foreground">{r.username_administrateur}</td>
+                      <td className="p-4 font-black">{r.montant.toLocaleString('fr-FR')} {r.devise}</td>
+                      <td className="p-4 text-muted-foreground">{r.pays}</td>
+                      <td className="p-4 text-muted-foreground">{r.operator}</td>
+                      <td className="p-4 text-muted-foreground">{r.phone_number}</td>
+                      <td className="p-4 font-mono text-[11px] text-muted-foreground">{r.reference_hrpay}</td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
+                          r.statut === 'SUCCESS' ? 'bg-forest-500/10 text-forest-600' : r.statut === 'FAILED' ? 'bg-destructive/10 text-destructive' : 'bg-amber-500/10 text-amber-600'
+                        }`}>
+                          {r.statut}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {retraits.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_retraits')}</p>}
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
@@ -1034,6 +1139,14 @@ export const AdminDashboard: React.FC = () => {
         plan={planEnEdition}
         onClose={() => setIsPlanModalOpen(false)}
         onSubmit={handleSubmitPlan}
+      />
+
+      <CreateRetraitModal
+        isOpen={isRetraitModalOpen}
+        soldeDisponible={soldeWallet?.disponible ?? null}
+        soldeDevise={soldeWallet?.devise ?? 'XAF'}
+        onClose={() => setIsRetraitModalOpen(false)}
+        onSubmit={handleCreateRetraitSubmit}
       />
 
       <EditConfigModal

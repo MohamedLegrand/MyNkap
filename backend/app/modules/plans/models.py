@@ -103,3 +103,28 @@ class PaiementAbonnement(Base):
 
     client = relationship("Client")
     plan_demande = relationship("Plan")
+
+
+class Retrait(Base):
+    """
+    Retrait (Cash-Out HR-Skills Pay) : fait sortir des fonds du wallet
+    marchand MyNkap vers un numéro Mobile Money. Miroir de
+    PaiementAbonnement mais dans l'autre sens — jamais initié par un
+    client, réservé aux Superadmins (niveau_acces == 3, voir
+    admin.service.initier_retrait_admin).
+    """
+    __tablename__ = "retraits"
+
+    id_retrait = Column(Integer, primary_key=True, index=True)
+    id_administrateur = Column(Integer, ForeignKey("administrateurs.id_administrateur"), nullable=False)
+    montant = Column(Numeric(14, 2), nullable=False)
+    devise = Column(String, nullable=False)
+    pays = Column(String, nullable=False)
+    phone_number = Column(String, nullable=False)
+    operator = Column(String, nullable=False)
+    reference_hrpay = Column(String, unique=True, nullable=False, index=True)
+    statut = Column(String, default="PENDING", nullable=False)  # PENDING, SUCCESS, FAILED
+    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_confirmation = Column(DateTime, nullable=True)
+
+    administrateur = relationship("Administrateur")

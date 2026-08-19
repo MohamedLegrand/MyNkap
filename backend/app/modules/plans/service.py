@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.modules.audit.service import enregistrer_action
 from app.modules.notifications import service as notifications_service
-from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan, PrixPlanDevise
+from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan, PrixPlanDevise, Retrait
 from app.modules.dettes.models import Dette
 from app.modules.epargne.models import ObjectifEpargne
 from app.modules.tontines.models import Tontine
@@ -56,6 +56,14 @@ class PaiementRefuseError(Exception):
 
 class EssaiInactifError(Exception):
     """Le client n'est pas (ou plus) en période d'essai — rien à confirmer."""
+
+
+class SoldeInsuffisantError(Exception):
+    """
+    Le solde disponible du wallet marchand HR-Skills Pay est insuffisant
+    pour ce retrait (ou le wallet est gelé) — distinct d'une panne : le
+    montant demandé est simplement trop élevé pour le moment.
+    """
 
 
 def lister_plans(db: Session) -> List[Plan]:
@@ -483,6 +491,147 @@ def verifier_paiements_en_attente(db: Session) -> int:
                 f"Votre paiement de {paiement.montant} {paiement.devise} pour le plan "
                 f"{paiement.plan_demande.nom} a échoué ou expiré. Vous pouvez réessayer.",
             )
+        # PENDING ou HOLD (revue AML) : rien à faire, on retentera au
+        # prochain passage.
+
+    return nb_traites
+
+
+# --- Retrait (Cash-Out HR-Skills Pay) — réservé aux Superadmins, jamais
+# initié par un client (voir admin.service.initier_retrait_admin) ---
+
+def obtenir_solde_wallet() -> dict:
+    """
+    Solde réel du wallet marchand HR-Skills Pay — permet de savoir combien
+    peut être retiré avant de tenter un Cash-Out (l'argent encore `held`,
+    en attente 48h, ne peut pas financer un retrait).
+    """
+    try:
+        with _client_hrpay() as client:
+            bal = client.wallet.balance()
+    except hrpay.HRPayError as erreur:
+        # Sans ce catch, une clé HR-Skills Pay invalide/expirée remonte en
+        # exception non gérée : FastAPI renvoie alors un 500 généré par
+        # Starlette en dehors du middleware CORS, que le navigateur ne peut
+        # pas lire — le frontend voit juste "Failed to fetch" au lieu du
+        # vrai message d'erreur (voir historique).
+        logger.warning(
+            "Échec HR-Skills Pay (wallet.balance) : type=%s code=%s statut=%s message=%s",
+            type(erreur).__name__, erreur.code, erreur.status_code, erreur.message,
+        )
+        raise ServicePaiementIndisponibleError(str(erreur))
+    return {
+        "devise": bal.currency,
+        "disponible": bal.balance.available,
+        "en_attente": bal.balance.held,
+        "gele": bal.is_frozen,
+    }
+
+
+def _appeler_hrpay_cash_out(
+    phone_number: str, operator: str, montant, devise: str, country: str, id_retrait: int
+) -> str:
+    """
+    Isolée pour rester mockable en test — miroir de _appeler_hrpay_cash_in,
+    mais pour un Cash-Out (l'argent sort du wallet marchand MyNkap au lieu
+    d'y entrer). idempotency_key basé sur id_retrait : un retry réseau ne
+    débite jamais deux fois le wallet.
+    """
+    with _client_hrpay() as client:
+        tx = client.cash_out.mobile_money(
+            phone_number=phone_number,
+            operator=operator.upper(),
+            amount=int(montant),
+            currency=devise,
+            country=hrpay.Country(country),
+            idempotency_key=f"retrait-{id_retrait}",
+        )
+    return tx.reference
+
+
+def initier_retrait(
+    db: Session, id_administrateur: int, montant, devise: str, phone_number: str, operator: str, pays: str
+) -> Retrait:
+    """
+    Démarre un Cash-Out HR-Skills Pay réel. Le contrôle d'accès
+    (niveau_acces == 3) vit dans admin.service.initier_retrait_admin, pas
+    ici — cette fonction fait confiance à son appelant, comme
+    initier_paiement_plan fait confiance au router pour l'authentification.
+    """
+    devise_resolue = _valider_pays_et_operateur(pays, operator)
+    if devise != devise_resolue:
+        raise PaysOuOperateurInvalideError(
+            f"La devise {devise} ne correspond pas au pays {pays} (attendu {devise_resolue})."
+        )
+
+    retrait = Retrait(
+        id_administrateur=id_administrateur,
+        montant=montant,
+        devise=devise,
+        pays=pays,
+        phone_number=phone_number,
+        operator=operator,
+        reference_hrpay="",
+        statut="PENDING",
+    )
+    db.add(retrait)
+    db.flush()  # pour obtenir id_retrait avant l'appel externe (idempotency_key)
+
+    try:
+        reference = _appeler_hrpay_cash_out(phone_number, operator, montant, devise, pays, retrait.id_retrait)
+    except hrpay.WalletError as erreur:
+        # Solde disponible insuffisant, ou wallet gelé — distinct d'une
+        # panne : le montant demandé est simplement trop élevé pour le
+        # moment, pas la peine de réessayer sans changer le montant.
+        db.rollback()
+        logger.warning("Retrait refusé (solde insuffisant) : message=%s", erreur.message)
+        raise SoldeInsuffisantError(str(erreur))
+    except hrpay.ValidationError as erreur:
+        db.rollback()
+        logger.warning(
+            "Retrait rejeté (validation HR-Skills Pay) : statut=%s message=%s issues=%s",
+            erreur.status_code, erreur.message, erreur.issues,
+        )
+        raise PaiementRefuseError("Le numéro de téléphone fourni est invalide.")
+    except hrpay.HRPayError as erreur:
+        db.rollback()
+        logger.warning(
+            "Échec HR-Skills Pay (cash-out) : type=%s code=%s statut=%s message=%s",
+            type(erreur).__name__, erreur.code, erreur.status_code, erreur.message,
+        )
+        raise ServicePaiementIndisponibleError(str(erreur))
+
+    retrait.reference_hrpay = reference
+    db.commit()
+    db.refresh(retrait)
+    return retrait
+
+
+def verifier_retraits_en_attente(db: Session) -> int:
+    """
+    Tâche planifiée (voir worker.tasks) : interroge HR-Skills Pay pour
+    chaque retrait encore PENDING et finalise son statut — miroir de
+    verifier_paiements_en_attente, mais sans changement de plan à
+    appliquer (un retrait ne modifie jamais l'abonnement d'un client).
+    """
+    en_attente = db.query(Retrait).filter(Retrait.statut == "PENDING").all()
+    nb_traites = 0
+
+    for retrait in en_attente:
+        try:
+            statut = _verifier_statut_hrpay(retrait.reference_hrpay)
+        except hrpay.HRPayError:
+            continue  # on retentera au prochain passage
+
+        if statut == "SUCCESS":
+            retrait.statut = "SUCCESS"
+            retrait.date_confirmation = datetime.utcnow()
+            db.commit()
+            nb_traites += 1
+        elif statut in ("FAILED", "REFUNDED"):
+            retrait.statut = "FAILED"
+            db.commit()
+            nb_traites += 1
         # PENDING ou HOLD (revue AML) : rien à faire, on retentera au
         # prochain passage.
 

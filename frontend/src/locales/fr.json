@@ -980,10 +980,11 @@
         "username_placeholder": "ex: admin_support",
         "email_placeholder": "admin@mynkap.cm",
         "password_label": "Mot de passe temporaire",
+        "generate_password": "Générer",
         "access_level_label": "Niveau d'Accès",
-        "access_level_1": "Niveau 1 : Support & Consultation",
-        "access_level_2": "Niveau 2 : Modérateur (Config & Fraude)",
-        "access_level_3": "Niveau 3 : Superadmin (Gestion Équipe & Droits)",
+        "access_level_1": "Support & Consultation",
+        "access_level_2": "Modérateur (Config & Fraude)",
+        "access_level_3": "Superadmin (Gestion Équipe & Droits)",
         "submit": "Créer l'Admin"
       },
       "reset_password": {
@@ -1036,6 +1037,15 @@
         "features_label": "Accès fonctionnels inclus",
         "feature_tontines": "Tontines & Épargne Collective",
         "submit_create": "Créer le plan"
+      },
+      "retrait": {
+        "title": "Nouveau retrait",
+        "available_balance": "Solde disponible :",
+        "amount_label": "Montant à retirer",
+        "reason_label": "Raison (facultatif)",
+        "reason_placeholder": "ex: Retrait mensuel du chiffre d'affaires",
+        "submit": "Démarrer le retrait",
+        "error_generic": "Impossible de démarrer ce retrait."
       },
       "transaction_suspecte": {
         "title": "Fiche d'investigation",
@@ -1106,7 +1116,7 @@
         "th_admin": "Admin",
         "th_access_level": "Niveau d'Accès",
         "th_created_on": "Créé le",
-        "level_display": "Niveau {{level}} ({{role}})",
+        "level_display": "{{role}}",
         "role_superadmin": "Superadmin",
         "role_moderator": "Modérateur",
         "role_support": "Support",
@@ -1157,6 +1167,15 @@
         "th_action_single": "Action",
         "validate_manually": "Valider manuellement",
         "none_payments": "Aucun paiement.",
+        "tab_retraits": "Retraits",
+        "new_retrait": "Nouveau retrait",
+        "wallet_available": "Solde disponible",
+        "wallet_pending": "En attente (48h)",
+        "wallet_status": "État du wallet",
+        "wallet_frozen": "Gelé",
+        "wallet_active": "Actif",
+        "th_requested_by": "Demandé par",
+        "none_retraits": "Aucun retrait effectué.",
         "access_badges": {
           "dettes": "Dettes",
           "epargne": "Épargne",
