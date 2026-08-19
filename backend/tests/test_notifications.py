@@ -232,6 +232,7 @@ def test_paiement_confirme_notifie_le_client_et_les_admins(client, db_session, m
             "cycle_facturation": "MENSUEL",
             "phone_number": "237655500393",
             "operator": "orange",
+            "pays": "CM",
         },
         headers=headers,
     )
@@ -258,6 +259,7 @@ def test_paiement_echoue_notifie_le_client_uniquement(client, db_session, monkey
             "cycle_facturation": "MENSUEL",
             "phone_number": "237655500393",
             "operator": "orange",
+            "pays": "CM",
         },
         headers=headers,
     )

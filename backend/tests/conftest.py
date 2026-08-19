@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.core.database import Base, get_db
 from app.core import models_registry  # noqa: F401 (enregistre toutes les tables)
 from app.main import app, limiter
-from app.modules.plans.models import Plan
+from app.modules.plans.models import Plan, PrixPlanDevise
 
 engine = create_engine(
     "sqlite:///:memory:",
@@ -36,12 +36,33 @@ PLANS_SEED = [
      "acces_tontine": True},
 ]
 
+# Même catalogue que le seed de la migration Alembic (voir
+# 6d751150a5a7_ajouter_prix_plan_devise...) — CDF/GNF/GMD sont des
+# estimations, voir le commentaire dans la migration.
+PRIX_DEVISE_SEED = {
+    "ESSENTIEL": {
+        "XAF": (1000, 10000), "XOF": (1000, 10000),
+        "CDF": (4700, 47000), "GNF": (14400, 144000), "GMD": (120, 1200),
+    },
+    "PREMIUM": {
+        "XAF": (2500, 25000), "XOF": (2500, 25000),
+        "CDF": (11800, 118000), "GNF": (36000, 360000), "GMD": (290, 2900),
+    },
+}
+
 
 @pytest.fixture()
 def db_session():
     Base.metadata.create_all(bind=engine)
     session = TestingSessionLocal()
     session.add_all(Plan(**donnees) for donnees in PLANS_SEED)
+    session.commit()
+    for nom_plan, prix_devises in PRIX_DEVISE_SEED.items():
+        plan = session.query(Plan).filter(Plan.nom == nom_plan).first()
+        session.add_all(
+            PrixPlanDevise(id_plan=plan.id_plan, devise=devise, prix_mensuel=mensuel, prix_annuel=annuel)
+            for devise, (mensuel, annuel) in prix_devises.items()
+        )
     session.commit()
     try:
         yield session

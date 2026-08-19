@@ -255,6 +255,12 @@ export interface AppNotification {
   date_creation: string;
 }
 
+export interface PrixDevise {
+  devise: string;
+  prix_mensuel: number;
+  prix_annuel: number;
+}
+
 export interface Plan {
   id_plan: number;
   // Les 3 plans système (GRATUIT/ESSENTIEL/PREMIUM) sont figés côté backend,
@@ -271,6 +277,17 @@ export interface Plan {
   acces_jarvis: boolean;
   acces_rapport: boolean;
   acces_tontine: boolean;
+  // Prix dans chaque devise couverte par HR-Skills Pay (paiement Mobile
+  // Money) — prix_mensuel/prix_annuel ci-dessus restent le prix de
+  // référence XAF affiché publiquement.
+  prix_devises: PrixDevise[];
+}
+
+export interface PaysOperateur {
+  pays: string;
+  nom: string;
+  devise: string;
+  operateurs: string[];
 }
 
 export interface Abonnement {
@@ -298,6 +315,7 @@ export interface PaiementAbonnement {
   cycle_facturation: string;
   montant: number;
   devise: string;
+  pays: string;
   reference_hrpay: string;
   statut: 'PENDING' | 'SUCCESS' | 'FAILED';
   date_creation: string;
@@ -442,6 +460,7 @@ export interface AdminPaiementItem {
   cycle_facturation: string;
   montant: number;
   devise: string;
+  pays: string;
   reference_hrpay: string;
   statut: 'PENDING' | 'SUCCESS' | 'FAILED';
   date_creation: string;

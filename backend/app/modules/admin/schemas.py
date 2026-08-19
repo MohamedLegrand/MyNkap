@@ -213,6 +213,7 @@ class AdminPaiementItem(BaseModel):
     cycle_facturation: str
     montant: Decimal
     devise: str
+    pays: str
     reference_hrpay: str
     statut: str
     date_creation: datetime

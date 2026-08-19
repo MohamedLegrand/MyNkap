@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Crown, Check, Loader2, Smartphone, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
-import type { Plan, PaiementAbonnement, Abonnement } from '../types';
+import type { Plan, PaiementAbonnement, Abonnement, PaysOperateur } from '../types';
 
 interface PlanUpgradeModalProps {
   isOpen: boolean;
@@ -34,6 +34,26 @@ const FEATURES_PAR_PLAN_KEYS: Record<string, string[]> = {
 
 type Etape = 'choix' | 'paiement' | 'attente' | 'succes' | 'echec';
 
+// Libellés d'affichage des opérateurs Mobile Money couverts par HR-Skills
+// Pay (codes bruts renvoyés par GET /abonnement/pays-disponibles).
+const OPERATEUR_LABELS: Record<string, string> = {
+  ORANGE: 'Orange Money',
+  MTN: 'MTN MoMo',
+  MOOV: 'Moov Money',
+  AIRTEL: 'Airtel Money',
+  MPESA: 'M-Pesa',
+  WAVE: 'Wave',
+  FREE: 'Free Money',
+  TMONEY: 'TMoney',
+  AFRIMONEY: 'AfriMoney',
+  CAMTEL: 'Camtel Money',
+  NEXTTEL: 'Nexttel',
+  CORIS: 'Coris Money',
+  EXPRESSO: 'Expresso',
+  FLOOZ: 'Flooz',
+  QMONEY: 'QMoney',
+};
+
 export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onClose, onSuccess, planActuel, abonnement }) => {
   const { t } = useTranslation();
   const client = useAuthStore((state) => state.client);
@@ -46,7 +66,9 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
   const [planChoisi, setPlanChoisi] = useState<'ESSENTIEL' | 'PREMIUM'>('PREMIUM');
   const [cycle, setCycle] = useState<'MENSUEL' | 'ANNUEL'>('MENSUEL');
   const [phone, setPhone] = useState('');
-  const [operator, setOperator] = useState<'orange' | 'mtn'>('orange');
+  const [paysDisponibles, setPaysDisponibles] = useState<PaysOperateur[]>([]);
+  const [pays, setPays] = useState('CM');
+  const [operator, setOperator] = useState('ORANGE');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paiement, setPaiement] = useState<PaiementAbonnement | null>(null);
   const [isSubmittingGestion, setIsSubmittingGestion] = useState(false);
@@ -71,12 +93,22 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
     setPaiement(null);
     setGestionMessage(null);
     setPhone(client?.phone ?? '');
+    setPays('CM');
+    setOperator('ORANGE');
     setIsLoadingPlans(true);
     api
       .request<Plan[]>('/plans')
       .then((data) => setPlans(data.filter((p) => p.nom !== 'GRATUIT')))
       .catch((err) => setError(err instanceof Error ? err.message : t('modals.plan_upgrade.error_load_plans')))
       .finally(() => setIsLoadingPlans(false));
+    api
+      .request<PaysOperateur[]>('/abonnement/pays-disponibles')
+      .then(setPaysDisponibles)
+      .catch(() => {
+        // Pays non chargés : le pays par défaut (CM) et son opérateur
+        // (ORANGE) restent utilisables tels quels, juste sans sélecteur
+        // dynamique — mieux que de bloquer tout le formulaire de paiement.
+      });
 
     return () => arreterPolling();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,13 +117,34 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
   if (!isOpen) return null;
 
   const planSelectionne = plans.find((p) => p.nom === planChoisi);
+  // Prix de référence XAF (catalogue public) — affiché à l'étape "choix",
+  // avant que le pays de paiement ne soit choisi.
   const montant = planSelectionne
     ? (cycle === 'MENSUEL' ? planSelectionne.prix_mensuel : planSelectionne.prix_annuel)
     : 0;
 
+  const paysActuel = paysDisponibles.find((p) => p.pays === pays);
+  const operateursDuPays = paysActuel?.operateurs ?? ['ORANGE', 'MTN'];
+  const deviseLocale = paysActuel?.devise ?? 'XAF';
+  // Montant réellement facturé dans la devise du pays choisi (étape
+  // "paiement"/"attente") — repli sur le prix de référence si le pays n'a
+  // pas encore chargé.
+  const prixLocal = planSelectionne?.prix_devises.find((pd) => pd.devise === deviseLocale);
+  const montantLocal = prixLocal
+    ? (cycle === 'MENSUEL' ? prixLocal.prix_mensuel : prixLocal.prix_annuel)
+    : montant;
+
   const handleContinuer = () => {
     setError(null);
     setEtape('paiement');
+  };
+
+  const handleChangerPays = (nouveauPays: string) => {
+    setPays(nouveauPays);
+    const operateurs = paysDisponibles.find((p) => p.pays === nouveauPays)?.operateurs;
+    if (operateurs && operateurs.length > 0) {
+      setOperator(operateurs[0]);
+    }
   };
 
   const demarrerPolling = (idPaiement: number) => {
@@ -127,6 +180,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
           cycle_facturation: cycle,
           phone_number: phone.trim(),
           operator,
+          pays,
         }),
       });
       setPaiement(resultat);
@@ -305,30 +359,37 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
             <form onSubmit={handleInitierPaiement} className="space-y-4">
               <div className="p-3 rounded-xl bg-muted/40 border border-border text-xs text-muted-foreground">
                 {t('modals.plan_upgrade.plan_label')} <strong className="text-foreground">{LABEL_PLAN_KEY[planChoisi] ? t(LABEL_PLAN_KEY[planChoisi]) : planChoisi}</strong> —{' '}
-                <strong className="text-foreground">{montant.toLocaleString('fr-FR')} XAF</strong> / {cycle === 'MENSUEL' ? t('modals.plan_upgrade.month_short') : t('modals.plan_upgrade.year_short')}
+                <strong className="text-foreground">{montantLocal.toLocaleString('fr-FR')} {deviseLocale}</strong> / {cycle === 'MENSUEL' ? t('modals.plan_upgrade.month_short') : t('modals.plan_upgrade.year_short')}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">{t('modals.plan_upgrade.country_label')}</label>
+                <select
+                  value={pays}
+                  onChange={(e) => handleChangerPays(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {(paysDisponibles.length > 0 ? paysDisponibles : [{ pays: 'CM', nom: 'Cameroun', devise: 'XAF', operateurs: [] }]).map((p) => (
+                    <option key={p.pays} value={p.pays}>{p.nom}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">{t('modals.plan_upgrade.operator_label')}</label>
                 <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setOperator('orange')}
-                    className={`py-2.5 rounded-lg text-xs font-bold transition-all ${
-                      operator === 'orange' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Orange Money
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOperator('mtn')}
-                    className={`py-2.5 rounded-lg text-xs font-bold transition-all ${
-                      operator === 'mtn' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    MTN MoMo
-                  </button>
+                  {operateursDuPays.map((op) => (
+                    <button
+                      key={op}
+                      type="button"
+                      onClick={() => setOperator(op)}
+                      className={`py-2.5 rounded-lg text-xs font-bold transition-all ${
+                        operator === op ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {OPERATEUR_LABELS[op] ?? op}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -373,9 +434,10 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
               <p className="text-sm font-bold text-foreground">{t('modals.plan_upgrade.waiting_title')}</p>
               <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 {t('modals.plan_upgrade.waiting_desc', {
-                  montant: montant.toLocaleString('fr-FR'),
+                  montant: (paiement?.montant ?? montantLocal).toLocaleString('fr-FR'),
+                  devise: paiement?.devise ?? deviseLocale,
                   phone,
-                  operateur: operator === 'orange' ? 'Orange Money' : 'MTN MoMo',
+                  operateur: OPERATEUR_LABELS[operator] ?? operator,
                 })}
               </p>
               {paiement && (

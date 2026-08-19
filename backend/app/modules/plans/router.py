@@ -11,6 +11,7 @@ from app.modules.plans.schemas import (
     ChangerPlanRequest,
     DonneesVerrouilleesOut,
     InitierPaiementRequest,
+    OperateurPaysOut,
     PaiementAbonnementOut,
     PlanOut,
 )
@@ -22,6 +23,16 @@ router = APIRouter(tags=["Plans & Abonnement"])
 def lister_plans(db: Session = Depends(get_db)):
     """Catalogue public des plans tarifaires — consultable avant inscription."""
     return service.lister_plans(db)
+
+
+@router.get("/abonnement/pays-disponibles", response_model=List[OperateurPaysOut])
+def obtenir_pays_disponibles():
+    """
+    Pays, devises et opérateurs Mobile Money couverts par HR-Skills Pay —
+    consultable avant inscription, comme /plans, pour construire le
+    sélecteur pays/opérateur de la modale de paiement.
+    """
+    return service.obtenir_pays_disponibles()
 
 
 @router.get("/abonnement", response_model=AbonnementOut)
@@ -78,7 +89,8 @@ def initier_paiement(
     """
     try:
         return service.initier_paiement_plan(
-            db, client.id_client, payload.nom_plan, payload.cycle_facturation, payload.phone_number, payload.operator
+            db, client.id_client, payload.nom_plan, payload.cycle_facturation,
+            payload.phone_number, payload.operator, payload.pays,
         )
     except service.PlanIntrouvableError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan introuvable.")
@@ -92,6 +104,8 @@ def initier_paiement(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Numéro de téléphone et opérateur Mobile Money requis.",
         )
+    except service.PaysOuOperateurInvalideError as erreur:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
     except service.PaiementRefuseError as erreur:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
     except service.ServicePaiementIndisponibleError:

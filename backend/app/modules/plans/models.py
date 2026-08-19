@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -30,6 +30,28 @@ class Plan(Base):
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     abonnements = relationship("Abonnement", back_populates="plan")
+    prix_devises = relationship("PrixPlanDevise", back_populates="plan")
+
+
+class PrixPlanDevise(Base):
+    """
+    Prix d'un plan payant (ESSENTIEL/PREMIUM) dans une devise donnée parmi
+    celles couvertes par HR-Skills Pay (XAF, XOF, CDF, GNF, GMD). XAF et XOF
+    partagent la même parité fixe (peg euro commun) : ce sont les mêmes
+    montants que Plan.prix_mensuel/prix_annuel. CDF/GNF/GMD sont des
+    estimations approximatives à valider côté business avant mise en
+    production (voir la migration qui les insère).
+    """
+    __tablename__ = "prix_plan_devise"
+    __table_args__ = (UniqueConstraint("id_plan", "devise", name="uq_prix_plan_devise"),)
+
+    id_prix = Column(Integer, primary_key=True, index=True)
+    id_plan = Column(Integer, ForeignKey("plans.id_plan"), nullable=False)
+    devise = Column(String, nullable=False)
+    prix_mensuel = Column(Numeric(14, 2), nullable=False)
+    prix_annuel = Column(Numeric(14, 2), nullable=False)
+
+    plan = relationship("Plan", back_populates="prix_devises")
 
 
 class Abonnement(Base):
@@ -71,6 +93,9 @@ class PaiementAbonnement(Base):
     cycle_facturation = Column(String, nullable=False)  # MENSUEL, ANNUEL
     montant = Column(Numeric(14, 2), nullable=False)
     devise = Column(String, default="XAF", nullable=False)
+    # Code pays HR-Skills Pay (ex. "CM", "SN") utilisé pour ce Cash-In —
+    # traçabilité du rail Mobile Money employé, utile en support/debug.
+    pays = Column(String, nullable=False, server_default="CM")
     reference_hrpay = Column(String, unique=True, nullable=False, index=True)
     statut = Column(String, default="PENDING", nullable=False)  # PENDING, SUCCESS, FAILED
     date_creation = Column(DateTime, default=datetime.utcnow)

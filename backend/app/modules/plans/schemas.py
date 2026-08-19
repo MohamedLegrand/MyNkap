@@ -4,6 +4,15 @@ from typing import Literal, Optional
 from pydantic import BaseModel
 
 
+class PrixDeviseOut(BaseModel):
+    devise: str
+    prix_mensuel: Decimal
+    prix_annuel: Decimal
+
+    class Config:
+        from_attributes = True
+
+
 class PlanOut(BaseModel):
     id_plan: int
     nom: str
@@ -18,6 +27,11 @@ class PlanOut(BaseModel):
     acces_jarvis: bool
     acces_rapport: bool
     acces_tontine: bool
+    # Prix dans chaque devise couverte par HR-Skills Pay (voir
+    # Plan.prix_devises) — permet au frontend d'afficher le montant réel
+    # avant paiement sans appel supplémentaire. prix_mensuel/prix_annuel
+    # ci-dessus restent le prix de référence XAF affiché publiquement.
+    prix_devises: list[PrixDeviseOut] = []
 
     class Config:
         from_attributes = True
@@ -58,6 +72,10 @@ class InitierPaiementRequest(BaseModel):
     cycle_facturation: Literal["MENSUEL", "ANNUEL"]
     phone_number: str
     operator: str
+    # Code pays HR-Skills Pay (ex. "CM", "SN") — détermine à la fois
+    # l'opérateur valide et la devise/prix réels appliqués (voir
+    # service._valider_pays_et_operateur).
+    pays: str
 
 
 class PaiementAbonnementOut(BaseModel):
@@ -66,6 +84,7 @@ class PaiementAbonnementOut(BaseModel):
     cycle_facturation: str
     montant: Decimal
     devise: str
+    pays: str
     reference_hrpay: str
     statut: str
     date_creation: datetime
@@ -73,3 +92,12 @@ class PaiementAbonnementOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class OperateurPaysOut(BaseModel):
+    """Un pays Mobile Money couvert par HR-Skills Pay, avec sa devise et ses
+    opérateurs disponibles — voir service.obtenir_pays_disponibles."""
+    pays: str
+    nom: str
+    devise: str
+    operateurs: list[str]

@@ -93,10 +93,11 @@ def test_initier_paiement_cree_un_paiement_pending(client, monkeypatch):
 
     appels = {}
 
-    def fausse_reference(phone_number, operator, montant, devise, id_paiement):
+    def fausse_reference(phone_number, operator, montant, devise, country, id_paiement):
         appels["phone_number"] = phone_number
         appels["operator"] = operator
         appels["montant"] = montant
+        appels["country"] = country
         return "ref_test_123"
 
     monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", fausse_reference)
@@ -108,6 +109,7 @@ def test_initier_paiement_cree_un_paiement_pending(client, monkeypatch):
             "cycle_facturation": "MENSUEL",
             "phone_number": "237655500393",
             "operator": "orange",
+            "pays": "CM",
         },
         headers=headers,
     )
@@ -119,6 +121,7 @@ def test_initier_paiement_cree_un_paiement_pending(client, monkeypatch):
     assert Decimal(body["montant"]) == Decimal("1000")
     assert appels["phone_number"] == "237655500393"
     assert appels["operator"] == "orange"
+    assert appels["country"] == "CM"
 
     # Le plan n'a pas encore changé : le paiement n'est pas confirmé (le
     # client reste sur son essai PREMIUM de départ, pas encore ESSENTIEL).
@@ -131,7 +134,7 @@ def test_initier_paiement_sans_telephone_est_refuse(client, monkeypatch):
 
     reponse = client.post(
         "/api/v1/abonnement/paiements",
-        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL", "phone_number": "", "operator": "mtn"},
+        json={"nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL", "phone_number": "", "operator": "mtn", "pays": "CM"},
         headers=headers,
     )
     assert reponse.status_code == 400
@@ -152,6 +155,7 @@ def test_initier_paiement_echec_hrpay_ne_cree_rien(client, db_session, monkeypat
             "cycle_facturation": "ANNUEL",
             "phone_number": "237655500393",
             "operator": "mtn",
+            "pays": "CM",
         },
         headers=headers,
     )
@@ -170,6 +174,7 @@ def test_verifier_paiements_en_attente_confirme_et_applique_le_plan(client, db_s
             "cycle_facturation": "MENSUEL",
             "phone_number": "237655500393",
             "operator": "orange",
+            "pays": "CM",
         },
         headers=headers,
     )
@@ -199,6 +204,7 @@ def test_verifier_paiements_en_attente_marque_failed_sans_changer_le_plan(client
             "cycle_facturation": "MENSUEL",
             "phone_number": "237655500393",
             "operator": "orange",
+            "pays": "CM",
         },
         headers=headers,
     )
@@ -227,6 +233,7 @@ def test_verifier_paiements_en_attente_ignore_ceux_toujours_pending(client, db_s
             "cycle_facturation": "MENSUEL",
             "phone_number": "237655500393",
             "operator": "orange",
+            "pays": "CM",
         },
         headers=headers,
     )
@@ -251,6 +258,7 @@ def test_obtenir_paiement_dun_autre_client_renvoie_404(client, monkeypatch):
             "cycle_facturation": "MENSUEL",
             "phone_number": "237655500393",
             "operator": "orange",
+            "pays": "CM",
         },
         headers=headers_a,
     ).json()

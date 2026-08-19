@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.modules.audit.service import enregistrer_action
 from app.modules.notifications import service as notifications_service
-from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
+from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan, PrixPlanDevise
 from app.modules.dettes.models import Dette
 from app.modules.epargne.models import ObjectifEpargne
 from app.modules.tontines.models import Tontine
@@ -30,6 +30,15 @@ class CycleFacturationRequisError(Exception):
 
 class TelephoneOperateurRequisError(Exception):
     """phone_number et operator sont requis pour initier un paiement Mobile Money."""
+
+
+class PaysOuOperateurInvalideError(Exception):
+    """
+    Le pays n'est pas couvert par HR-Skills Pay, ou l'opérateur demandé
+    n'est pas disponible pour ce pays — validé avant l'appel réseau (voir
+    hrpay.operators_for_country) pour renvoyer un 400 clair plutôt que de
+    laisser HR-Skills Pay le découvrir (422 OPERATOR_NOT_AVAILABLE).
+    """
 
 
 class ServicePaiementIndisponibleError(Exception):
@@ -250,7 +259,68 @@ def _client_hrpay() -> hrpay.HRPayClient:
     return hrpay.HRPayClient(settings.HRPAY_PUBLIC_KEY, settings.HRPAY_SECRET_KEY)
 
 
-def _appeler_hrpay_cash_in(phone_number: str, operator: str, montant, devise: str, id_paiement: int) -> str:
+def obtenir_pays_disponibles() -> list[dict]:
+    """
+    Pays/devises/opérateurs Mobile Money couverts par HR-Skills Pay —
+    lecture pure des données de référence embarquées dans le SDK (aucun
+    appel réseau, aucun accès DB). Volontairement pas de liste recopiée
+    côté MyNkap : une évolution future du SDK (nouveau pays/opérateur) est
+    absorbée sans changement de code ici.
+    """
+    return [
+        {
+            "pays": info.country.value,
+            "nom": info.name,
+            "devise": info.currency.value,
+            "operateurs": [op.value for op in info.operators],
+        }
+        for info in hrpay.operators_by_country()
+    ]
+
+
+def _valider_pays_et_operateur(pays: str, operator: str) -> str:
+    """
+    Vérifie que `pays` est couvert par HR-Skills Pay et que `operator` y est
+    disponible. Renvoie la devise du pays (source de vérité pour le
+    montant à facturer — jamais Plan.devise, qui n'est que le prix de
+    référence XAF affiché sur la page publique).
+    """
+    try:
+        pays_enum = hrpay.Country(pays)
+    except ValueError:
+        raise PaysOuOperateurInvalideError(f"Pays non couvert par HR-Skills Pay : {pays}.")
+
+    operateurs_disponibles = hrpay.operators_for_country(pays_enum)
+    if operator.upper() not in [op.value for op in operateurs_disponibles]:
+        raise PaysOuOperateurInvalideError(
+            f"Opérateur {operator} indisponible pour {pays}."
+        )
+
+    for info in hrpay.operators_by_country():
+        if info.country == pays_enum:
+            return info.currency.value
+    raise PaysOuOperateurInvalideError(f"Pays non couvert par HR-Skills Pay : {pays}.")
+
+
+def _obtenir_prix(db: Session, plan: Plan, devise: str) -> tuple:
+    """
+    Prix (mensuel, annuel) du plan dans la devise résolue depuis le pays
+    choisi (voir _valider_pays_et_operateur) — jamais Plan.prix_mensuel/
+    prix_annuel, qui restent le prix de référence XAF affiché publiquement.
+    """
+    prix = (
+        db.query(PrixPlanDevise)
+        .filter(PrixPlanDevise.id_plan == plan.id_plan, PrixPlanDevise.devise == devise)
+        .first()
+    )
+    if prix is None:
+        raise PaysOuOperateurInvalideError(f"Aucun prix défini pour {plan.nom} en {devise}.")
+    return prix.prix_mensuel, prix.prix_annuel
+
+
+def _appeler_hrpay_cash_in(
+    phone_number: str, operator: str, montant, devise: str, country: str, id_paiement: int
+) -> str:
     """
     Isolée dans sa propre fonction pour rester mockable en test (même
     principe que jarvis._appeler_groq) — aucun test ne doit jamais
@@ -266,6 +336,7 @@ def _appeler_hrpay_cash_in(phone_number: str, operator: str, montant, devise: st
             operator=operator.upper(),
             amount=int(montant),
             currency=devise,
+            country=hrpay.Country(country),
             idempotency_key=f"abonnement-{id_paiement}",
         )
     return tx.reference
@@ -292,7 +363,7 @@ def obtenir_paiement_du_client(db: Session, id_paiement: int, id_client: int) ->
 
 
 def initier_paiement_plan(
-    db: Session, id_client: int, nom_plan: str, cycle_facturation: str, phone_number: str, operator: str
+    db: Session, id_client: int, nom_plan: str, cycle_facturation: str, phone_number: str, operator: str, pays: str
 ) -> PaiementAbonnement:
     """
     Démarre un paiement Mobile Money réel pour souscrire à un plan payant.
@@ -309,14 +380,20 @@ def initier_paiement_plan(
     if not phone_number or not operator:
         raise TelephoneOperateurRequisError()
 
-    montant = plan.prix_mensuel if cycle_facturation == "MENSUEL" else plan.prix_annuel
+    # Résout la devise réelle depuis le pays choisi (jamais plan.devise, qui
+    # n'est que le prix de référence XAF affiché sur la page publique), puis
+    # le prix correspondant à cette devise.
+    devise = _valider_pays_et_operateur(pays, operator)
+    montant_mensuel, montant_annuel = _obtenir_prix(db, plan, devise)
+    montant = montant_mensuel if cycle_facturation == "MENSUEL" else montant_annuel
 
     paiement = PaiementAbonnement(
         id_client=id_client,
         id_plan_demande=plan.id_plan,
         cycle_facturation=cycle_facturation,
         montant=montant,
-        devise=plan.devise,
+        devise=devise,
+        pays=pays,
         reference_hrpay="",
         statut="PENDING",
     )
@@ -324,7 +401,7 @@ def initier_paiement_plan(
     db.flush()  # pour obtenir id_paiement avant l'appel externe (idempotency_key)
 
     try:
-        reference = _appeler_hrpay_cash_in(phone_number, operator, montant, plan.devise, paiement.id_paiement)
+        reference = _appeler_hrpay_cash_in(phone_number, operator, montant, devise, pays, paiement.id_paiement)
     except hrpay.ValidationError as erreur:
         # Payload rejeté par HR-Skills Pay (HTTP 400/422) : c'est le seul
         # cas structurellement imputable à la saisie du client (le SDK a sa
