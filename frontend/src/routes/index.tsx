@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
-  Sun, Moon, ArrowRight, Check,
+  Sun, Moon, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
   HelpCircle, Mail, Loader2, User, Phone, Eye, EyeOff, Wallet, RefreshCw,
 } from 'lucide-react';
@@ -75,7 +75,7 @@ const SiteHeader = () => {
         {/* Logo & Brand */}
         <Link to="/" className="flex items-center gap-3">
           <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-sm border border-border" />
-          <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <span className="text-2xl font-black tracking-tight text-primary">
             MyNkap
           </span>
         </Link>
@@ -417,10 +417,9 @@ const LandingPage = () => {
             <div className="flex flex-wrap justify-center gap-4 pt-2">
               <a
                 href="/register"
-                className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-3.5 px-8 rounded-xl transition-all shadow-md flex items-center gap-2 group"
+                className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-3.5 px-8 rounded-xl transition-all shadow-md"
               >
-                <span>{t('landing.hero.cta_primary')}</span>
-                <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                {t('landing.hero.cta_primary')}
               </a>
               <a
                 href="#ia"
@@ -485,16 +484,14 @@ const LandingPage = () => {
                   t('landing.ia.point3'),
                   t('landing.ia.point4'),
                 ].map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-sm">
-                    <div className="p-1 bg-primary/10 text-primary rounded-full">
-                      <Check className="h-4 w-4" />
-                    </div>
+                  <li key={idx} className="flex items-start gap-3 text-sm">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-sm bg-primary shrink-0" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            
+
           </div>
         </div>
       </section>
@@ -549,10 +546,8 @@ const LandingPage = () => {
                   t('landing.tontines.point3'),
                   t('landing.tontines.point4'),
                 ].map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-sm">
-                    <div className="p-1 bg-secondary/10 text-secondary rounded-full">
-                      <Check className="h-4 w-4" />
-                    </div>
+                  <li key={idx} className="flex items-start gap-3 text-sm">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-sm bg-secondary shrink-0" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -1117,7 +1112,7 @@ const AuthLayout = ({
       <div className={`w-full ${maxWidthClassName}`}>
         <Link to="/" className="flex flex-col items-center gap-3 mb-8">
           <img src="/logo.jpg" alt="MyNkap" className="h-20 w-20 rounded-2xl object-cover shadow-md border border-border" />
-          <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <span className="text-2xl font-black tracking-tight text-primary">
             MyNkap
           </span>
         </Link>

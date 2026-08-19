@@ -130,7 +130,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <div className="flex items-center gap-3">
             <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-sm border border-border" />
             <div>
-              <span className="text-xl font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <span className="text-xl font-black tracking-tight text-primary">
                 MyNkap
               </span>
               <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
@@ -243,7 +243,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       <div className="md:hidden sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <img src="/logo.jpg" alt="MyNkap Logo" className="h-12 w-12 rounded-xl object-cover border border-border" />
-          <span className="text-xl font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <span className="text-xl font-black text-primary">
             MyNkap
           </span>
         </div>
@@ -333,7 +333,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title={t('dashboard.my_profile')}
               className="flex items-center gap-3 pl-2 rounded-xl hover:bg-muted transition-colors py-1 pr-2"
             >
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary to-secondary text-primary-foreground font-bold flex items-center justify-center shadow-sm">
+              <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground font-bold flex items-center justify-center shadow-sm">
                 {client?.first_name ? client.first_name[0].toUpperCase() : 'M'}
               </div>
               <div className="text-left">

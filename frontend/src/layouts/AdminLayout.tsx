@@ -72,13 +72,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         {/* Brand Header Admin */}
         <div className="p-5 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-primary to-secondary p-0.5 shadow-md">
+            <div className="h-10 w-10 rounded-xl bg-primary p-0.5 shadow-md">
               <div className="h-full w-full bg-card rounded-[10px] flex items-center justify-center">
                 <Shield className="h-5 w-5 text-primary" />
               </div>
             </div>
             <div>
-              <span className="text-lg font-black tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <span className="text-lg font-black tracking-tight text-primary">
                 MyNkap Admin
               </span>
               <span className="block text-[10px] font-bold text-primary uppercase tracking-widest">
@@ -161,7 +161,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       <div className="md:hidden sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <Shield className="h-6 w-6 text-primary" />
-          <span className="text-lg font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <span className="text-lg font-black text-primary">
             MyNkap Admin
           </span>
         </div>
@@ -246,7 +246,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
             {/* Profile Admin */}
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary to-secondary text-primary-foreground font-black flex items-center justify-center shadow-sm">
+              <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground font-black flex items-center justify-center shadow-sm">
                 A
               </div>
               <div className="text-left">

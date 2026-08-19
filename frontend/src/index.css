@@ -5,13 +5,16 @@
 @layer base {
   :root {
     /* Mode Clair */
-    --background: 0 0% 100%; /* Blanc */
+    /* Blanc cassé à peine teinté de vert (même famille de teinte que
+       --primary, 127°) plutôt qu'un blanc pur #ffffff : évite l'aplat
+       clinique et raccorde le fond à l'accent de la marque. */
+    --background: 100 20% 98.4%;
     --foreground: 222.2 84% 4.9%; /* Noir ardoise très sombre */
 
-    --card: 0 0% 100%;
+    --card: 100 20% 98.4%;
     --card-foreground: 222.2 84% 4.9%;
 
-    --popover: 0 0% 100%;
+    --popover: 100 20% 98.4%;
     --popover-foreground: 222.2 84% 4.9%;
 
     /* Vert Forêt (Primary) - HSL correspondant à #254e2a */

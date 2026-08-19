@@ -19,6 +19,7 @@ import {
   CreditCard,
   Trash2,
   Crown,
+  X,
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { api } from '../services/api';
@@ -384,7 +385,7 @@ export const AdminDashboard: React.FC = () => {
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="font-bold">✕</button>
+          <button onClick={() => setError(null)} aria-label={t('common.close')}><X className="h-4 w-4" /></button>
         </div>
       )}
 
