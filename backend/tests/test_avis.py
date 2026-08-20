@@ -1,6 +1,8 @@
+from datetime import datetime, timedelta
+
 from app.core.security import create_access_token, get_password_hash
 from app.modules.audit.models import AuditLog
-from app.modules.auth.models import Administrateur
+from app.modules.auth.models import Administrateur, Client
 
 
 def _register_and_login(client, email="avis.test@example.com", mot_de_passe="motdepasse123"):
@@ -138,3 +140,57 @@ def test_lister_avis_admin_avec_filtre_statut(client, db_session):
     body = reponse.json()
     assert body["total"] == 1
     assert body["items"][0]["commentaire"] == "A"
+
+
+def _vieillir_le_compte(db_session, id_client, jours=15):
+    """Recule artificiellement date_creation pour simuler un client ancien
+    — doit_demander_avis exige 14 jours d'ancienneté minimum."""
+    c = db_session.query(Client).filter(Client.id_client == id_client).first()
+    c.date_creation = datetime.utcnow() - timedelta(days=jours)
+    db_session.commit()
+
+
+def _id_client_courant(db_session, email):
+    return db_session.query(Client).filter(Client.email == email).first().id_client
+
+
+def test_invitation_avis_refusee_si_compte_recent(client, db_session):
+    headers = _register_and_login(client, "avis.invitation.recent@example.com")
+    reponse = client.get("/api/v1/avis/invitation", headers=headers)
+    assert reponse.status_code == 200
+    assert reponse.json()["demander"] is False
+
+
+def test_invitation_avis_acceptee_apres_anciennete_suffisante(client, db_session):
+    email = "avis.invitation.ancien@example.com"
+    headers = _register_and_login(client, email)
+    _vieillir_le_compte(db_session, _id_client_courant(db_session, email))
+
+    reponse = client.get("/api/v1/avis/invitation", headers=headers)
+    assert reponse.json()["demander"] is True
+
+
+def test_invitation_avis_refusee_si_avis_deja_soumis(client, db_session):
+    email = "avis.invitation.deja@example.com"
+    headers = _register_and_login(client, email)
+    _vieillir_le_compte(db_session, _id_client_courant(db_session, email))
+    client.post("/api/v1/avis", json={"note": 4, "commentaire": "Déjà donné."}, headers=headers)
+
+    reponse = client.get("/api/v1/avis/invitation", headers=headers)
+    assert reponse.json()["demander"] is False
+
+
+def test_reporter_avis_repousse_linvitation(client, db_session):
+    email = "avis.report@example.com"
+    headers = _register_and_login(client, email)
+    _vieillir_le_compte(db_session, _id_client_courant(db_session, email))
+    assert client.get("/api/v1/avis/invitation", headers=headers).json()["demander"] is True
+
+    reponse = client.post("/api/v1/avis/reporter", headers=headers)
+    assert reponse.status_code == 204
+
+    assert client.get("/api/v1/avis/invitation", headers=headers).json()["demander"] is False
+
+    c = db_session.query(Client).filter(Client.email == email).first()
+    assert c.prochaine_invitation_avis is not None
+    assert c.prochaine_invitation_avis > datetime.utcnow() + timedelta(days=6)

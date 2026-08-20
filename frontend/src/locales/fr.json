@@ -957,7 +957,8 @@
       "star_label": "{{n}} étoile(s)",
       "comment_label": "Votre commentaire",
       "comment_placeholder": "Qu'est-ce qui vous plaît (ou pas) dans MyNkap ?",
-      "submit": "Envoyer mon avis"
+      "submit": "Envoyer mon avis",
+      "later": "Plus tard"
     }
   },
   "colors": {

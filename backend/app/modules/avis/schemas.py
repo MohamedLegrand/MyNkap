@@ -29,3 +29,9 @@ class AvisPublicOut(BaseModel):
     commentaire: str
     auteur: str
     date_creation: datetime
+
+
+class InvitationAvisOut(BaseModel):
+    """Faut-il proposer activement (modale automatique) de laisser un avis
+    maintenant ? Voir avis.service.doit_demander_avis."""
+    demander: bool

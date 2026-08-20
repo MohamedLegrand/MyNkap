@@ -1,9 +1,17 @@
+from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.modules.avis.models import Avis
 from app.modules.avis.schemas import AvisPublicOut
 from app.modules.auth.models import Client
+
+# Ancienneté minimale avant la toute première invite active (un client
+# inscrit depuis 2 jours n'a pas encore d'avis à donner) et durée du report
+# quand il choisit "Plus tard" (un seul délai fixe, pas de choix à faire —
+# voir avis.router pour les deux endpoints qui utilisent ces constantes).
+ANCIENNETE_MINIMALE = timedelta(days=14)
+DUREE_REPORT = timedelta(days=7)
 
 
 class AvisDejaExistantError(Exception):
@@ -49,3 +57,32 @@ def lister_avis_publics(db: Session, limite: int = 12) -> List[AvisPublicOut]:
         )
         for avis, first_name, last_name in resultats
     ]
+
+
+def doit_demander_avis(db: Session, client: Client) -> bool:
+    """
+    Faut-il proposer activement (modale automatique, pas seulement la
+    bannière permanente) de laisser un avis à ce client maintenant ? Trois
+    conditions cumulatives : pas encore d'avis soumis, ancienneté de compte
+    suffisante, et pas de report en cours (voir reporter_avis).
+    """
+    if db.query(Avis).filter(Avis.id_client == client.id_client).first() is not None:
+        return False
+
+    if datetime.utcnow() - client.date_creation < ANCIENNETE_MINIMALE:
+        return False
+
+    if client.prochaine_invitation_avis is not None and datetime.utcnow() < client.prochaine_invitation_avis:
+        return False
+
+    return True
+
+
+def reporter_avis(db: Session, client: Client) -> None:
+    """
+    Le client a choisi "Plus tard" (ou fermé la modale sans répondre) —
+    ne rien lui redemander avant DUREE_REPORT. Ne crée aucune ligne dans
+    `avis` : ce n'est pas un avis, juste une date de relance sur Client.
+    """
+    client.prochaine_invitation_avis = datetime.utcnow() + DUREE_REPORT
+    db.commit()

@@ -59,6 +59,13 @@ class Client(Utilisateur):
     reset_password_token = Column(String, nullable=True, unique=True)
     reset_password_expires = Column(DateTime, nullable=True)
 
+    # Prochaine date à laquelle l'appli peut proposer activement de laisser
+    # un avis (voir avis.service.doit_demander_avis) — NULL tant que le
+    # client n'a jamais reporté l'invite. Distinct de la présence d'un Avis
+    # en base : reporter ne crée aucune ligne dans `avis`, seulement cette
+    # date de relance.
+    prochaine_invitation_avis = Column(DateTime, nullable=True)
+
     # Relation 1-à-1 avec le profil utilisateur
     profile = relationship("Profile", back_populates="client", uselist=False, cascade="all, delete-orphan")
 

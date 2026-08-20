@@ -150,6 +150,21 @@ export const ClientDashboard: React.FC = () => {
     }
   }, []);
 
+  const verifierInvitationAvis = useCallback(async () => {
+    // Ouvre activement la modale (pas seulement la bannière passive)
+    // quand le backend juge le moment opportun — ancienneté suffisante,
+    // pas d'avis déjà soumis, pas de report en cours (voir
+    // avis.service.doit_demander_avis). Un échec réseau ici ne doit
+    // jamais bloquer le chargement du reste du tableau de bord.
+    try {
+      const { demander } = await api.request<{ demander: boolean }>('/avis/invitation');
+      if (demander) setIsAvisModalOpen(true);
+    } catch {
+      // Silencieux : au pire on ne propose pas activement cette fois-ci,
+      // la bannière reste de toute façon disponible.
+    }
+  }, []);
+
   const chargerDonneesVerrouillees = useCallback(async () => {
     // Toujours accessible quel que soit le forfait (voir GET
     // /abonnement/donnees-verrouillees, non gaté) : sert uniquement à
@@ -206,7 +221,8 @@ export const ClientDashboard: React.FC = () => {
     chargerDonneesVerrouillees();
     chargerRapports();
     chargerMonAvis();
-  }, [chargerDonnees, chargerAbonnement, chargerDonneesVerrouillees, chargerRapports, chargerMonAvis]);
+    verifierInvitationAvis();
+  }, [chargerDonnees, chargerAbonnement, chargerDonneesVerrouillees, chargerRapports, chargerMonAvis, verifierInvitationAvis]);
 
   useEffect(() => {
     // Ne tente /epargne que si le forfait y donne accès — évite un 403

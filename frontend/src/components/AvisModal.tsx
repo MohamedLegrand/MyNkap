@@ -36,6 +36,18 @@ export const AvisModal: React.FC<AvisModalProps> = ({ isOpen, onClose, onSubmitt
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    // "Plus tard" implicite : fermer sans avoir soumis d'avis reporte la
+    // prochaine invitation active de 7 jours (voir avis.service.
+    // reporter_avis). Fire-and-forget — la fermeture ne doit jamais
+    // attendre la réponse réseau, et un échec réseau ici n'a pas besoin
+    // d'être signalé au client (au pire, il sera redemandé un peu plus tôt).
+    if (monAvis === null && !isLoading) {
+      api.request('/avis/reporter', { method: 'POST' }).catch(() => {});
+    }
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (note === 0 || !commentaire.trim()) return;
@@ -70,7 +82,7 @@ export const AvisModal: React.FC<AvisModalProps> = ({ isOpen, onClose, onSubmitt
             <MessageSquareHeart className="h-5 w-5 text-primary" />
             <span>{t('modals.avis.title')}</span>
           </h3>
-          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={handleClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -135,14 +147,23 @@ export const AvisModal: React.FC<AvisModalProps> = ({ isOpen, onClose, onSubmitt
 
               {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-              <button
-                type="submit"
-                disabled={isSubmitting || note === 0 || !commentaire.trim()}
-                className="w-full py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                <span>{t('modals.avis.submit')}</span>
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted"
+                >
+                  {t('modals.avis.later')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || note === 0 || !commentaire.trim()}
+                  className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  <span>{t('modals.avis.submit')}</span>
+                </button>
+              </div>
             </form>
           )}
         </div>

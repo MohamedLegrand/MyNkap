@@ -958,7 +958,8 @@
       "star_label": "{{n}} star(s)",
       "comment_label": "Your comment",
       "comment_placeholder": "What do (or don't) you like about MyNkap?",
-      "submit": "Send my review"
+      "submit": "Send my review",
+      "later": "Later"
     }
   },
   "colors": {
