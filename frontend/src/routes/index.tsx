@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
   Sun, Moon, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
@@ -1382,9 +1382,26 @@ const RequireAdminAuth = ({ children }: { children: React.ReactElement }) => {
   return children;
 };
 
+// Remonte en haut de page à chaque changement de route — React Router ne le
+// fait jamais automatiquement (contrairement à une navigation classique du
+// navigateur), sinon une page s'ouvre là où la précédente avait été
+// scrollée. Ne dépend que du pathname (pas du hash) : une ancre sur la même
+// page (ex: /#pricing depuis la landing page) doit garder son propre
+// comportement de défilement vers la section, pas remonter en haut.
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
+
 export const AppRoutes: React.FC = () => {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/a-propos" element={<AboutPage />} />
