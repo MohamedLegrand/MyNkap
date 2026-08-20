@@ -29,6 +29,7 @@ import { NotificationsBell } from '../components/NotificationsBell';
 import { ProfileSettingsModal } from '../components/ProfileSettingsModal';
 import { JarvisFloatingBubble } from '../components/JarvisFloatingBubble';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { HintTooltip } from '../components/HintTooltip';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { NoIndex } from '../components/NoIndex';
 import type { Plan, Abonnement } from '../types';
@@ -315,10 +316,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       <main className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Top Navbar Header */}
         <header className="hidden md:flex items-center justify-between h-16 px-8 border-b border-border bg-card sticky top-0 z-20">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <h1 className="text-lg font-bold text-foreground capitalize tracking-tight">
               {navItems.find(i => i.id === activeTab)?.label || t('dashboard.default_title')}
             </h1>
+            <HintTooltip text={t(`dashboard.nav_hints.${activeTab}`)} />
           </div>
 
           <div className="flex items-center gap-4">

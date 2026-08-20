@@ -319,6 +319,19 @@
       "analyse": "Analyse & Prédictions",
       "automations": "Récurrences & Modèles",
       "reports": "Rapports PDF"
+    },
+    "nav_hints": {
+      "overview": "Vue d'ensemble de votre patrimoine : solde total, revenus, dépenses et dernières transactions, en un coup d'œil.",
+      "accounts": "Vos comptes financiers (Mobile Money, banque, espèces) réunis au même endroit, avec leur solde à jour.",
+      "transactions": "L'historique complet de vos revenus et dépenses, avec recherche et filtres par compte, catégorie ou type.",
+      "budgets": "Définissez un plafond de dépense par catégorie et recevez une alerte avant de le dépasser.",
+      "savings": "Suivez vos objectifs d'épargne (montant cible, échéance) dans des comptes dédiés, séparés de votre argent courant.",
+      "debts": "Suivez ce que vous devez et ce qu'on vous doit, avec le montant restant et les échéances.",
+      "tontines": "Organisez vos tontines : rotation des tours, suivi des cotisations — MyNkap ne touche jamais à l'argent.",
+      "jarvis": "Posez vos questions financières à l'assistant IA JARVIS, à l'écrit ou à l'oral, connecté à vos vraies données.",
+      "analyse": "Analysez vos habitudes de dépense et anticipez vos prochains mois grâce aux prédictions basées sur votre historique.",
+      "automatisations": "Automatisez les transactions qui reviennent chaque mois et créez des modèles pour saisir plus vite.",
+      "reports": "Générez un relevé PDF de vos transactions, votre bilan budgétaire ou votre situation financière complète."
     }
   },
   "otp": {

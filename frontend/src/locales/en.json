@@ -320,6 +320,19 @@
       "analyse": "Analysis & Predictions",
       "automations": "Recurrences & Templates",
       "reports": "PDF Reports"
+    },
+    "nav_hints": {
+      "overview": "An overview of your wealth: total balance, income, expenses and latest transactions, at a glance.",
+      "accounts": "All your financial accounts (Mobile Money, bank, cash) in one place, with an up-to-date balance.",
+      "transactions": "The full history of your income and expenses, searchable and filterable by account, category or type.",
+      "budgets": "Set a spending cap per category and get an alert before you go over it.",
+      "savings": "Track your savings goals (target amount, deadline) in dedicated accounts, kept separate from your everyday money.",
+      "debts": "Track what you owe and what's owed to you, with the remaining amount and due dates.",
+      "tontines": "Organize your tontines: turn rotation, contribution tracking — MyNkap never touches the money itself.",
+      "jarvis": "Ask the JARVIS AI assistant your financial questions, by text or voice, connected to your real data.",
+      "analyse": "Analyze your spending habits and look ahead with predictions based on your history.",
+      "automatisations": "Automate recurring monthly transactions and create templates for faster entry.",
+      "reports": "Generate a PDF statement of your transactions, budget summary, or full financial position."
     }
   },
   "otp": {
