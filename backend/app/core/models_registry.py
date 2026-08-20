@@ -20,3 +20,4 @@ from app.modules.jarvis import models as _jarvis_models  # noqa: F401
 from app.modules.analyse import models as _analyse_models  # noqa: F401
 from app.modules.notifications import models as _notifications_models  # noqa: F401
 from app.modules.tontines import models as _tontines_models  # noqa: F401
+from app.modules.avis import models as _avis_models  # noqa: F401

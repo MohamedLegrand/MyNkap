@@ -10,6 +10,9 @@ from app.modules.admin.schemas import (
     AdminAbonnementItem,
     AdminAbonnementListResponse,
     AdminAbonnementOverview,
+    AdminAvisItem,
+    AdminAvisListResponse,
+    AdminModererAvisPayload,
     AdminClientDetail,
     AdminClientListResponse,
     AdminClientStatusUpdate,
@@ -573,6 +576,45 @@ def create_retrait(
     Tracé dans l'AuditLog.
     """
     return service.initier_retrait_admin(db, admin=current_admin, payload=payload, request=request)
+
+# --- Endpoints Modération des Avis Clients ---
+
+@router.get(
+    "/avis",
+    response_model=AdminAvisListResponse,
+    summary="Lister et filtrer les avis clients (Admin)"
+)
+def list_avis(
+    statut: Optional[str] = Query(None, description="Filtre par statut (EN_ATTENTE, PUBLIE, REJETE)"),
+    page: int = Query(1, ge=1, description="Numéro de page"),
+    page_size: int = Query(20, ge=1, le=100, description="Taille de page"),
+    current_admin: Administrateur = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Consulter les avis clients, tous statuts confondus. Réservé aux
+    administrateurs.
+    """
+    return service.lister_avis_admin(db, statut=statut, page=page, page_size=page_size)
+
+@router.patch(
+    "/avis/{id_avis}",
+    response_model=AdminAvisItem,
+    summary="Publier ou rejeter un avis client (Admin)"
+)
+def moderate_avis(
+    id_avis: int,
+    payload: AdminModererAvisPayload,
+    request: Request,
+    current_admin: Administrateur = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Publie ou rejette un avis — un avis PUBLIE devient visible sur la
+    landing page. Réservé aux administrateurs de niveau 2 minimum.
+    Tracé dans l'AuditLog.
+    """
+    return service.moderer_avis_admin(db, admin=current_admin, id_avis=id_avis, payload=payload, request=request)
 
 # --- Endpoints Surveillance Anti-Fraude ---
 

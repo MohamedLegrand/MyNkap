@@ -21,6 +21,7 @@ import {
   Crown,
   X,
   ArrowDownToLine,
+  Star,
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { api } from '../services/api';
@@ -50,6 +51,7 @@ import type {
   AdminFraudeOverview,
   AdminWalletSolde,
   AdminRetraitItem,
+  AdminAvisItem,
   Plan,
 } from '../types';
 
@@ -104,6 +106,7 @@ export const AdminDashboard: React.FC = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [fraudTransactions, setFraudTransactions] = useState<AdminTransactionSuspecteItem[]>([]);
   const [fraudOverview, setFraudOverview] = useState<AdminFraudeOverview | null>(null);
+  const [avisList, setAvisList] = useState<AdminAvisItem[]>([]);
 
   const fetchAdminKPIs = useCallback(async () => {
     try {
@@ -275,6 +278,27 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [t]);
 
+  const fetchAvis = useCallback(async () => {
+    try {
+      const res = await api.request<Paginated<AdminAvisItem>>('/admin/avis');
+      setAvisList(res.items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.avis'));
+    }
+  }, [t]);
+
+  const handleModererAvis = async (idAvis: number, statut: 'PUBLIE' | 'REJETE') => {
+    try {
+      const avis = await api.request<AdminAvisItem>(`/admin/avis/${idAvis}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ statut }),
+      });
+      setAvisList((prev) => prev.map((a) => (a.id_avis === idAvis ? avis : a)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.dashboard.errors.avis_moderate_failed'));
+    }
+  };
+
   useEffect(() => {
     const fetchersParOnglet: Record<string, () => Promise<void>> = {
       kpis: fetchAdminKPIs,
@@ -284,6 +308,7 @@ export const AdminDashboard: React.FC = () => {
       config: fetchConfigs,
       subscriptions: fetchSubscriptions,
       fraud: fetchFraudTransactions,
+      avis: fetchAvis,
     };
     const fetcher = fetchersParOnglet[activeTab];
     if (!fetcher) return;
@@ -294,7 +319,7 @@ export const AdminDashboard: React.FC = () => {
     setError(null);
     setIsLoading(true);
     fetcher().finally(() => setIsLoading(false));
-  }, [activeTab, fetchAdminKPIs, fetchClients, fetchAdmins, fetchAuditLogs, fetchConfigs, fetchSubscriptions, fetchFraudTransactions]);
+  }, [activeTab, fetchAdminKPIs, fetchClients, fetchAdmins, fetchAuditLogs, fetchConfigs, fetchSubscriptions, fetchFraudTransactions, fetchAvis]);
 
   // Actions Clients (Module 1)
   const handleToggleClientStatus = async (id: number, currentlyActive: boolean) => {
@@ -1115,6 +1140,80 @@ export const AdminDashboard: React.FC = () => {
               </tbody>
             </table>
             {fraudTransactions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.fraud.none')}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ⭐ MODULE 8 : AVIS CLIENTS */}
+      {!isLoading && activeTab === 'avis' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="flex justify-between items-center pb-2 border-b border-border">
+            <div>
+              <h2 className="text-xl font-black tracking-tight">{t('admin.dashboard.avis.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('admin.dashboard.avis.subtitle')}</p>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
+                <tr>
+                  <th className="p-4">{t('admin.dashboard.common.th_client')}</th>
+                  <th className="p-4">{t('admin.dashboard.avis.th_note')}</th>
+                  <th className="p-4">{t('admin.dashboard.avis.th_comment')}</th>
+                  <th className="p-4">{t('admin.dashboard.common.th_status')}</th>
+                  <th className="p-4 text-right">{t('admin.dashboard.common.th_actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border font-medium">
+                {avisList.map((a) => (
+                  <tr key={a.id_avis} className="hover:bg-muted/30">
+                    <td className="p-4">
+                      <strong className="block text-foreground">{a.nom_client}</strong>
+                      <span className="text-[11px] text-muted-foreground">{a.email_client}</span>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star key={n} className={`h-3.5 w-3.5 ${n <= a.note ? 'fill-secondary text-secondary' : 'text-muted-foreground/30'}`} />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-4 max-w-xs">
+                      <p className="text-muted-foreground line-clamp-2">{a.commentaire}</p>
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
+                        a.statut === 'PUBLIE' ? 'bg-forest-500/10 text-forest-600' : a.statut === 'REJETE' ? 'bg-destructive/10 text-destructive' : 'bg-amber-500/10 text-amber-600'
+                      }`}>
+                        {a.statut}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      {a.statut === 'EN_ATTENTE' && (
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleModererAvis(a.id_avis, 'PUBLIE')}
+                            className="px-2.5 py-1 rounded-lg bg-forest-500/10 text-forest-600 text-[11px] font-bold border border-forest-500/20 inline-flex items-center gap-1"
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span>{t('admin.dashboard.avis.publish')}</span>
+                          </button>
+                          <button
+                            onClick={() => handleModererAvis(a.id_avis, 'REJETE')}
+                            className="px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive text-[11px] font-bold border border-destructive/20 inline-flex items-center gap-1"
+                          >
+                            <XCircle className="h-3 w-3" />
+                            <span>{t('admin.dashboard.avis.reject')}</span>
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {avisList.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.avis.none')}</p>}
           </div>
         </div>
       )}

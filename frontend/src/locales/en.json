@@ -76,6 +76,7 @@
   "nav": {
     "ai": "Artificial Intelligence",
     "features": "Features",
+    "tontines": "Tontines",
     "pricing": "Pricing",
     "about": "About",
     "contact": "Contact",
@@ -162,6 +163,8 @@
     "trial_banner_part2": "After that, you'll automatically return to the Free plan.",
     "enjoy_premium": "Enjoy my 30 days of Premium",
     "access_confirmed": "Access confirmed, notification sent",
+    "avis_prompt": "Your opinion matters: tell us what you think of MyNkap.",
+    "avis_cta": "Leave a review",
     "total_balance": "Total Aggregated Balance",
     "income_history": "Income (History)",
     "expenses_history": "Expenses (History)",
@@ -557,6 +560,10 @@
       "atomic_title": "Atomic Operations",
       "atomic_desc": "No balance gap is tolerated. Every financial operation (transfer, wire, purchase) runs atomically as a SQL transaction."
     },
+    "avis": {
+      "title": "What our users think",
+      "subtitle": "Genuine reviews, left by real MyNkap users."
+    },
     "pricing": {
       "title": "Plans Tailored To Your Needs",
       "subtitle": "Choose the plan that best fits your financial management pace.",
@@ -595,6 +602,11 @@
         "feature4": "Personalized financial advice",
         "cta": "Choose Premium"
       }
+    },
+    "final_cta": {
+      "title": "Ready to take control of your finances?",
+      "subtitle": "Join the users already managing their budget, Mobile Money accounts and tontines from a single app.",
+      "button": "Create my free account"
     }
   },
   "analyse": {
@@ -933,6 +945,20 @@
       "payment_rejected": "Payment declined or expired",
       "no_amount_charged": "No amount was charged. You can try again.",
       "retry": "Retry"
+    },
+    "avis": {
+      "title": "Leave a review",
+      "error_load": "Unable to load your review.",
+      "error_submit": "Unable to send your review.",
+      "status_pending": "Awaiting moderation",
+      "status_published": "Published",
+      "status_rejected": "Not accepted",
+      "already_submitted": "Thank you! You've already submitted a review.",
+      "prompt": "How do you rate your experience with MyNkap?",
+      "star_label": "{{n}} star(s)",
+      "comment_label": "Your comment",
+      "comment_placeholder": "What do (or don't) you like about MyNkap?",
+      "submit": "Send my review"
     }
   },
   "colors": {
@@ -964,7 +990,8 @@
         "audit": "Audit Logs",
         "config": "System Configuration",
         "subscriptions": "Subscriptions & Payments",
-        "fraud": "Anti-Fraud Monitoring"
+        "fraud": "Anti-Fraud Monitoring",
+        "avis": "Customer Reviews"
       },
       "dark_mode": "Dark Mode",
       "light_mode": "Light Mode",
@@ -1074,6 +1101,8 @@
         "config": "Unable to load the configuration.",
         "subscriptions": "Unable to load subscriptions.",
         "fraud": "Unable to load anti-fraud monitoring.",
+        "avis": "Unable to load customer reviews.",
+        "avis_moderate_failed": "Unable to moderate this review.",
         "delete_plan_confirm": "Permanently delete the plan \"{{nom}}\"? This action is irreversible.",
         "validate_payment_confirm": "Manually validate this payment and apply the corresponding plan to the client?",
         "validate_payment_failed": "Validation failed.",
@@ -1200,6 +1229,15 @@
         "lift_suspicion": "Lift suspicion",
         "mark_suspicious": "Mark Suspicious",
         "none": "No suspicious transactions."
+      },
+      "avis": {
+        "title": "Customer Reviews (Module 8)",
+        "subtitle": "Moderate reviews before they appear on the landing page",
+        "th_note": "Rating",
+        "th_comment": "Comment",
+        "publish": "Publish",
+        "reject": "Reject",
+        "none": "No reviews yet."
       }
     }
   }

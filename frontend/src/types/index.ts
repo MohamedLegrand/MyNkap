@@ -489,6 +489,34 @@ export interface AdminRetraitItem {
   date_confirmation: string | null;
 }
 
+export interface Avis {
+  id_avis: number;
+  note: number;
+  commentaire: string;
+  statut: 'EN_ATTENTE' | 'PUBLIE' | 'REJETE';
+  date_creation: string;
+  date_moderation: string | null;
+}
+
+export interface AvisPublic {
+  note: number;
+  commentaire: string;
+  auteur: string;
+  date_creation: string;
+}
+
+export interface AdminAvisItem {
+  id_avis: number;
+  id_client: number;
+  email_client: string;
+  nom_client: string;
+  note: number;
+  commentaire: string;
+  statut: 'EN_ATTENTE' | 'PUBLIE' | 'REJETE';
+  date_creation: string;
+  date_moderation: string | null;
+}
+
 export interface AdminFraudeOverview {
   total_transactions_suspectes: number;
   nombre_clients_concernes: number;

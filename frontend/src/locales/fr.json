@@ -75,6 +75,7 @@
   "nav": {
     "ai": "Intelligence Artificielle",
     "features": "Fonctionnalités",
+    "tontines": "Tontines",
     "pricing": "Tarifs",
     "about": "À propos",
     "contact": "Contact",
@@ -161,6 +162,8 @@
     "trial_banner_part2": "Passé ce délai, retour automatique à l'offre Gratuite.",
     "enjoy_premium": "Profiter de mes 30 jours Premium",
     "access_confirmed": "Accès confirmé, notification envoyée",
+    "avis_prompt": "Votre avis compte : dites-nous ce que vous pensez de MyNkap.",
+    "avis_cta": "Laisser un avis",
     "total_balance": "Solde Total Agrégé",
     "income_history": "Revenus (Historique)",
     "expenses_history": "Dépenses (Historique)",
@@ -556,6 +559,10 @@
       "atomic_title": "Opérations Atomiques",
       "atomic_desc": "Aucun écart de solde n'est toléré. Chaque opération financière (transfert, virement, achat) est exécutée de manière atomique sous forme de transaction SQL."
     },
+    "avis": {
+      "title": "Ce qu'en pensent nos utilisateurs",
+      "subtitle": "Des avis authentiques, laissés par de vrais utilisateurs de MyNkap."
+    },
     "pricing": {
       "title": "Des Plans Adaptés À Vos Besoins",
       "subtitle": "Choisissez l'offre qui correspond le mieux à votre rythme de gestion financière.",
@@ -594,6 +601,11 @@
         "feature4": "Conseils financiers personnalisés",
         "cta": "Choisir Premium"
       }
+    },
+    "final_cta": {
+      "title": "Prêt à reprendre le contrôle de vos finances ?",
+      "subtitle": "Rejoignez les utilisateurs qui gèrent déjà leur budget, leurs comptes Mobile Money et leurs tontines depuis une seule application.",
+      "button": "Créer mon compte gratuitement"
     }
   },
   "analyse": {
@@ -932,6 +944,20 @@
       "payment_rejected": "Paiement refusé ou expiré",
       "no_amount_charged": "Aucun montant n'a été débité. Vous pouvez réessayer.",
       "retry": "Réessayer"
+    },
+    "avis": {
+      "title": "Laisser un avis",
+      "error_load": "Impossible de charger votre avis.",
+      "error_submit": "Impossible d'envoyer votre avis.",
+      "status_pending": "En attente de modération",
+      "status_published": "Publié",
+      "status_rejected": "Non retenu",
+      "already_submitted": "Merci ! Vous avez déjà soumis un avis.",
+      "prompt": "Comment évaluez-vous votre expérience avec MyNkap ?",
+      "star_label": "{{n}} étoile(s)",
+      "comment_label": "Votre commentaire",
+      "comment_placeholder": "Qu'est-ce qui vous plaît (ou pas) dans MyNkap ?",
+      "submit": "Envoyer mon avis"
     }
   },
   "colors": {
@@ -963,7 +989,8 @@
         "audit": "Journaux d'Audit",
         "config": "Configuration Système",
         "subscriptions": "Abonnements & Paiements",
-        "fraud": "Surveillance Anti-Fraude"
+        "fraud": "Surveillance Anti-Fraude",
+        "avis": "Avis Clients"
       },
       "dark_mode": "Mode Sombre",
       "light_mode": "Mode Clair",
@@ -1073,6 +1100,8 @@
         "config": "Impossible de charger la configuration.",
         "subscriptions": "Impossible de charger les abonnements.",
         "fraud": "Impossible de charger la surveillance anti-fraude.",
+        "avis": "Impossible de charger les avis clients.",
+        "avis_moderate_failed": "Modération de l'avis impossible.",
         "delete_plan_confirm": "Supprimer définitivement le plan \"{{nom}}\" ? Cette action est irréversible.",
         "validate_payment_confirm": "Valider manuellement ce paiement et appliquer le plan correspondant au client ?",
         "validate_payment_failed": "Validation impossible.",
@@ -1199,6 +1228,15 @@
         "lift_suspicion": "Lever la suspicion",
         "mark_suspicious": "Marquer Suspecte",
         "none": "Aucune transaction suspecte."
+      },
+      "avis": {
+        "title": "Avis Clients (Module 8)",
+        "subtitle": "Modération des avis avant publication sur la landing page",
+        "th_note": "Note",
+        "th_comment": "Commentaire",
+        "publish": "Publier",
+        "reject": "Rejeter",
+        "none": "Aucun avis pour le moment."
       }
     }
   }

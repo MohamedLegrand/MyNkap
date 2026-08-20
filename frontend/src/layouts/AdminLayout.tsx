@@ -17,6 +17,7 @@ import {
   Shield,
   Zap,
   Lock,
+  Star,
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
@@ -62,6 +63,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'config', label: t('admin.layout.nav.config'), icon: Sliders, badge: 'M4' },
     { id: 'subscriptions', label: t('admin.layout.nav.subscriptions'), icon: CreditCard, badge: 'M5' },
     { id: 'fraud', label: t('admin.layout.nav.fraud'), icon: AlertOctagon, badge: 'M6', alert: true },
+    { id: 'avis', label: t('admin.layout.nav.avis'), icon: Star, badge: 'M8' },
   ];
 
   return (

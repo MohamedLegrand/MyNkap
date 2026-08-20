@@ -14,6 +14,9 @@ from app.modules.admin.schemas import (
     AdminAbonnementListResponse,
     AdminAbonnementOverview,
     AdminAbonnementsKPIs,
+    AdminAvisItem,
+    AdminAvisListResponse,
+    AdminModererAvisPayload,
     AdminClientDetail,
     AdminClientListItem,
     AdminClientListResponse,
@@ -58,6 +61,7 @@ from app.modules.auth.models import Administrateur, Client, RefreshToken, Utilis
 from app.modules.budgets.models import Categorie
 from app.modules.comptes.models import CompteFinancier, ComptePrincipal
 from app.modules.dettes.models import Dette
+from app.modules.avis.models import Avis
 from app.modules.plans import service as plans_service
 from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan, Retrait
 from app.modules.transactions.models import Transaction
@@ -1247,6 +1251,88 @@ def obtenir_solde_wallet_admin(admin: Administrateur) -> AdminWalletSoldeOut:
         en_attente=Decimal(str(solde["en_attente"])),
         gele=solde["gele"],
     )
+
+# --- Services de Modération des Avis Clients ---
+
+def _to_avis_item(avis: Avis, email_client: str, nom_client: str) -> AdminAvisItem:
+    return AdminAvisItem(
+        id_avis=avis.id_avis,
+        id_client=avis.id_client,
+        email_client=email_client,
+        nom_client=nom_client,
+        note=avis.note,
+        commentaire=avis.commentaire,
+        statut=avis.statut,
+        date_creation=avis.date_creation,
+        date_moderation=avis.date_moderation,
+    )
+
+def lister_avis_admin(
+    db: Session,
+    statut: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> AdminAvisListResponse:
+    """Historique des avis clients, tous statuts confondus — réservé aux
+    administrateurs de niveau 2 minimum (voir router)."""
+    query = db.query(Avis, Client.email, Client.first_name, Client.last_name).join(
+        Client, Avis.id_client == Client.id_client
+    )
+    if statut:
+        query = query.filter(Avis.statut == statut.strip())
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    results = query.order_by(Avis.date_creation.desc()).offset(offset).limit(page_size).all()
+
+    items = [
+        _to_avis_item(avis, email, f"{first_name} {last_name}".strip())
+        for avis, email, first_name, last_name in results
+    ]
+    return AdminAvisListResponse(total=total, page=page, page_size=page_size, items=items)
+
+def moderer_avis_admin(
+    db: Session,
+    admin: Administrateur,
+    id_avis: int,
+    payload: AdminModererAvisPayload,
+    request: Optional[Request] = None,
+) -> AdminAvisItem:
+    """
+    Publie ou rejette un avis client — c'est ce passage qui décide si un
+    avis devient visible sur la landing page (voir avis.service.
+    lister_avis_publics, qui ne renvoie jamais que statut == PUBLIE).
+    Garde-fous : niveau 2 minimum. Tracé dans l'AuditLog.
+    """
+    if admin.niveau_acces < 2:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : droits insuffisants pour modérer un avis (niveau 2 minimum requis).",
+        )
+
+    avis = db.query(Avis).filter(Avis.id_avis == id_avis).first()
+    if avis is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avis introuvable.")
+
+    donnees_avant = {"statut": avis.statut}
+    avis.statut = payload.statut
+    avis.date_moderation = datetime.utcnow()
+    db.commit()
+    db.refresh(avis)
+
+    enregistrer_action(
+        db,
+        id_utilisateur=admin.id_administrateur,
+        action="ADMIN_MODERER_AVIS",
+        ressource="AVIS",
+        id_ressource=avis.id_avis,
+        donnees_avant=donnees_avant,
+        donnees_apres={"statut": avis.statut},
+        request=request,
+    )
+
+    client = db.query(Client).filter(Client.id_client == avis.id_client).first()
+    return _to_avis_item(avis, client.email if client else "inconnu@mynkap.cm", f"{client.first_name} {client.last_name}".strip() if client else "Inconnu")
 
 def lister_retraits_admin(
     db: Session,

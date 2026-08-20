@@ -3,13 +3,13 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, L
 import {
   Sun, Moon, Check,
   MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
-  HelpCircle, Mail, Loader2, User, Phone, Wallet, RefreshCw,
+  HelpCircle, Mail, Loader2, User, Phone, Wallet, RefreshCw, Star,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
-import type { TokenResponse, Client } from '../types';
+import type { TokenResponse, Client, AvisPublic } from '../types';
 import { OtpVerificationStep } from '../components/OtpVerificationStep';
 import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -85,6 +85,7 @@ const SiteHeader = () => {
         <nav className="hidden lg:flex items-center gap-8">
           <a href="/#ia" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.ai')}</a>
           <a href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.features')}</a>
+          <a href="/#tontines" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.tontines')}</a>
           <a href="/#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</a>
           <Link to="/a-propos" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.about')}</Link>
           <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.contact')}</Link>
@@ -125,6 +126,7 @@ const SiteHeader = () => {
         <div className="lg:hidden border-t border-border bg-background px-4 pt-4 pb-6 space-y-3 transition-colors duration-200">
           <a href="/#ia" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.ai')}</a>
           <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.features')}</a>
+          <a href="/#tontines" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.tontines')}</a>
           <a href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.pricing')}</a>
           <Link to="/a-propos" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.about')}</Link>
           <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.contact')}</Link>
@@ -392,6 +394,51 @@ const AiChatDemo = () => {
   );
 };
 
+// Avis clients publiés (soumis par de vrais utilisateurs depuis
+// l'application, modérés côté admin avant publication — voir
+// admin.service.moderer_avis_admin). N'affiche rien tant qu'aucun avis
+// n'est publié : jamais d'état vide visible publiquement sur une landing
+// page, plutôt que de laisser paraître un contenu manquant.
+const AvisPublicsSection = () => {
+  const { t } = useTranslation();
+  const [avis, setAvis] = useState<AvisPublic[]>([]);
+
+  useEffect(() => {
+    api.request<AvisPublic[]>('/avis/publics').then(setAvis).catch(() => {});
+  }, []);
+
+  if (avis.length === 0) return null;
+
+  return (
+    <section className="py-20 md:py-28 bg-background transition-colors duration-200 border-t border-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto text-center space-y-4 mb-12">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+            {t('landing.avis.title')}
+          </h2>
+          <p className="text-base text-muted-foreground leading-relaxed">
+            {t('landing.avis.subtitle')}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {avis.map((a, idx) => (
+            <div key={idx} className="bg-card p-6 rounded-2xl border border-border shadow-sm text-left space-y-3">
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} className={`h-4 w-4 ${n <= a.note ? 'fill-secondary text-secondary' : 'text-muted-foreground/30'}`} />
+                ))}
+              </div>
+              <p className="text-sm text-foreground leading-relaxed">"{a.commentaire}"</p>
+              <p className="text-xs font-semibold text-muted-foreground">{a.auteur}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const LandingPage = () => {
   const { t } = useTranslation();
   return (
@@ -639,6 +686,9 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* 6bis. Avis clients (rien ne s'affiche tant qu'aucun avis n'est publié) */}
+      <AvisPublicsSection />
+
       {/* 7. Pricing Section */}
       <section id="pricing" className="py-20 md:py-28 bg-muted transition-colors duration-200 border-t border-border scroll-mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-12">
@@ -717,7 +767,29 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* 8. Footer */}
+      {/* 8. CTA de rappel — le seul autre appel à l'action fort est tout en
+          haut dans le hero ; celui-ci capte les visiteurs qui ont lu
+          jusqu'aux tarifs sans être remontés cliquer. */}
+      <section className="py-16 md:py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-primary rounded-2xl px-6 py-12 md:py-16 text-center space-y-6">
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-primary-foreground">
+              {t('landing.final_cta.title')}
+            </h2>
+            <p className="text-sm md:text-base text-primary-foreground/80 max-w-xl mx-auto">
+              {t('landing.final_cta.subtitle')}
+            </p>
+            <Link
+              to="/register"
+              className="inline-block bg-primary-foreground text-primary font-bold py-3.5 px-8 rounded-xl transition-all shadow-md hover:opacity-90"
+            >
+              {t('landing.final_cta.button')}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 9. Footer */}
       <SiteFooter />
     </div>
   );

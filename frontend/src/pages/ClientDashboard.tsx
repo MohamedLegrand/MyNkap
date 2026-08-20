@@ -33,6 +33,7 @@ import {
   X,
   Trash2,
   Users,
+  MessageSquareHeart,
 } from 'lucide-react';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
@@ -52,6 +53,7 @@ import { AnalyseSection } from '../components/AnalyseSection';
 import { CategorieBadge } from '../components/CategorieBadge';
 import { TontineModal } from '../components/TontineModal';
 import { TontineDetailModal } from '../components/TontineDetailModal';
+import { AvisModal } from '../components/AvisModal';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import { LockedFeatureBanner } from '../components/LockedFeatureBanner';
@@ -68,6 +70,7 @@ import type {
   Transfert,
   Tontine,
   DonneesVerrouillees,
+  Avis,
 } from '../types';
 
 const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
@@ -124,12 +127,26 @@ export const ClientDashboard: React.FC = () => {
   const [transfertDetailId, setTransfertDetailId] = useState<number | null>(null);
   const [transfertDetail, setTransfertDetail] = useState<Transfert | null>(null);
   const [isLoadingTransfertDetail, setIsLoadingTransfertDetail] = useState(false);
+  const [monAvis, setMonAvis] = useState<Avis | null>(null);
+  const [isAvisModalOpen, setIsAvisModalOpen] = useState(false);
 
   const chargerAbonnement = useCallback(async () => {
     try {
       setAbonnement(await api.request<Abonnement>('/abonnement'));
     } catch {
       setAbonnement(null);
+    }
+  }, []);
+
+  const chargerMonAvis = useCallback(async () => {
+    // Sert uniquement à savoir si la bannière d'invitation à laisser un
+    // avis doit s'afficher (masquée dès qu'un avis existe, quel que soit
+    // son statut de modération) — voir la section juste après le bandeau
+    // d'essai Premium ci-dessous.
+    try {
+      setMonAvis(await api.request<Avis | null>('/avis/moi'));
+    } catch {
+      setMonAvis(null);
     }
   }, []);
 
@@ -188,7 +205,8 @@ export const ClientDashboard: React.FC = () => {
     chargerAbonnement();
     chargerDonneesVerrouillees();
     chargerRapports();
-  }, [chargerDonnees, chargerAbonnement, chargerDonneesVerrouillees, chargerRapports]);
+    chargerMonAvis();
+  }, [chargerDonnees, chargerAbonnement, chargerDonneesVerrouillees, chargerRapports, chargerMonAvis]);
 
   useEffect(() => {
     // Ne tente /epargne que si le forfait y donne accès — évite un 403
@@ -449,6 +467,26 @@ export const ClientDashboard: React.FC = () => {
               </span>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Invitation à laisser un avis — disparaît définitivement dès qu'un
+          avis existe (peu importe son statut de modération), voir
+          chargerMonAvis ci-dessus. */}
+      {monAvis === null && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl border border-border bg-muted/40">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-secondary/10 text-secondary shrink-0">
+              <MessageSquareHeart className="h-5 w-5" />
+            </div>
+            <p className="text-sm text-foreground">{t('overview.avis_prompt')}</p>
+          </div>
+          <button
+            onClick={() => setIsAvisModalOpen(true)}
+            className="bg-card hover:bg-accent border border-border text-foreground font-bold text-xs py-2.5 px-5 rounded-xl shadow-sm transition-all whitespace-nowrap shrink-0"
+          >
+            {t('overview.avis_cta')}
+          </button>
         </div>
       )}
 
@@ -876,6 +914,12 @@ export const ClientDashboard: React.FC = () => {
         onSuccess={chargerAbonnement}
         planActuel={abonnement?.plan.nom}
         abonnement={abonnement}
+      />
+
+      <AvisModal
+        isOpen={isAvisModalOpen}
+        onClose={() => setIsAvisModalOpen(false)}
+        onSubmitted={chargerMonAvis}
       />
 
       {/* Modal de création/modification d'un compte financier */}

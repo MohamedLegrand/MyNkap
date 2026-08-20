@@ -274,6 +274,28 @@ class AdminRetraitListResponse(BaseModel):
     page_size: int
     items: List[AdminRetraitItem]
 
+# --- Schémas pour la Modération des Avis Clients ---
+
+class AdminAvisItem(BaseModel):
+    id_avis: int
+    id_client: int
+    email_client: str
+    nom_client: str
+    note: int
+    commentaire: str
+    statut: str
+    date_creation: datetime
+    date_moderation: Optional[datetime] = None
+
+class AdminAvisListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[AdminAvisItem]
+
+class AdminModererAvisPayload(BaseModel):
+    statut: Literal["PUBLIE", "REJETE"]
+
 # --- Schémas pour la Surveillance Anti-Fraude ---
 class TypeTransactionCountItem(BaseModel):
     type: str
