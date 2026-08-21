@@ -21,3 +21,6 @@ htmlcov/
 
 # Rapports PDF generes (module Rapports) - fichiers utilisateur, pas du code
 rapports_generes/
+
+# Photos de profil uploadees (module Auth/Profile) - fichiers utilisateur, pas du code
+avatars_uploads/

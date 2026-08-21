@@ -54,6 +54,7 @@ import { CategorieBadge } from '../components/CategorieBadge';
 import { TontineModal } from '../components/TontineModal';
 import { TontineDetailModal } from '../components/TontineDetailModal';
 import { AvisModal } from '../components/AvisModal';
+import { SettingsSection } from '../components/SettingsSection';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import { LockedFeatureBanner } from '../components/LockedFeatureBanner';
@@ -392,6 +393,13 @@ export const ClientDashboard: React.FC = () => {
   const totalEpargne = objectifsEpargne.reduce((total, o) => total + Number(o.montant_actuel), 0);
   const dettesActives = dettes.filter((d) => d.type === 'DETTE' && d.statut !== 'SOLDE' && d.statut !== 'PERTE');
   const totalDettesDues = dettesActives.reduce((total, d) => total + Number(d.montant_restant), 0);
+  // Cartes "Réserves Épargne" et "Dettes en Cours" : invisibles tant que le
+  // client n'a encore rien créé dans ces modules, plutôt que d'afficher un
+  // 0 en permanence dès l'inscription — apparaissent dynamiquement à la
+  // première création (objectif d'épargne / dette).
+  const afficherCarteEpargne = !!abonnement?.plan.acces_epargne && objectifsEpargne.length > 0;
+  const afficherCarteDettes = !!abonnement?.plan.acces_dettes && dettesActives.length > 0;
+  const nombreCartesHero = 3 + (afficherCarteEpargne ? 1 : 0) + (afficherCarteDettes ? 1 : 0);
   // "Mes Comptes" affiche aussi les comptes désactivés (badge + Réactiver) ;
   // partout ailleurs (totaux, sélecteurs de transfert/dette/épargne), seuls
   // les comptes actifs ont un sens. Même principe pour les budgets dans
@@ -408,7 +416,10 @@ export const ClientDashboard: React.FC = () => {
       abonnement={abonnement}
       nombreComptes={comptesActifs.length}
     >
-      {/* 1. Bannière de Bienvenue */}
+      {/* Bannière de bienvenue, bandeaux et cartes de synthèse : réservés à
+          la Vue d'ensemble — les autres sections (Comptes, Paramètres...)
+          affichent directement leur propre contenu, sans ce récapitulatif. */}
+      {activeTab === 'overview' && (
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-forest-600 to-secondary p-6 sm:p-8 text-white shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
@@ -441,12 +452,13 @@ export const ClientDashboard: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* Bandeau d'annonce de l'essai Premium 30 jours — l'accès est déjà
           actif automatiquement dès l'inscription (voir creer_abonnement_essai
           côté backend) ; ce bandeau ne fait que le mettre clairement en
           avant, en plus du badge discret de la barre latérale. */}
-      {abonnement?.statut === 'ESSAI' && abonnement.date_fin && (
+      {activeTab === 'overview' && abonnement?.statut === 'ESSAI' && abonnement.date_fin && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl border border-primary/20 bg-primary/5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
@@ -489,7 +501,7 @@ export const ClientDashboard: React.FC = () => {
       {/* Invitation à laisser un avis — disparaît définitivement dès qu'un
           avis existe (peu importe son statut de modération), voir
           chargerMonAvis ci-dessus. */}
-      {monAvis === null && (
+      {activeTab === 'overview' && monAvis === null && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl border border-border bg-muted/40">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-secondary/10 text-secondary shrink-0">
@@ -519,8 +531,12 @@ export const ClientDashboard: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* 2. Cartes Métriques "Hero" */}
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${abonnement?.plan.acces_dettes ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+          {/* 2. Cartes Métriques "Hero" — réservées à la Vue d'ensemble,
+              voir la bannière de bienvenue ci-dessus pour la même règle. */}
+          {activeTab === 'overview' && (
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${
+            nombreCartesHero === 5 ? 'lg:grid-cols-5' : nombreCartesHero === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+          }`}>
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.total_balance')}</span>
@@ -558,23 +574,25 @@ export const ClientDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.savings_reserves')}</span>
-                <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
-                  <PiggyBank className="h-5 w-5" />
+            {afficherCarteEpargne && (
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-3">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.savings_reserves')}</span>
+                  <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                    <PiggyBank className="h-5 w-5" />
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black tracking-tight text-orange-600 dark:text-orange-400 tabular-nums">
+                  {totalEpargne.toLocaleString('fr-FR')} <span className="text-xs font-bold text-muted-foreground">XAF</span>
+                </p>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 dark:text-orange-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>{t('overview.goals_count', { count: objectifsEpargne.length })}</span>
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-black tracking-tight text-orange-600 dark:text-orange-400 tabular-nums">
-                {totalEpargne.toLocaleString('fr-FR')} <span className="text-xs font-bold text-muted-foreground">XAF</span>
-              </p>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 dark:text-orange-400">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>{t('overview.goals_count', { count: objectifsEpargne.length })}</span>
-              </div>
-            </div>
+            )}
 
-            {abonnement?.plan.acces_dettes && (
+            {afficherCarteDettes && (
               <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.debts_ongoing')}</span>
@@ -592,6 +610,7 @@ export const ClientDashboard: React.FC = () => {
               </div>
             )}
           </div>
+          )}
 
           {activeTab === 'accounts' ? (
             <ComptesSection
@@ -721,6 +740,12 @@ export const ClientDashboard: React.FC = () => {
               rapports={rapports}
               plan={abonnement?.plan}
               onGenere={chargerRapports}
+            />
+          ) : activeTab === 'settings' ? (
+            <SettingsSection
+              plan={abonnement?.plan}
+              abonnement={abonnement}
+              onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
             />
           ) : (
           <>

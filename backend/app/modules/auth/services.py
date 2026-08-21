@@ -1,4 +1,5 @@
 import hashlib
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
@@ -28,6 +29,10 @@ class GoogleTokenInvalideError(Exception):
 
 class CompteInexistantPourGoogleError(Exception):
     """Aucun compte MyNkap n'est associé à l'adresse e-mail du compte Google utilisé."""
+
+
+class MotDePasseActuelIncorrectError(Exception):
+    """Le mot de passe actuel fourni ne correspond pas — changement refusé (voir changer_mot_de_passe)."""
 
 # --- Services d'Inscription et Connexion ---
 
@@ -106,6 +111,21 @@ def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utili
     db.commit()
     _notifier_connexion_reussie(db, utilisateur)
     return utilisateur
+
+
+def changer_mot_de_passe(
+    db: Session, utilisateur: Utilisateur, mot_de_passe_actuel: str, nouveau_mot_de_passe: str
+) -> None:
+    """
+    Changement de mot de passe pour un client déjà connecté (voir
+    PUT /auth/change-password) — distinct du flux mot de passe oublié
+    (reinitialiser_mot_de_passe) : ici on exige de prouver la connaissance
+    du mot de passe actuel plutôt qu'un jeton reçu par e-mail.
+    """
+    if not verify_password(mot_de_passe_actuel, utilisateur.mot_de_passe):
+        raise MotDePasseActuelIncorrectError()
+    utilisateur.mot_de_passe = get_password_hash(nouveau_mot_de_passe)
+    db.commit()
 
 
 # --- Suivi des tentatives de connexion échouées ---
@@ -346,6 +366,28 @@ def faire_tourner_refresh_token(db: Session, ancien: RefreshToken) -> str:
     db.commit()
     _, nouveau_token = creer_refresh_token(db, ancien.id_client)
     return nouveau_token
+
+# --- Photo de profil (voir router.py, POST/DELETE /auth/profile/photo) ---
+
+def supprimer_fichier_avatar(avatar_url: Optional[str]) -> None:
+    """
+    Supprime le fichier local d'une ancienne photo de profil, si elle a bien
+    été hébergée par MyNkap (jamais une URL externe collée manuellement —
+    voir ProfileUpdate.avatar, resté possible pour compatibilité) — évite
+    d'accumuler des fichiers orphelins à chaque remplacement/suppression de
+    photo.
+    """
+    prefixe = f"{settings.BACKEND_URL}/avatars/"
+    if not avatar_url or not avatar_url.startswith(prefixe):
+        return
+    nom_fichier = avatar_url[len(prefixe):]
+    chemin = os.path.join(settings.AVATARS_DOSSIER, nom_fichier)
+    if os.path.isfile(chemin):
+        try:
+            os.remove(chemin)
+        except OSError:
+            pass
+
 
 # --- Services de récupération de mot de passe ---
 

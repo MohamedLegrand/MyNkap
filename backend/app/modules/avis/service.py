@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.avis.models import Avis
 from app.modules.avis.schemas import AvisPublicOut
-from app.modules.auth.models import Client
+from app.modules.auth.models import Client, Profile
 
 # Ancienneté minimale avant la toute première invite active (un client
 # inscrit depuis 2 jours n'a pas encore d'avis à donner) et durée du report
@@ -41,8 +41,9 @@ def lister_avis_publics(db: Session, limite: int = 12) -> List[AvisPublicOut]:
     nom complet d'un client sur une page publique.
     """
     resultats = (
-        db.query(Avis, Client.first_name, Client.last_name)
+        db.query(Avis, Client.first_name, Client.last_name, Profile.avatar)
         .join(Client, Avis.id_client == Client.id_client)
+        .outerjoin(Profile, Profile.id_client == Client.id_client)
         .filter(Avis.statut == "PUBLIE")
         .order_by(Avis.date_moderation.desc())
         .limit(limite)
@@ -53,9 +54,10 @@ def lister_avis_publics(db: Session, limite: int = 12) -> List[AvisPublicOut]:
             note=avis.note,
             commentaire=avis.commentaire,
             auteur=f"{first_name} {last_name[0].upper()}." if last_name else first_name,
+            avatar=avatar,
             date_creation=avis.date_creation,
         )
-        for avis, first_name, last_name in resultats
+        for avis, first_name, last_name, avatar in resultats
     ]
 
 

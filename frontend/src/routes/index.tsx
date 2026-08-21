@@ -17,6 +17,7 @@ import { Seo } from '../components/Seo';
 import { StructuredData } from '../components/StructuredData';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { PasswordInput } from '../components/PasswordInput';
+import { Avatar } from '../components/Avatar';
 
 // Décode la charge utile d'un jeton d'identité Google (JWT) côté client,
 // uniquement pour connaître l'e-mail (et, à l'inscription, le prénom/nom) à
@@ -430,7 +431,10 @@ const AvisPublicsSection = () => {
                 ))}
               </div>
               <p className="text-sm text-foreground leading-relaxed">"{a.commentaire}"</p>
-              <p className="text-xs font-semibold text-muted-foreground">{a.auteur}</p>
+              <div className="flex items-center gap-2.5 pt-1">
+                <Avatar src={a.avatar} nom={a.auteur} className="h-8 w-8" />
+                <p className="text-xs font-semibold text-muted-foreground">{a.auteur}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -1623,31 +1627,32 @@ const RegisterPage = () => {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label htmlFor="mot_de_passe" className="text-sm font-medium">{t('auth.password')}</label>
-            <PasswordInput
-              id="mot_de_passe"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              value={motDePasse}
-              onChange={(e) => setMotDePasse(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">{t('auth.confirm_password')}</label>
-            <PasswordInput
-              id="confirm_mot_de_passe"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              value={confirmMotDePasse}
-              onChange={(e) => setConfirmMotDePasse(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
+        {/* Empilés (jamais côte à côte) : un mot de passe long a besoin de
+            toute la largeur du formulaire, sans quoi le texte se retrouve
+            à l'étroit contre le bouton œil. */}
+        <div className="space-y-1.5">
+          <label htmlFor="mot_de_passe" className="text-sm font-medium">{t('auth.password')}</label>
+          <PasswordInput
+            id="mot_de_passe"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            value={motDePasse}
+            onChange={(e) => setMotDePasse(e.target.value)}
+            placeholder="••••••••"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="confirm_mot_de_passe" className="text-sm font-medium">{t('auth.confirm_password')}</label>
+          <PasswordInput
+            id="confirm_mot_de_passe"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            value={confirmMotDePasse}
+            onChange={(e) => setConfirmMotDePasse(e.target.value)}
+            placeholder="••••••••"
+          />
         </div>
 
         {error && <p className="text-sm text-destructive text-center">{error}</p>}

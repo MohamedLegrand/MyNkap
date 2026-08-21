@@ -1,5 +1,7 @@
+import os
+import uuid
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -14,6 +16,8 @@ from app.modules.auth.schemas import (
     TokenResponse,
     TokenRefreshRequest,
     ClientOut,
+    ClientInfoUpdate,
+    ChangePasswordRequest,
     ProfileOut,
     ProfileUpdate,
     ForgotPasswordRequest,
@@ -25,6 +29,12 @@ from app.modules.auth.schemas import (
 )
 from app.modules.auth import services
 from app.modules.audit.service import enregistrer_action
+
+# Formats acceptés pour une photo de profil, et l'extension de fichier
+# correspondante — jamais l'extension d'origine du fichier envoyé, qui n'a
+# aucune garantie de correspondre à son contenu réel.
+EXTENSIONS_PAR_TYPE_AVATAR = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+TAILLE_MAX_AVATAR = 3 * 1024 * 1024  # 3 Mo
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
@@ -241,6 +251,105 @@ def update_profile(
     db.commit()
     db.refresh(profile)
     return profile
+
+@router.put("/me", response_model=ClientOut)
+def update_mes_informations(
+    payload: ClientInfoUpdate,
+    current_client: Utilisateur = Depends(get_current_active_client),
+    db: Session = Depends(get_db),
+):
+    """Modifier son identité (prénom, nom, téléphone) — mise à jour sélective,
+    l'e-mail n'est volontairement pas modifiable ici (voir ClientInfoUpdate)."""
+    if payload.first_name is not None:
+        current_client.first_name = payload.first_name
+    if payload.last_name is not None:
+        current_client.last_name = payload.last_name
+    if payload.phone is not None:
+        current_client.phone = payload.phone
+
+    db.commit()
+    db.refresh(current_client)
+    return current_client
+
+@router.post("/profile/photo", response_model=ProfileOut)
+async def uploader_photo_profil(
+    photo: UploadFile = File(...),
+    current_client: Utilisateur = Depends(get_current_active_client),
+    db: Session = Depends(get_db),
+):
+    """
+    Remplace la photo de profil du client connecté. L'ancien fichier (s'il
+    en existe un hébergé par MyNkap) est supprimé du disque après succès —
+    voir services.supprimer_fichier_avatar.
+    """
+    profile = current_client.profile
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profil non trouvé.")
+
+    extension = EXTENSIONS_PAR_TYPE_AVATAR.get(photo.content_type)
+    if extension is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Format d'image non supporté (JPEG, PNG ou WebP uniquement).",
+        )
+
+    contenu = await photo.read()
+    if len(contenu) > TAILLE_MAX_AVATAR:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La photo dépasse la taille maximale autorisée (3 Mo).",
+        )
+
+    ancien_avatar = profile.avatar
+    os.makedirs(settings.AVATARS_DOSSIER, exist_ok=True)
+    nom_fichier = f"client_{current_client.id_client}_{uuid.uuid4().hex}{extension}"
+    with open(os.path.join(settings.AVATARS_DOSSIER, nom_fichier), "wb") as fichier:
+        fichier.write(contenu)
+
+    profile.avatar = f"{settings.BACKEND_URL}/avatars/{nom_fichier}"
+    db.commit()
+    db.refresh(profile)
+
+    services.supprimer_fichier_avatar(ancien_avatar)
+    return profile
+
+@router.delete("/profile/photo", response_model=ProfileOut)
+def supprimer_photo_profil(
+    current_client: Utilisateur = Depends(get_current_active_client),
+    db: Session = Depends(get_db),
+):
+    """Retire la photo de profil du client connecté (retour à l'avatar par défaut)."""
+    profile = current_client.profile
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profil non trouvé.")
+
+    ancien_avatar = profile.avatar
+    profile.avatar = None
+    db.commit()
+    db.refresh(profile)
+
+    services.supprimer_fichier_avatar(ancien_avatar)
+    return profile
+
+@router.put("/change-password", status_code=status.HTTP_200_OK)
+def changer_mon_mot_de_passe(
+    payload: ChangePasswordRequest,
+    current_client: Utilisateur = Depends(get_current_active_client),
+    db: Session = Depends(get_db),
+):
+    """Change le mot de passe du client connecté (nécessite l'ancien mot de
+    passe) — distinct de POST /auth/reset-password, réservé au client qui a
+    perdu l'accès à son compte."""
+    try:
+        services.changer_mot_de_passe(
+            db, current_client, payload.mot_de_passe_actuel, payload.nouveau_mot_de_passe
+        )
+    except services.MotDePasseActuelIncorrectError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mot de passe actuel incorrect.",
+        )
+    return {"message": "Mot de passe modifié avec succès."}
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
 @limiter.limit("5/minute")

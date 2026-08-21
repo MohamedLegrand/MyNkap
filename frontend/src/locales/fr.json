@@ -318,7 +318,8 @@
       "jarvis": "Assistant JARVIS IA",
       "analyse": "Analyse & Prédictions",
       "automations": "Récurrences & Modèles",
-      "reports": "Rapports PDF"
+      "reports": "Rapports PDF",
+      "settings": "Paramètres"
     },
     "nav_hints": {
       "overview": "Vue d'ensemble de votre patrimoine : solde total, revenus, dépenses et dernières transactions, en un coup d'œil.",
@@ -331,7 +332,25 @@
       "jarvis": "Posez vos questions financières à l'assistant IA JARVIS, à l'écrit ou à l'oral, connecté à vos vraies données.",
       "analyse": "Analysez vos habitudes de dépense et anticipez vos prochains mois grâce aux prédictions basées sur votre historique.",
       "automatisations": "Automatisez les transactions qui reviennent chaque mois et créez des modèles pour saisir plus vite.",
-      "reports": "Générez un relevé PDF de vos transactions, votre bilan budgétaire ou votre situation financière complète."
+      "reports": "Générez un relevé PDF de vos transactions, votre bilan budgétaire ou votre situation financière complète.",
+      "settings": "Gérez votre photo de profil, vos informations personnelles, vos préférences, votre mot de passe et votre abonnement."
+    },
+    "settings": {
+      "photo_title": "Photo de profil",
+      "info_title": "Informations personnelles",
+      "preferences_title": "Préférences",
+      "appearance_label": "Apparence",
+      "theme_light": "Mode clair",
+      "theme_dark": "Mode sombre",
+      "theme_toggle": "Changer",
+      "security_title": "Sécurité",
+      "current_password_label": "Mot de passe actuel",
+      "new_password_label": "Nouveau mot de passe",
+      "confirm_new_password_label": "Confirmer le nouveau mot de passe",
+      "change_password_button": "Modifier le mot de passe",
+      "password_updated": "Mot de passe modifié avec succès.",
+      "password_mismatch": "Les deux mots de passe ne correspondent pas.",
+      "subscription_title": "Abonnement"
     }
   },
   "otp": {
@@ -887,7 +906,13 @@
       "error_save": "Enregistrement impossible.",
       "currency_label": "Devise préférée",
       "language_label": "Langue",
-      "avatar_label": "Avatar (URL, facultatif)",
+      "firstname_label": "Prénom",
+      "lastname_label": "Nom",
+      "phone_label": "Téléphone",
+      "change_photo": "Changer la photo",
+      "remove_photo": "Supprimer",
+      "photo_error_type": "Format non supporté (JPEG, PNG ou WebP uniquement).",
+      "photo_error_size": "La photo dépasse 3 Mo.",
       "updated": "Profil mis à jour."
     },
     "template_transaction": {

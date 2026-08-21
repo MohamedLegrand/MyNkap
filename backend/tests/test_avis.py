@@ -114,6 +114,41 @@ def test_moderer_avis_publie_apparait_sur_la_landing_page(client, db_session):
     assert log.id_ressource == id_avis
 
 
+def test_avis_publie_sans_photo_de_profil_a_un_avatar_nul(client, db_session):
+    headers = _register_and_login(client, "avis.sans.photo@example.com")
+    id_avis = client.post(
+        "/api/v1/avis", json={"note": 5, "commentaire": "Nickel."}, headers=headers
+    ).json()["id_avis"]
+
+    _, admin_headers = _create_admin(db_session, niveau_acces=2, username="avisadmin2", email="avisadmin2@mynkap.cm")
+    client.patch(f"/api/v1/admin/avis/{id_avis}", json={"statut": "PUBLIE"}, headers=admin_headers)
+
+    publics = client.get("/api/v1/avis/publics").json()
+    assert publics[0]["avatar"] is None
+
+
+def test_avis_publie_reprend_la_photo_de_profil_du_client(client, db_session, tmp_path, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AVATARS_DOSSIER", str(tmp_path))
+    headers = _register_and_login(client, "avis.avec.photo@example.com")
+    client.post(
+        "/api/v1/auth/profile/photo",
+        headers=headers,
+        files={"photo": ("avatar.png", b"contenu-image-factice", "image/png")},
+    )
+    id_avis = client.post(
+        "/api/v1/avis", json={"note": 5, "commentaire": "Nickel avec photo."}, headers=headers
+    ).json()["id_avis"]
+
+    _, admin_headers = _create_admin(db_session, niveau_acces=2, username="avisadmin3", email="avisadmin3@mynkap.cm")
+    client.patch(f"/api/v1/admin/avis/{id_avis}", json={"statut": "PUBLIE"}, headers=admin_headers)
+
+    publics = client.get("/api/v1/avis/publics").json()
+    assert publics[0]["avatar"] is not None
+    assert publics[0]["avatar"].startswith(f"{settings.BACKEND_URL}/avatars/")
+
+
 def test_moderer_avis_rejete_reste_invisible(client, db_session):
     headers = _register_and_login(client, "avis.rejet@example.com")
     id_avis = client.post("/api/v1/avis", json={"note": 1, "commentaire": "Mauvaise expérience."}, headers=headers).json()["id_avis"]

@@ -17,6 +17,24 @@ class ProfileUpdate(BaseModel):
     devise: Optional[str] = None
     langue: Optional[str] = None
 
+# --- Schéma pour le changement de mot de passe (client déjà connecté) ---
+class ChangePasswordRequest(BaseModel):
+    """Distinct du flux mot de passe oublié (ResetPasswordRequest) : ici le
+    client est déjà authentifié et doit prouver qu'il connaît son mot de
+    passe actuel, pas un jeton reçu par e-mail."""
+    mot_de_passe_actuel: str
+    nouveau_mot_de_passe: str = Field(..., min_length=8)
+
+# --- Schéma pour la modification des informations d'identité ---
+class ClientInfoUpdate(BaseModel):
+    """Mise à jour sélective : seuls les champs fournis sont modifiés (voir
+    PUT /auth/me). L'e-mail n'est volontairement pas modifiable ici — c'est
+    l'identifiant de connexion, un changement nécessiterait une nouvelle
+    vérification OTP, hors scope de ce simple formulaire de profil."""
+    first_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    phone: Optional[str] = Field(default=None, min_length=1, max_length=30)
+
 # --- Schémas pour l'inscription ---
 class UserRegister(BaseModel):
     email: EmailStr

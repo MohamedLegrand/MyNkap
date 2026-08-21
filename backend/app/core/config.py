@@ -63,6 +63,16 @@ class Settings(BaseSettings):
     # nécessaire en production, sans changer l'API du module.
     RAPPORTS_DOSSIER: str = "rapports_generes"
 
+    # Dossier de stockage des photos de profil (module Auth/Profile) — même
+    # limitation que RAPPORTS_DOSSIER ci-dessus (stockage local, cloud à
+    # prévoir en production). Servi via StaticFiles, voir main.py.
+    AVATARS_DOSSIER: str = "avatars_uploads"
+
+    # Base publique du backend, utilisée pour construire l'URL absolue des
+    # photos de profil hébergées localement (même principe que FRONTEND_URL
+    # pour les liens envoyés par e-mail).
+    BACKEND_URL: str = "http://localhost:8000"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

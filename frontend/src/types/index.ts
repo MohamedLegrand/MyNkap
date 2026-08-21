@@ -6,6 +6,7 @@ export interface Client {
   first_name: string;
   last_name: string;
   phone: string;
+  profile?: { devise: string; langue: string; avatar: string | null } | null;
 }
 
 export interface TokenResponse {
@@ -502,6 +503,7 @@ export interface AvisPublic {
   note: number;
   commentaire: string;
   auteur: string;
+  avatar: string | null;
   date_creation: string;
 }
 

@@ -319,7 +319,8 @@
       "jarvis": "JARVIS AI Assistant",
       "analyse": "Analysis & Predictions",
       "automations": "Recurrences & Templates",
-      "reports": "PDF Reports"
+      "reports": "PDF Reports",
+      "settings": "Settings"
     },
     "nav_hints": {
       "overview": "An overview of your wealth: total balance, income, expenses and latest transactions, at a glance.",
@@ -332,7 +333,25 @@
       "jarvis": "Ask the JARVIS AI assistant your financial questions, by text or voice, connected to your real data.",
       "analyse": "Analyze your spending habits and look ahead with predictions based on your history.",
       "automatisations": "Automate recurring monthly transactions and create templates for faster entry.",
-      "reports": "Generate a PDF statement of your transactions, budget summary, or full financial position."
+      "reports": "Generate a PDF statement of your transactions, budget summary, or full financial position.",
+      "settings": "Manage your profile photo, personal information, preferences, password and subscription."
+    },
+    "settings": {
+      "photo_title": "Profile photo",
+      "info_title": "Personal information",
+      "preferences_title": "Preferences",
+      "appearance_label": "Appearance",
+      "theme_light": "Light mode",
+      "theme_dark": "Dark mode",
+      "theme_toggle": "Switch",
+      "security_title": "Security",
+      "current_password_label": "Current password",
+      "new_password_label": "New password",
+      "confirm_new_password_label": "Confirm new password",
+      "change_password_button": "Change password",
+      "password_updated": "Password changed successfully.",
+      "password_mismatch": "The two passwords do not match.",
+      "subscription_title": "Subscription"
     }
   },
   "otp": {
@@ -888,7 +907,13 @@
       "error_save": "Could not save.",
       "currency_label": "Preferred currency",
       "language_label": "Language",
-      "avatar_label": "Avatar (URL, optional)",
+      "firstname_label": "First name",
+      "lastname_label": "Last name",
+      "phone_label": "Phone",
+      "change_photo": "Change photo",
+      "remove_photo": "Remove",
+      "photo_error_type": "Unsupported format (JPEG, PNG or WebP only).",
+      "photo_error_size": "The photo exceeds 3 MB.",
       "updated": "Profile updated."
     },
     "template_transaction": {

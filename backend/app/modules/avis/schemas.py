@@ -24,10 +24,13 @@ class AvisOut(BaseModel):
 
 class AvisPublicOut(BaseModel):
     """Avis publié, affiché sur la landing page — jamais l'email ni le nom
-    complet du client, seulement prénom + initiale du nom."""
+    complet du client, seulement prénom + initiale du nom. `avatar` reste
+    None si le client n'a pas configuré de photo de profil : le frontend
+    affiche alors un avatar générique (voir Profile.avatar)."""
     note: int
     commentaire: str
     auteur: str
+    avatar: Optional[str] = None
     date_creation: datetime
 
 

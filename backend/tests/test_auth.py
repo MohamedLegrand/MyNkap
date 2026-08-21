@@ -376,6 +376,205 @@ def test_plusieurs_mots_de_passe_incorrects_notifient_le_client_une_seule_fois(c
     assert len(notifs_tentatives) == 1
 
 
+# --- Modification des informations d'identité (PUT /auth/me) ---
+
+def test_update_mes_informations_modifie_selectivement_les_champs(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    response = client.put(
+        "/api/v1/auth/me",
+        json={"first_name": "Jeanne", "phone": "+237699999999"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["first_name"] == "Jeanne"
+    assert body["last_name"] == "Dupont"  # non fourni, inchangé
+    assert body["phone"] == "+237699999999"
+
+
+def test_update_mes_informations_requires_authentication(client):
+    response = client.put("/api/v1/auth/me", json={"first_name": "Jeanne"})
+    assert response.status_code == 401
+
+
+# --- Changement de mot de passe (PUT /auth/change-password) ---
+
+def test_changer_mot_de_passe_avec_ancien_mot_de_passe_correct(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    response = client.put(
+        "/api/v1/auth/change-password",
+        json={"mot_de_passe_actuel": "motdepasse123", "nouveau_mot_de_passe": "nouveaumotdepasse789"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    ancien_login = client.post(
+        "/api/v1/auth/login", json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"}
+    )
+    assert ancien_login.status_code == 400
+
+    nouveau_login = client.post(
+        "/api/v1/auth/login", json={"email": "jean.dupont@example.com", "mot_de_passe": "nouveaumotdepasse789"}
+    )
+    assert nouveau_login.status_code == 200
+
+
+def test_changer_mot_de_passe_avec_ancien_mot_de_passe_incorrect_est_rejete(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    response = client.put(
+        "/api/v1/auth/change-password",
+        json={"mot_de_passe_actuel": "mauvais-mot-de-passe", "nouveau_mot_de_passe": "nouveaumotdepasse789"},
+        headers=headers,
+    )
+    assert response.status_code == 400
+
+    inchange_login = client.post(
+        "/api/v1/auth/login", json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"}
+    )
+    assert inchange_login.status_code == 200
+
+
+def test_changer_mot_de_passe_requires_authentication(client):
+    response = client.put(
+        "/api/v1/auth/change-password",
+        json={"mot_de_passe_actuel": "peuimporte", "nouveau_mot_de_passe": "peuimporte123"},
+    )
+    assert response.status_code == 401
+
+
+# --- Photo de profil (POST/DELETE /auth/profile/photo) ---
+
+def _entete_avec_jeton(client) -> dict:
+    client.post("/api/v1/auth/register", json=_register_payload())
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
+    return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+
+def test_uploader_photo_profil_remplace_lavatar(client, db_session, tmp_path, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AVATARS_DOSSIER", str(tmp_path))
+    headers = _entete_avec_jeton(client)
+
+    response = client.post(
+        "/api/v1/auth/profile/photo",
+        headers=headers,
+        files={"photo": ("avatar.png", b"contenu-image-factice", "image/png")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["avatar"].startswith(f"{settings.BACKEND_URL}/avatars/")
+    fichiers = list(tmp_path.iterdir())
+    assert len(fichiers) == 1
+
+
+def test_uploader_photo_profil_rejette_un_format_non_supporte(client, db_session, tmp_path, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AVATARS_DOSSIER", str(tmp_path))
+    headers = _entete_avec_jeton(client)
+
+    response = client.post(
+        "/api/v1/auth/profile/photo",
+        headers=headers,
+        files={"photo": ("avatar.gif", b"contenu", "image/gif")},
+    )
+
+    assert response.status_code == 400
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_uploader_photo_profil_rejette_un_fichier_trop_volumineux(client, db_session, tmp_path, monkeypatch):
+    from app.core.config import settings
+    from app.modules.auth import router as auth_router
+
+    monkeypatch.setattr(settings, "AVATARS_DOSSIER", str(tmp_path))
+    monkeypatch.setattr(auth_router, "TAILLE_MAX_AVATAR", 10)
+    headers = _entete_avec_jeton(client)
+
+    response = client.post(
+        "/api/v1/auth/profile/photo",
+        headers=headers,
+        files={"photo": ("avatar.png", b"beaucoup-plus-de-dix-octets", "image/png")},
+    )
+
+    assert response.status_code == 400
+
+
+def test_remplacer_la_photo_supprime_lancien_fichier(client, db_session, tmp_path, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AVATARS_DOSSIER", str(tmp_path))
+    headers = _entete_avec_jeton(client)
+
+    client.post(
+        "/api/v1/auth/profile/photo",
+        headers=headers,
+        files={"photo": ("premiere.png", b"premiere-photo", "image/png")},
+    )
+    assert len(list(tmp_path.iterdir())) == 1
+
+    client.post(
+        "/api/v1/auth/profile/photo",
+        headers=headers,
+        files={"photo": ("seconde.png", b"seconde-photo", "image/png")},
+    )
+
+    # L'ancien fichier a bien été supprimé, un seul fichier reste sur disque.
+    assert len(list(tmp_path.iterdir())) == 1
+
+
+def test_supprimer_photo_profil_efface_le_fichier_et_lavatar(client, db_session, tmp_path, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AVATARS_DOSSIER", str(tmp_path))
+    headers = _entete_avec_jeton(client)
+
+    client.post(
+        "/api/v1/auth/profile/photo",
+        headers=headers,
+        files={"photo": ("avatar.png", b"contenu-image-factice", "image/png")},
+    )
+    assert len(list(tmp_path.iterdir())) == 1
+
+    response = client.delete("/api/v1/auth/profile/photo", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["avatar"] is None
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_une_url_avatar_externe_nest_jamais_supprimee_du_disque(client, db_session, tmp_path, monkeypatch):
+    """Un avatar réglé via l'ancien champ texte (PUT /auth/profile, URL
+    externe collée manuellement) ne doit jamais déclencher une suppression
+    de fichier local — voir services.supprimer_fichier_avatar."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AVATARS_DOSSIER", str(tmp_path))
+    headers = _entete_avec_jeton(client)
+
+    client.put(
+        "/api/v1/auth/profile",
+        headers=headers,
+        json={"avatar": "https://example.com/photo.jpg"},
+    )
+
+    response = client.delete("/api/v1/auth/profile/photo", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["avatar"] is None
+
+
 def test_une_connexion_reussie_reinitialise_le_compteur_de_tentatives(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
 

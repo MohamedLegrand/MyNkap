@@ -22,12 +22,13 @@ import {
   CheckCircle2,
   Users,
   Lock,
+  Settings,
 } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { api } from '../services/api';
 import { NotificationsBell } from '../components/NotificationsBell';
-import { ProfileSettingsModal } from '../components/ProfileSettingsModal';
 import { JarvisFloatingBubble } from '../components/JarvisFloatingBubble';
+import { Avatar } from '../components/Avatar';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { HintTooltip } from '../components/HintTooltip';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -77,7 +78,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const refreshToken = useAuthStore((state) => state.refreshToken);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const handleLogout = () => {
     if (refreshToken) {
@@ -110,6 +110,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     // activé par aucun plan, gater l'onglet dessus le cacherait pour tout
     // le monde.
     { id: 'reports', label: t('dashboard.nav.reports'), icon: FileText },
+    { id: 'settings', label: t('dashboard.nav.settings'), icon: Settings },
   ];
 
   // Tous les items restent visibles, même ceux réservés à un palier
@@ -329,15 +330,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {/* Notifications */}
             <NotificationsBell basePath="/notifications" />
 
-            {/* User Profile Info — cliquable pour ouvrir les préférences du profil */}
+            {/* User Profile Info — cliquable pour ouvrir la page Paramètres */}
             <button
-              onClick={() => setIsProfileModalOpen(true)}
+              onClick={() => onTabChange?.('settings')}
               title={t('dashboard.my_profile')}
               className="flex items-center gap-3 pl-2 rounded-xl hover:bg-muted transition-colors py-1 pr-2"
             >
-              <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground font-bold flex items-center justify-center shadow-sm">
-                {client?.first_name ? client.first_name[0].toUpperCase() : 'M'}
-              </div>
+              <Avatar src={client?.profile?.avatar} nom={client?.first_name || 'M'} className="h-9 w-9" />
               <div className="text-left">
                 <span className="block text-xs font-bold leading-tight">
                   {client?.first_name ? `${client.first_name} ${client.last_name || ''}` : 'Mohamed Legrand'}
@@ -346,6 +345,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   {client?.email || 'client@mynkap.cm'}
                 </span>
               </div>
+              <Settings className="h-4 w-4 text-muted-foreground shrink-0" />
             </button>
           </div>
         </header>
@@ -355,8 +355,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           {children}
         </div>
       </main>
-
-      <ProfileSettingsModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
 
       {/* Bulle flottante JARVIS : accessible en permanence sur tous les onglets,
           sauf ceux où le widget complet est déjà affiché en ligne (page dédiée

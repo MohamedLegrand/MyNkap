@@ -1,6 +1,8 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -43,6 +45,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Photos de profil uploadées (voir auth.router, POST /auth/profile/photo) —
+# stockage local pour l'instant, servi tel quel (voir AVATARS_DOSSIER).
+os.makedirs(settings.AVATARS_DOSSIER, exist_ok=True)
+app.mount("/avatars", StaticFiles(directory=settings.AVATARS_DOSSIER), name="avatars")
 
 @app.exception_handler(MyNkapException)
 def mynkap_exception_handler(_request: Request, exc: MyNkapException):
