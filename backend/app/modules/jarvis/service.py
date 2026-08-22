@@ -1,9 +1,10 @@
 import base64
 import io
 import json
+import secrets
 import wave
-from datetime import datetime
-from decimal import Decimal
+from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import List, Optional, Tuple
 from uuid import UUID
 import httpx
@@ -12,9 +13,12 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.modules.budgets import service as budgets_service
 from app.modules.comptes import service as comptes_service
+from app.modules.comptes.schemas import CompteFinancierCreate
 from app.modules.dettes import service as dettes_service
 from app.modules.epargne import service as epargne_service
-from app.modules.jarvis.models import Conversation, Message
+from app.modules.jarvis.models import ActionIA, Conversation, Message
+from app.modules.transactions import service as transactions_service
+from app.modules.transactions.schemas import TransactionCreate
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
@@ -44,10 +48,20 @@ possible 2 à 4 choix clairs (QCM) pour que l'utilisateur puisse sélectionner s
 que de la retaper.
 - Tu bases tes réponses financières UNIQUEMENT sur les données réelles fournies ci-dessous. Tu \
 n'inventes jamais de chiffres.
-- Tu ne peux créer, modifier ou supprimer aucune donnée — tu conseilles seulement.
+- Tu peux PROPOSER des actions concrètes (créer une dépense/un revenu sur un compte existant, ou \
+créer un nouveau compte) mais tu ne les exécutes JAMAIS toi-même : elles restent en attente \
+jusqu'à ce que le client les confirme explicitement via un bouton dans l'application. N'invente \
+jamais un id_compte ou id_categorie — utilise EXCLUSIVEMENT ceux listés ci-dessous. S'il manque \
+une information essentielle (montant, quel compte, quelle catégorie) ou que le compte/la \
+catégorie mentionné n'existe pas dans la liste, demande une clarification au lieu de proposer une \
+action incomplète ou incorrecte.
+- Si le client décrit plusieurs opérations dans un seul message (par exemple : "j'ai dépensé 2000 \
+pour manger et 500 de taxi"), propose une action distincte pour chacune dans le tableau "actions".
 
 Situation financière actuelle du client :
 {contexte_financier}
+
+{catalogue_comptes_categories}
 
 Tu dois TOUJOURS répondre en JSON valide, avec exactement cette forme, sans aucun texte en dehors :
 {{
@@ -56,9 +70,21 @@ Tu dois TOUJOURS répondre en JSON valide, avec exactement cette forme, sans auc
   "options_suggerees": ["option 1", "option 2"] ou null si necessite_clarification est false,
   "peut_se_permettre": true, false ou null si la question ne porte pas sur un achat,
   "montant_suggere": nombre ou null,
-  "conseil_supplementaire": "un conseil court" ou null
+  "conseil_supplementaire": "un conseil court" ou null,
+  "actions": [
+    {{"type": "CREER_TRANSACTION", "id_compte": 30, "id_categorie": 12, "montant": 2000, "type_transaction": "DEPENSE", "description": "Courses au marché"}},
+    {{"type": "CREER_COMPTE", "nom": "Épargne vacances", "type_compte": "EPARGNE", "devise": "XAF", "solde_initial": 20000}}
+  ]
 }}
+Le tableau "actions" est [] si tu ne proposes aucune action.
 """
+
+# Une action proposée expire si elle n'est pas confirmée à temps — un
+# "oui" tapé le lendemain sur un montant halluciné ou périmé ne doit
+# jamais s'exécuter silencieusement.
+DUREE_VALIDITE_ACTION = timedelta(minutes=30)
+TYPES_COMPTE_VALIDES = {"MOBILE_MONEY", "BANCAIRE", "ESPECES", "EPARGNE"}
+TYPES_TRANSACTION_VALIDES = {"DEPENSE", "REVENU"}
 
 
 class ConversationIntrouvableError(Exception):
@@ -67,6 +93,14 @@ class ConversationIntrouvableError(Exception):
 
 class ServiceIAIndisponibleError(Exception):
     """L'appel au fournisseur IA a échoué (réseau, clé invalide, quota, réponse invalide...)."""
+
+
+class ActionIntrouvableError(Exception):
+    """L'action n'existe pas, n'appartient pas au client, ou n'est plus en attente de confirmation."""
+
+
+class ActionExpireeError(Exception):
+    """Le délai de confirmation de cette action est dépassé — elle vient d'être annulée automatiquement."""
 
 
 def creer_conversation(db: Session, id_client: int, titre: Optional[str] = None) -> Conversation:
@@ -159,6 +193,109 @@ def _construire_contexte_financier(db: Session, id_client: int) -> str:
     return "\n".join(lignes)
 
 
+def _formatter_catalogue_pour_ia(comptes: list, categories: list) -> str:
+    """
+    Liste les comptes/catégories réels du client avec leur identifiant —
+    seule source d'identifiants que JARVIS a le droit d'utiliser pour
+    proposer une action (voir _valider_et_creer_actions, qui rejette tout
+    id_compte/id_categorie ne figurant pas dans cette liste).
+    """
+    lignes = ["Comptes existants (id_compte : nom, type, solde) :"]
+    if comptes:
+        for compte in comptes:
+            lignes.append(f"  - {compte.id_compte} : {compte.nom} ({compte.type}), {compte.solde} XAF")
+    else:
+        lignes.append("  - aucun compte pour l'instant")
+
+    lignes.append("Catégories existantes (id_categorie : nom, type) :")
+    categories_actives = [c for c in categories if c.est_actif]
+    if categories_actives:
+        for categorie in categories_actives:
+            lignes.append(f"  - {categorie.id_categorie} : {categorie.nom} ({categorie.type})")
+    else:
+        lignes.append("  - aucune catégorie pour l'instant")
+
+    return "\n".join(lignes)
+
+
+def _valider_et_creer_actions(
+    id_client: int, message: Message, actions_brutes: list, comptes: list, categories: list
+) -> List[ActionIA]:
+    """
+    Convertit les actions proposées par le fournisseur IA en ActionIA
+    EN_ATTENTE — ne les exécute jamais. Toute action référençant un
+    id_compte/id_categorie halluciné (n'appartenant pas réellement au
+    client) est silencieusement écartée : JARVIS ne peut pas se rattraper
+    après coup sur un message déjà envoyé, mieux vaut ne rien proposer
+    qu'une action incorrecte.
+    """
+    comptes_par_id = {compte.id_compte: compte for compte in comptes}
+    categories_par_id = {c.id_categorie: c for c in categories if c.est_actif}
+    date_expiration = datetime.utcnow() + DUREE_VALIDITE_ACTION
+
+    actions: List[ActionIA] = []
+    for brute in actions_brutes:
+        if not isinstance(brute, dict):
+            continue
+        type_action = brute.get("type")
+
+        if type_action == "CREER_TRANSACTION":
+            compte = comptes_par_id.get(brute.get("id_compte"))
+            categorie = categories_par_id.get(brute.get("id_categorie"))
+            type_transaction = brute.get("type_transaction")
+            if compte is None or categorie is None or type_transaction not in TYPES_TRANSACTION_VALIDES:
+                continue
+            try:
+                montant = Decimal(str(brute.get("montant")))
+            except (InvalidOperation, TypeError):
+                continue
+            if montant <= 0:
+                continue
+
+            description = brute.get("description")
+            libelle_type = "Dépense" if type_transaction == "DEPENSE" else "Revenu"
+            resume = f"{libelle_type} de {montant} XAF ({categorie.nom}) sur {compte.nom}"
+            donnees_cible = json.dumps({
+                "id_compte": compte.id_compte,
+                "id_categorie": categorie.id_categorie,
+                "montant": str(montant),
+                "type_transaction": type_transaction,
+                "description": description,
+            })
+            actions.append(ActionIA(
+                id_client=id_client, id_message=message.id_message, type_action="CREER_TRANSACTION",
+                donnees_cible=donnees_cible, resume=resume, confirmation_token=secrets.token_urlsafe(24),
+                statut="EN_ATTENTE", date_expiration=date_expiration,
+            ))
+
+        elif type_action == "CREER_COMPTE":
+            nom = brute.get("nom")
+            type_compte = brute.get("type_compte")
+            if not nom or type_compte not in TYPES_COMPTE_VALIDES:
+                continue
+            try:
+                solde_initial = Decimal(str(brute.get("solde_initial") or 0))
+            except InvalidOperation:
+                continue
+            if solde_initial < 0:
+                continue
+            devise = brute.get("devise") or "XAF"
+
+            resume = f"Nouveau compte « {nom} » ({type_compte})"
+            if solde_initial > 0:
+                resume += f" avec un dépôt initial de {solde_initial} {devise}"
+            donnees_cible = json.dumps({
+                "nom": nom, "type_compte": type_compte, "devise": devise, "solde_initial": str(solde_initial),
+            })
+            actions.append(ActionIA(
+                id_client=id_client, id_message=message.id_message, type_action="CREER_COMPTE",
+                donnees_cible=donnees_cible, resume=resume, confirmation_token=secrets.token_urlsafe(24),
+                statut="EN_ATTENTE", date_expiration=date_expiration,
+            ))
+
+    return actions
+
+
 def _construire_historique(conversation: Conversation) -> List[dict]:
     """Historique avant l'ajout de la nouvelle question (celle-ci est
     envoyée séparément par poser_question, jamais dupliquée ici)."""
@@ -206,7 +343,12 @@ def poser_question(db: Session, id_client: int, id_conversation: UUID, contenu: 
     db.add(question)
 
     contexte_financier = _construire_contexte_financier(db, id_client)
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(contexte_financier=contexte_financier)
+    comptes = comptes_service.lister_comptes(db, id_client)
+    categories = budgets_service.obtenir_categories(db, id_client)
+    catalogue = _formatter_catalogue_pour_ia(comptes, categories)
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+        contexte_financier=contexte_financier, catalogue_comptes_categories=catalogue
+    )
 
     try:
         donnees = _appeler_groq(system_prompt, historique, contenu)
@@ -230,6 +372,12 @@ def poser_question(db: Session, id_client: int, id_conversation: UUID, contenu: 
         conseil_supplementaire=donnees.get("conseil_supplementaire"),
     )
     db.add(reponse)
+    db.flush()  # pour obtenir id_message avant de créer les ActionIA liées
+
+    actions_proposees = _valider_et_creer_actions(
+        id_client, reponse, donnees.get("actions") or [], comptes, categories
+    )
+    db.add_all(actions_proposees)
 
     conversation.date_dernier_message = datetime.utcnow()
     if conversation.titre is None:
@@ -322,3 +470,72 @@ def poser_question_vocale(
         return message, None
 
     return message, audio_reponse
+
+
+# --- Confirmation des actions proposées par JARVIS ---
+
+def _obtenir_action_en_attente(db: Session, id_client: int, id_action: UUID) -> ActionIA:
+    action = (
+        db.query(ActionIA)
+        .filter(ActionIA.id_action == id_action, ActionIA.id_client == id_client)
+        .first()
+    )
+    if action is None or action.statut != "EN_ATTENTE":
+        raise ActionIntrouvableError()
+    return action
+
+
+def confirmer_action(db: Session, id_client: int, id_action: UUID) -> ActionIA:
+    """
+    Exécute réellement l'action proposée par JARVIS, en passant
+    systématiquement par les vraies fonctions de service des modules
+    cibles (jamais de logique dupliquée) — tous les garde-fous existants
+    s'appliquent donc automatiquement (solde jamais négatif, détection de
+    transaction suspecte...). Si le compte/la catégorie a été désactivé ou
+    le solde est devenu insuffisant depuis la proposition, l'exception du
+    module cible remonte telle quelle et l'action reste EN_ATTENTE — le
+    client peut réessayer plus tard, jusqu'à expiration.
+    """
+    action = _obtenir_action_en_attente(db, id_client, id_action)
+
+    if action.date_expiration is not None and datetime.utcnow() > action.date_expiration:
+        action.statut = "ANNULE"
+        db.commit()
+        raise ActionExpireeError()
+
+    donnees = json.loads(action.donnees_cible)
+
+    if action.type_action == "CREER_TRANSACTION":
+        transactions_service.enregistrer_transaction(
+            db, id_client,
+            TransactionCreate(
+                id_compte=donnees["id_compte"],
+                id_categorie=donnees["id_categorie"],
+                montant=Decimal(donnees["montant"]),
+                type=donnees["type_transaction"],
+                description=donnees.get("description"),
+            ),
+        )
+    elif action.type_action == "CREER_COMPTE":
+        comptes_service.creer_compte(
+            db, id_client,
+            CompteFinancierCreate(
+                nom=donnees["nom"],
+                type=donnees["type_compte"],
+                devise=donnees.get("devise", "XAF"),
+                solde_initial=Decimal(donnees["solde_initial"]),
+            ),
+        )
+
+    action.statut = "EXECUTE"
+    db.commit()
+    db.refresh(action)
+    return action
+
+
+def annuler_action(db: Session, id_client: int, id_action: UUID) -> ActionIA:
+    action = _obtenir_action_en_attente(db, id_client, id_action)
+    action.statut = "ANNULE"
+    db.commit()
+    db.refresh(action)
+    return action

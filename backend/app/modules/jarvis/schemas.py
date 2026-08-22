@@ -13,6 +13,21 @@ class MessageCreate(BaseModel):
     contenu: str = Field(..., min_length=1, max_length=2000)
 
 
+class ActionIAOut(BaseModel):
+    """Action proposée par JARVIS, en attente de confirmation explicite du
+    client — voir jarvis.service.confirmer_action. `resume` est toujours un
+    texte lisible construit à partir des vraies données du client, jamais
+    du texte brut fourni par le fournisseur IA."""
+    id_action: UUID
+    type_action: str
+    resume: str
+    statut: str
+    date_expiration: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 class MessageOut(BaseModel):
     id_message: UUID
     type: str
@@ -23,6 +38,7 @@ class MessageOut(BaseModel):
     peut_se_permettre: Optional[bool]
     montant_suggere: Optional[Decimal]
     conseil_supplementaire: Optional[str]
+    actions: List[ActionIAOut] = []
     date_creation: datetime
 
     class Config:

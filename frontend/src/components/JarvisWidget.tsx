@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Send, Loader2, Mic, Square, History, Plus, Trash2, AlertTriangle, Volume2 } from 'lucide-react';
+import { Bot, Send, Loader2, Mic, Square, History, Plus, Trash2, AlertTriangle, Volume2, CheckCircle2, Ban, Sparkles } from 'lucide-react';
 import { api } from '../services/api';
 import { formatDateRelative } from '../utils/formatters';
-import type { JarvisConversation, JarvisConversationDetail, JarvisMessage, JarvisMessageVocal } from '../types';
+import type { ActionIA, JarvisConversation, JarvisConversationDetail, JarvisMessage, JarvisMessageVocal } from '../types';
 
 export const JarvisWidget: React.FC = () => {
   const { t } = useTranslation();
@@ -22,6 +22,8 @@ export const JarvisWidget: React.FC = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const historiqueRef = useRef<HTMLDivElement | null>(null);
 
+  const [actionsEnCours, setActionsEnCours] = useState<Set<string>>(new Set());
+
   const messageAccueil: JarvisMessage = {
     id_message: 'accueil',
     type: 'REPONSE',
@@ -32,6 +34,7 @@ export const JarvisWidget: React.FC = () => {
     peut_se_permettre: null,
     montant_suggere: null,
     conseil_supplementaire: null,
+    actions: [],
     date_creation: new Date().toISOString(),
   };
 
@@ -106,6 +109,35 @@ export const JarvisWidget: React.FC = () => {
     lecteur.play().catch(() => {});
   };
 
+  // JARVIS ne modifie jamais de donnée financière de sa propre initiative —
+  // une action proposée reste EN_ATTENTE tant que le client n'a pas cliqué
+  // ici sur Confirmer. Met à jour l'action dans le message concerné, où
+  // qu'il soit dans l'historique affiché.
+  const traiterAction = async (idAction: string, chemin: 'confirmer' | 'annuler') => {
+    if (actionsEnCours.has(idAction)) return;
+    setActionsEnCours((prev) => new Set(prev).add(idAction));
+    try {
+      const actionMiseAJour = await api.request<ActionIA>(`/jarvis/actions/${idAction}/${chemin}`, {
+        method: 'POST',
+      });
+      setMessages((prev) =>
+        prev.map((msg) => ({
+          ...msg,
+          actions: msg.actions.map((a) => (a.id_action === idAction ? actionMiseAJour : a)),
+        }))
+      );
+      if (chemin === 'confirmer') chargerConversations();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('jarvis.action_error'));
+    } finally {
+      setActionsEnCours((prev) => {
+        const suivant = new Set(prev);
+        suivant.delete(idAction);
+        return suivant;
+      });
+    }
+  };
+
   const envoyerMessageTexte = async (e: React.FormEvent) => {
     e.preventDefault();
     const question = query.trim();
@@ -126,6 +158,7 @@ export const JarvisWidget: React.FC = () => {
         peut_se_permettre: null,
         montant_suggere: null,
         conseil_supplementaire: null,
+        actions: [],
         date_creation: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, messageOptimiste]);
@@ -298,6 +331,49 @@ export const JarvisWidget: React.FC = () => {
                 </div>
                 {msg.conseil_supplementaire && (
                   <p className="text-[11px] italic opacity-80 pt-1 border-t border-border/40">{msg.conseil_supplementaire}</p>
+                )}
+                {msg.actions.length > 0 && (
+                  <div className="space-y-1.5 pt-1.5 mt-1 border-t border-border/40">
+                    {msg.actions.map((action) => (
+                      <div key={action.id_action} className="bg-background/70 border border-border/60 rounded-xl p-2 space-y-1.5">
+                        <div className="flex items-start gap-1.5">
+                          <Sparkles className="h-3 w-3 mt-0.5 shrink-0 text-secondary" />
+                          <span className="text-[11px] font-semibold">{action.resume}</span>
+                        </div>
+                        {action.statut === 'EN_ATTENTE' ? (
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => traiterAction(action.id_action, 'confirmer')}
+                              disabled={actionsEnCours.has(action.id_action)}
+                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-[11px] font-bold hover:bg-secondary/90 disabled:opacity-60"
+                            >
+                              {actionsEnCours.has(action.id_action) ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3" />
+                              )}
+                              <span>{t('jarvis.action_confirm')}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => traiterAction(action.id_action, 'annuler')}
+                              disabled={actionsEnCours.has(action.id_action)}
+                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-muted text-muted-foreground text-[11px] font-bold hover:bg-accent disabled:opacity-60"
+                            >
+                              <Ban className="h-3 w-3" />
+                              <span>{t('jarvis.action_cancel')}</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <p className={`text-[11px] font-bold flex items-center gap-1 ${action.statut === 'EXECUTE' ? 'text-forest-600 dark:text-forest-400' : 'text-muted-foreground'}`}>
+                            {action.statut === 'EXECUTE' ? <CheckCircle2 className="h-3 w-3" /> : <Ban className="h-3 w-3" />}
+                            <span>{action.statut === 'EXECUTE' ? t('jarvis.action_executed') : t('jarvis.action_cancelled')}</span>
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

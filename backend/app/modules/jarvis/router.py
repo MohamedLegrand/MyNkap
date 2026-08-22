@@ -10,6 +10,7 @@ from app.modules.auth.dependencies import get_current_active_client
 from app.modules.auth.models import Client
 from app.modules.jarvis import service
 from app.modules.jarvis.schemas import (
+    ActionIAOut,
     ConversationCreate,
     ConversationDetailOut,
     ConversationOut,
@@ -18,6 +19,11 @@ from app.modules.jarvis.schemas import (
     MessageVocalOut,
 )
 from app.modules.plans.dependencies import exiger_fonctionnalite
+from app.modules.transactions.service import (
+    CategorieIntrouvableError,
+    CompteIntrouvableError,
+    SoldeInsuffisantError,
+)
 
 router = APIRouter(
     prefix="/jarvis",
@@ -133,3 +139,40 @@ def poser_question_vocale(
         **MessageOut.model_validate(message).model_dump(),
         audio_base64=base64.b64encode(audio_reponse).decode("ascii") if audio_reponse is not None else None,
     )
+
+
+@router.post("/actions/{id_action}/confirmer", response_model=ActionIAOut)
+def confirmer_action(
+    id_action: UUID,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Exécute réellement une action proposée par JARVIS — jamais déclenché
+    automatiquement, uniquement sur confirmation explicite du client."""
+    try:
+        return service.confirmer_action(db, client.id_client, id_action)
+    except service.ActionIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Action introuvable ou déjà traitée.")
+    except service.ActionExpireeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le délai de confirmation de cette action est dépassé.",
+        )
+    except CompteIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ce compte n'existe plus.")
+    except CategorieIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cette catégorie n'existe plus.")
+    except SoldeInsuffisantError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Solde insuffisant pour cette dépense.")
+
+
+@router.post("/actions/{id_action}/annuler", response_model=ActionIAOut)
+def annuler_action(
+    id_action: UUID,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    try:
+        return service.annuler_action(db, client.id_client, id_action)
+    except service.ActionIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Action introuvable ou déjà traitée.")

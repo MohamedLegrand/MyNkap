@@ -45,6 +45,7 @@ def _reponse_groq(**overrides):
         "peut_se_permettre": True,
         "montant_suggere": 5000,
         "conseil_supplementaire": "Pensez à garder une réserve.",
+        "actions": [],
     }
     donnees.update(overrides)
     return donnees
@@ -170,6 +171,307 @@ def test_service_ia_indisponible_conserve_la_question_et_renvoie_503(client, mon
     detail = client.get(f"/api/v1/jarvis/conversations/{conversation['id_conversation']}", headers=headers).json()
     assert len(detail["messages"]) == 1
     assert detail["messages"][0]["type"] == "QUESTION"
+
+
+# --- Actions proposées par JARVIS (créer transaction / créer compte) ---
+
+def test_jarvis_propose_une_transaction_en_attente_de_confirmation(client, monkeypatch):
+    headers = _register_and_login(client, "jarvis.action.tx@example.com")
+    compte = client.post(
+        "/api/v1/comptes", json={"nom": "MOMO", "type": "MOBILE_MONEY", "solde_initial": 50000}, headers=headers
+    ).json()
+    categorie = next(
+        c for c in client.get("/api/v1/categories", headers=headers).json() if c["type"] == "DEPENSE"
+    )
+
+    def fausse_reponse(system_prompt, historique, question):
+        # Le catalogue de comptes/catégories réels doit être injecté dans le prompt.
+        assert str(compte["id_compte"]) in system_prompt
+        assert str(categorie["id_categorie"]) in system_prompt
+        return _reponse_groq(
+            contenu="Je vais enregistrer votre dépense de 2000 XAF.",
+            actions=[{
+                "type": "CREER_TRANSACTION", "id_compte": compte["id_compte"],
+                "id_categorie": categorie["id_categorie"], "montant": 2000,
+                "type_transaction": "DEPENSE", "description": "Courses au marché",
+            }],
+        )
+
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", fausse_reponse)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "J'ai dépensé 2000 pour manger"},
+        headers=headers,
+    )
+    body = reponse.json()
+    assert len(body["actions"]) == 1
+    action = body["actions"][0]
+    assert action["type_action"] == "CREER_TRANSACTION"
+    assert action["statut"] == "EN_ATTENTE"
+    assert "2000" in action["resume"]
+
+    # Seul le DEPOT_INITIAL du compte existe pour l'instant — la dépense
+    # proposée par JARVIS n'est pas encore confirmée.
+    avant = client.get("/api/v1/transactions", headers=headers).json()
+    assert len(avant) == 1
+    assert avant[0]["type"] == "DEPOT_INITIAL"
+
+    confirmation = client.post(f"/api/v1/jarvis/actions/{action['id_action']}/confirmer", headers=headers)
+    assert confirmation.status_code == 200
+    assert confirmation.json()["statut"] == "EXECUTE"
+
+    transactions = client.get("/api/v1/transactions", headers=headers).json()
+    assert len(transactions) == 2
+    depense = next(t for t in transactions if t["type"] == "DEPENSE")
+    assert Decimal(depense["montant"]) == Decimal("2000")
+
+    # Une action déjà exécutée ne peut plus être reconfirmée.
+    reconfirmation = client.post(f"/api/v1/jarvis/actions/{action['id_action']}/confirmer", headers=headers)
+    assert reconfirmation.status_code == 404
+
+
+def test_jarvis_propose_plusieurs_actions_dans_un_seul_message(client, monkeypatch):
+    """
+    "Aujourd'hui j'ai fait plusieurs achats" décrit plusieurs transactions
+    en une seule phrase — chacune doit ressortir comme une action distincte,
+    confirmable indépendamment des autres.
+    """
+    headers = _register_and_login(client, "jarvis.action.multiple@example.com")
+    compte = client.post(
+        "/api/v1/comptes", json={"nom": "MOMO", "type": "MOBILE_MONEY", "solde_initial": 50000}, headers=headers
+    ).json()
+    categorie = next(
+        c for c in client.get("/api/v1/categories", headers=headers).json() if c["type"] == "DEPENSE"
+    )
+
+    monkeypatch.setattr(
+        jarvis_service, "_appeler_groq",
+        lambda *a, **k: _reponse_groq(actions=[
+            {
+                "type": "CREER_TRANSACTION", "id_compte": compte["id_compte"],
+                "id_categorie": categorie["id_categorie"], "montant": 2000,
+                "type_transaction": "DEPENSE", "description": "Marché",
+            },
+            {
+                "type": "CREER_TRANSACTION", "id_compte": compte["id_compte"],
+                "id_categorie": categorie["id_categorie"], "montant": 500,
+                "type_transaction": "DEPENSE", "description": "Taxi",
+            },
+        ]),
+    )
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Aujourd'hui j'ai dépensé 2000 au marché et 500 en taxi"},
+        headers=headers,
+    )
+    actions = reponse.json()["actions"]
+    assert len(actions) == 2
+    assert {a["statut"] for a in actions} == {"EN_ATTENTE"}
+
+    # Confirmer la première n'affecte pas la seconde.
+    client.post(f"/api/v1/jarvis/actions/{actions[0]['id_action']}/confirmer", headers=headers)
+    detail = client.get(f"/api/v1/jarvis/conversations/{conversation['id_conversation']}", headers=headers).json()
+    actions_apres = detail["messages"][1]["actions"]
+    statuts_par_id = {a["id_action"]: a["statut"] for a in actions_apres}
+    assert statuts_par_id[actions[0]["id_action"]] == "EXECUTE"
+    assert statuts_par_id[actions[1]["id_action"]] == "EN_ATTENTE"
+
+    transactions = client.get("/api/v1/transactions", headers=headers).json()
+    depenses = [t for t in transactions if t["type"] == "DEPENSE"]
+    assert len(depenses) == 1
+    assert Decimal(depenses[0]["montant"]) == Decimal("2000")
+
+
+def test_jarvis_ignore_une_action_avec_id_compte_hallucine(client, monkeypatch):
+    headers = _register_and_login(client, "jarvis.action.hallucination@example.com")
+
+    def fausse_reponse(system_prompt, historique, question):
+        return _reponse_groq(actions=[{
+            "type": "CREER_TRANSACTION", "id_compte": 999999, "id_categorie": 999999,
+            "montant": 2000, "type_transaction": "DEPENSE",
+        }])
+
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", fausse_reponse)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "J'ai dépensé 2000 pour manger"},
+        headers=headers,
+    )
+    # Aucune action n'est proposée : l'id_compte n'appartient pas au client.
+    assert reponse.json()["actions"] == []
+
+
+def test_jarvis_propose_creer_un_compte(client, monkeypatch):
+    headers = _register_and_login(client, "jarvis.action.compte@example.com")
+
+    def fausse_reponse(system_prompt, historique, question):
+        return _reponse_groq(actions=[{
+            "type": "CREER_COMPTE", "nom": "Épargne vacances", "type_compte": "EPARGNE",
+            "devise": "XAF", "solde_initial": 20000,
+        }])
+
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", fausse_reponse)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Crée-moi un compte épargne vacances avec 20000"},
+        headers=headers,
+    )
+    action = reponse.json()["actions"][0]
+    assert action["type_action"] == "CREER_COMPTE"
+
+    confirmation = client.post(f"/api/v1/jarvis/actions/{action['id_action']}/confirmer", headers=headers)
+    assert confirmation.status_code == 200
+
+    comptes = client.get("/api/v1/comptes", headers=headers).json()
+    assert any(c["nom"] == "Épargne vacances" for c in comptes)
+
+
+def test_jarvis_propose_une_action_via_le_canal_vocal(client, monkeypatch):
+    """
+    Le vocal transcrit puis appelle le même poser_question() que le texte
+    (voir poser_question_vocale) — les actions proposées doivent donc
+    apparaître à l'identique dans la réponse vocale, et rester exécutables
+    via /jarvis/actions/{id}/confirmer comme n'importe quelle action issue
+    du chat écrit.
+    """
+    headers = _register_and_login(client, "jarvis.action.vocal@example.com")
+    compte = client.post(
+        "/api/v1/comptes", json={"nom": "MOMO", "type": "MOBILE_MONEY", "solde_initial": 50000}, headers=headers
+    ).json()
+    categorie = next(
+        c for c in client.get("/api/v1/categories", headers=headers).json() if c["type"] == "DEPENSE"
+    )
+
+    monkeypatch.setattr(jarvis_service, "_transcrire_audio", lambda *a, **k: "J'ai dépensé 2000 pour manger")
+    monkeypatch.setattr(
+        jarvis_service, "_appeler_groq",
+        lambda *a, **k: _reponse_groq(actions=[{
+            "type": "CREER_TRANSACTION", "id_compte": compte["id_compte"],
+            "id_categorie": categorie["id_categorie"], "montant": 2000, "type_transaction": "DEPENSE",
+        }]),
+    )
+    monkeypatch.setattr(jarvis_service, "_synthetiser_voix", lambda texte: b"FAUX_AUDIO_WAV")
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages/vocal",
+        files={"audio": ("question.wav", b"contenu audio factice", "audio/wav")},
+        headers=headers,
+    )
+    assert reponse.status_code == 201
+    body = reponse.json()
+    assert body["canal"] == "VOCAL"
+    assert len(body["actions"]) == 1
+    action = body["actions"][0]
+    assert action["type_action"] == "CREER_TRANSACTION"
+    assert action["statut"] == "EN_ATTENTE"
+
+    # Rejouée via GET (comme le fait le frontend après un message vocal) :
+    # l'action proposée doit toujours être là.
+    detail = client.get(f"/api/v1/jarvis/conversations/{conversation['id_conversation']}", headers=headers).json()
+    action_dans_historique = detail["messages"][1]["actions"][0]
+    assert action_dans_historique["id_action"] == action["id_action"]
+
+    confirmation = client.post(f"/api/v1/jarvis/actions/{action['id_action']}/confirmer", headers=headers)
+    assert confirmation.status_code == 200
+    assert confirmation.json()["statut"] == "EXECUTE"
+
+    transactions = client.get("/api/v1/transactions", headers=headers).json()
+    depense = next(t for t in transactions if t["type"] == "DEPENSE")
+    assert Decimal(depense["montant"]) == Decimal("2000")
+
+
+def test_jarvis_annuler_une_action_empeche_toute_execution(client, monkeypatch):
+    headers = _register_and_login(client, "jarvis.action.annuler@example.com")
+    compte = client.post(
+        "/api/v1/comptes", json={"nom": "MOMO", "type": "MOBILE_MONEY", "solde_initial": 50000}, headers=headers
+    ).json()
+    categorie = next(
+        c for c in client.get("/api/v1/categories", headers=headers).json() if c["type"] == "DEPENSE"
+    )
+
+    monkeypatch.setattr(
+        jarvis_service, "_appeler_groq",
+        lambda *a, **k: _reponse_groq(actions=[{
+            "type": "CREER_TRANSACTION", "id_compte": compte["id_compte"],
+            "id_categorie": categorie["id_categorie"], "montant": 2000, "type_transaction": "DEPENSE",
+        }]),
+    )
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "J'ai dépensé 2000 pour manger"},
+        headers=headers,
+    )
+    action = reponse.json()["actions"][0]
+
+    annulation = client.post(f"/api/v1/jarvis/actions/{action['id_action']}/annuler", headers=headers)
+    assert annulation.status_code == 200
+    assert annulation.json()["statut"] == "ANNULE"
+
+    # Seul le DEPOT_INITIAL du compte existe — la dépense annulée n'a jamais été créée.
+    transactions = client.get("/api/v1/transactions", headers=headers).json()
+    assert len(transactions) == 1
+    assert transactions[0]["type"] == "DEPOT_INITIAL"
+
+    confirmation_apres_annulation = client.post(
+        f"/api/v1/jarvis/actions/{action['id_action']}/confirmer", headers=headers
+    )
+    assert confirmation_apres_annulation.status_code == 404
+
+
+def test_jarvis_confirmer_une_action_expiree_la_marque_annulee(client, monkeypatch):
+    headers = _register_and_login(client, "jarvis.action.expiree@example.com")
+    compte = client.post(
+        "/api/v1/comptes", json={"nom": "MOMO", "type": "MOBILE_MONEY", "solde_initial": 50000}, headers=headers
+    ).json()
+    categorie = next(
+        c for c in client.get("/api/v1/categories", headers=headers).json() if c["type"] == "DEPENSE"
+    )
+
+    monkeypatch.setattr(
+        jarvis_service, "_appeler_groq",
+        lambda *a, **k: _reponse_groq(actions=[{
+            "type": "CREER_TRANSACTION", "id_compte": compte["id_compte"],
+            "id_categorie": categorie["id_categorie"], "montant": 2000, "type_transaction": "DEPENSE",
+        }]),
+    )
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "J'ai dépensé 2000 pour manger"},
+        headers=headers,
+    )
+    id_action = reponse.json()["actions"][0]["id_action"]
+
+    import uuid
+    from datetime import datetime, timedelta
+    from app.modules.jarvis.models import ActionIA
+    session = TestingSessionLocal()
+    try:
+        action_db = session.query(ActionIA).filter(ActionIA.id_action == uuid.UUID(id_action)).first()
+        action_db.date_expiration = datetime.utcnow() - timedelta(minutes=1)
+        session.commit()
+    finally:
+        session.close()
+
+    confirmation = client.post(f"/api/v1/jarvis/actions/{id_action}/confirmer", headers=headers)
+    assert confirmation.status_code == 400
+
+    # Seul le DEPOT_INITIAL du compte existe — l'action expirée n'a jamais été exécutée.
+    transactions = client.get("/api/v1/transactions", headers=headers).json()
+    assert len(transactions) == 1
+    assert transactions[0]["type"] == "DEPOT_INITIAL"
 
 
 def test_poser_question_sur_conversation_introuvable_renvoie_404(client, monkeypatch):

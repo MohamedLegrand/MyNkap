@@ -195,6 +195,14 @@ export interface Rapport {
   date_generation: string;
 }
 
+export interface ActionIA {
+  id_action: string;
+  type_action: 'CREER_TRANSACTION' | 'CREER_COMPTE';
+  resume: string;
+  statut: 'EN_ATTENTE' | 'EXECUTE' | 'ANNULE';
+  date_expiration: string | null;
+}
+
 export interface JarvisMessage {
   id_message: string;
   type: 'QUESTION' | 'REPONSE';
@@ -205,6 +213,7 @@ export interface JarvisMessage {
   peut_se_permettre: boolean | null;
   montant_suggere: number | null;
   conseil_supplementaire: string | null;
+  actions: ActionIA[];
   date_creation: string;
 }
 

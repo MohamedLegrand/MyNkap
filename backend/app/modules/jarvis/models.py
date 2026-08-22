@@ -51,25 +51,35 @@ class Message(Base):
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     conversation = relationship("Conversation", back_populates="messages")
+    actions = relationship("ActionIA", back_populates="message", cascade="all, delete-orphan")
 
 
 class ActionIA(Base):
     """
-    Action proposée par l'assistant IA (créer/modifier/supprimer une
-    ressource) et exécutée uniquement après confirmation explicite du
-    client via un confirmation_token à usage unique.
+    Action proposée par l'assistant IA (créer une transaction ou un compte)
+    et exécutée uniquement après confirmation explicite du client — JARVIS
+    ne modifie jamais de donnée financière de sa propre initiative, voir
+    jarvis.service.confirmer_action.
     """
     __tablename__ = "actions_ia"
 
     id_action = Column(Uuid, primary_key=True, default=uuid.uuid4)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
     id_message = Column(Uuid, ForeignKey("messages.id_message"), nullable=False)
-    type_action = Column(String, nullable=False)  # CREER, MODIFIER, SUPPRIMER
+    type_action = Column(String, nullable=False)  # CREER_TRANSACTION, CREER_COMPTE
+    # Paramètres de l'action, sérialisés en JSON (id_compte, montant...) —
+    # jamais exécutés tels quels : revalidés via les schémas Pydantic des
+    # modules cibles au moment de la confirmation (voir service.confirmer_action).
     donnees_cible = Column(String, nullable=True)
+    # Résumé lisible ("Dépense de 2000 XAF (Alimentation) sur MOMO"), calculé
+    # une fois à la proposition à partir des vrais noms de compte/catégorie
+    # — jamais reconstruit depuis le texte libre du fournisseur IA, pour ne
+    # jamais afficher un nom halluciné au client.
+    resume = Column(String, nullable=False)
     confirmation_token = Column(String, nullable=True, unique=True)
-    statut = Column(String, default="EN_ATTENTE", nullable=False)  # EN_ATTENTE, CONFIRME, ANNULE, EXECUTE
+    statut = Column(String, default="EN_ATTENTE", nullable=False)  # EN_ATTENTE, EXECUTE, ANNULE
     date_expiration = Column(DateTime, nullable=True)
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     client = relationship("Client", back_populates="actions_ia")
-    message = relationship("Message")
+    message = relationship("Message", back_populates="actions")
