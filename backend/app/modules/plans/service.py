@@ -6,18 +6,20 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.modules.audit.service import enregistrer_action
+from app.modules.comptes import service as comptes_service
+from app.modules.comptes.models import CompteFinancier
 from app.modules.notifications import service as notifications_service
-from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan, PrixPlanDevise, Retrait
+from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan, PrixPlanDevise
 from app.modules.dettes.models import Dette
 from app.modules.epargne.models import ObjectifEpargne
 from app.modules.tontines.models import Tontine
-from app.modules.transactions.models import TransactionRecurrente, TemplateTransaction
+from app.modules.transactions.models import Transaction, TransactionRecurrente, TemplateTransaction
 from app.modules.jarvis.models import Conversation
 
 logger = logging.getLogger(__name__)
 
 DUREE_CYCLE = {"MENSUEL": timedelta(days=30), "ANNUEL": timedelta(days=365)}
-DUREE_ESSAI_GRATUIT = timedelta(days=30)
+DUREE_ESSAI_GRATUIT = timedelta(days=7)
 
 
 class PlanIntrouvableError(Exception):
@@ -58,14 +60,6 @@ class EssaiInactifError(Exception):
     """Le client n'est pas (ou plus) en période d'essai — rien à confirmer."""
 
 
-class SoldeInsuffisantError(Exception):
-    """
-    Le solde disponible du wallet marchand HR-Skills Pay est insuffisant
-    pour ce retrait (ou le wallet est gelé) — distinct d'une panne : le
-    montant demandé est simplement trop élevé pour le moment.
-    """
-
-
 def lister_plans(db: Session) -> List[Plan]:
     return db.query(Plan).order_by(Plan.prix_mensuel.asc()).all()
 
@@ -98,7 +92,7 @@ def creer_abonnement_gratuit(db: Session, id_client: int) -> Abonnement:
 
 def creer_abonnement_essai(db: Session, id_client: int) -> Abonnement:
     """
-    Essai gratuit de 30 jours à l'inscription : accès complet (plan
+    Essai gratuit de 7 jours à l'inscription : accès complet (plan
     PREMIUM, JARVIS inclus) sans paiement ni engagement. Pas de commit ici
     : appelé dans la même transaction SQL que la création du Client (voir
     auth.services.creer_client), pour que le compte naisse déjà avec un
@@ -124,12 +118,13 @@ def creer_abonnement_essai(db: Session, id_client: int) -> Abonnement:
 def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
     """
     Recalcule le statut à la lecture — jamais de tâche planifiée pour ça
-    (même principe que Budget/Épargne). Depuis l'intégration HR-Skills Pay,
-    aucun renouvellement n'est simulé : simuler un "succès" sans avoir
-    réellement tenté de débiter le client serait mensonger. À l'échéance,
-    l'abonnement revient donc systématiquement à GRATUIT — le
-    renouvellement automatique réel (relancer un Cash-In au bon moment)
-    reste un chantier séparé, pas encore construit.
+    (même principe que Budget/Épargne). À l'échéance d'un plan payant avec
+    renouvellement_auto actif, tente d'abord un renouvellement réel en
+    débitant le compte Abonnement dédié du client (voir
+    _tenter_renouvellement_auto) — jamais un "succès" simulé sans débit
+    réel. Si le renouvellement échoue (pas de compte, solde insuffisant)
+    ou ne s'applique pas (essai, renouvellement_auto désactivé),
+    l'abonnement revient à GRATUIT comme avant.
     """
     abonnement = db.query(Abonnement).filter(Abonnement.id_client == id_client).first()
     if abonnement is None:
@@ -141,6 +136,13 @@ def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
         return abonnement
 
     if abonnement.date_fin is not None and abonnement.date_fin <= datetime.utcnow():
+        if (
+            abonnement.cycle_facturation is not None
+            and abonnement.renouvellement_auto
+            and _tenter_renouvellement_auto(db, id_client, abonnement)
+        ):
+            return abonnement
+
         plan_gratuit = _obtenir_plan_gratuit(db)
         abonnement.id_plan = plan_gratuit.id_plan
         abonnement.statut = "ACTIF"
@@ -150,6 +152,71 @@ def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
         db.refresh(abonnement)
 
     return abonnement
+
+
+def _tenter_renouvellement_auto(db: Session, id_client: int, abonnement: Abonnement) -> bool:
+    """
+    Tente de renouveler l'abonnement payant à l'identique (même plan, même
+    cycle) en débitant le compte Abonnement dédié du client (voir
+    comptes.service.creer_compte_abonnement) plutôt que de relancer un
+    Cash-In HR-Skills Pay : le client l'a rechargé à l'avance (voir module
+    recharges), donc le débit est un mouvement interne, synchrone, sans
+    aller-retour Mobile Money. Renvoie False sans rien modifier si le
+    compte est introuvable/inactif ou son solde insuffisant — l'appelant
+    (obtenir_abonnement_actif) fait alors redescendre le client vers
+    GRATUIT.
+    """
+    plan = abonnement.plan
+    montant = plan.prix_mensuel if abonnement.cycle_facturation == "MENSUEL" else plan.prix_annuel
+
+    compte = (
+        db.query(CompteFinancier)
+        .filter(
+            CompteFinancier.id_client == id_client,
+            CompteFinancier.type == "ABONNEMENT",
+            CompteFinancier.est_actif.is_(True),
+        )
+        .order_by(CompteFinancier.date_creation.asc())
+        .with_for_update()
+        .first()
+    )
+    if compte is None or not compte.est_suffisant(montant):
+        return False
+
+    comptes_service.debiter_compte(compte, montant)
+    db.add(Transaction(
+        id_client=id_client,
+        id_compte=compte.id_compte,
+        id_categorie=None,
+        montant=montant,
+        description=f"Renouvellement automatique — plan {plan.nom} ({abonnement.cycle_facturation.lower()})",
+        type="RENOUVELLEMENT_ABONNEMENT",
+    ))
+
+    abonnement.date_debut = datetime.utcnow()
+    abonnement.date_fin = datetime.utcnow() + DUREE_CYCLE[abonnement.cycle_facturation]
+    abonnement.statut = "ACTIF"
+
+    db.commit()
+    db.refresh(abonnement)
+    comptes_service.synchroniser_compte_principal(db, id_client)
+
+    enregistrer_action(
+        db,
+        id_utilisateur=id_client,
+        action="RENOUVELLEMENT_AUTO_ABONNEMENT",
+        ressource="Abonnement",
+        id_ressource=abonnement.id_abonnement,
+        donnees_apres={"plan": plan.nom, "montant": str(montant)},
+    )
+    notifications_service.creer_notification_client(
+        db, id_client, "ABONNEMENT_RENOUVELE",
+        "Abonnement renouvelé automatiquement",
+        f"Votre abonnement {plan.nom} a été renouvelé pour un cycle "
+        f"{abonnement.cycle_facturation.lower()} : {montant} {compte.devise} ont été débités "
+        "de votre compte Abonnement.",
+    )
+    return True
 
 
 def compter_donnees_verrouillees(db: Session, id_client: int) -> dict:
@@ -497,8 +564,8 @@ def verifier_paiements_en_attente(db: Session) -> int:
     return nb_traites
 
 
-# --- Retrait (Cash-Out HR-Skills Pay) — réservé aux Superadmins, jamais
-# initié par un client (voir admin.service.initier_retrait_admin) ---
+# --- Solde du wallet marchand (lecture seule — aucun retrait n'est
+# possible depuis MyNkap, voir admin.service.obtenir_solde_wallet_admin) ---
 
 def obtenir_solde_wallet() -> dict:
     """
@@ -528,111 +595,3 @@ def obtenir_solde_wallet() -> dict:
     }
 
 
-def _appeler_hrpay_cash_out(
-    phone_number: str, operator: str, montant, devise: str, country: str, id_retrait: int
-) -> str:
-    """
-    Isolée pour rester mockable en test — miroir de _appeler_hrpay_cash_in,
-    mais pour un Cash-Out (l'argent sort du wallet marchand MyNkap au lieu
-    d'y entrer). idempotency_key basé sur id_retrait : un retry réseau ne
-    débite jamais deux fois le wallet.
-    """
-    with _client_hrpay() as client:
-        tx = client.cash_out.mobile_money(
-            phone_number=phone_number,
-            operator=operator.upper(),
-            amount=int(montant),
-            currency=devise,
-            country=hrpay.Country(country),
-            idempotency_key=f"retrait-{id_retrait}",
-        )
-    return tx.reference
-
-
-def initier_retrait(
-    db: Session, id_administrateur: int, montant, devise: str, phone_number: str, operator: str, pays: str
-) -> Retrait:
-    """
-    Démarre un Cash-Out HR-Skills Pay réel. Le contrôle d'accès
-    (niveau_acces == 3) vit dans admin.service.initier_retrait_admin, pas
-    ici — cette fonction fait confiance à son appelant, comme
-    initier_paiement_plan fait confiance au router pour l'authentification.
-    """
-    devise_resolue = _valider_pays_et_operateur(pays, operator)
-    if devise != devise_resolue:
-        raise PaysOuOperateurInvalideError(
-            f"La devise {devise} ne correspond pas au pays {pays} (attendu {devise_resolue})."
-        )
-
-    retrait = Retrait(
-        id_administrateur=id_administrateur,
-        montant=montant,
-        devise=devise,
-        pays=pays,
-        phone_number=phone_number,
-        operator=operator,
-        reference_hrpay="",
-        statut="PENDING",
-    )
-    db.add(retrait)
-    db.flush()  # pour obtenir id_retrait avant l'appel externe (idempotency_key)
-
-    try:
-        reference = _appeler_hrpay_cash_out(phone_number, operator, montant, devise, pays, retrait.id_retrait)
-    except hrpay.WalletError as erreur:
-        # Solde disponible insuffisant, ou wallet gelé — distinct d'une
-        # panne : le montant demandé est simplement trop élevé pour le
-        # moment, pas la peine de réessayer sans changer le montant.
-        db.rollback()
-        logger.warning("Retrait refusé (solde insuffisant) : message=%s", erreur.message)
-        raise SoldeInsuffisantError(str(erreur))
-    except hrpay.ValidationError as erreur:
-        db.rollback()
-        logger.warning(
-            "Retrait rejeté (validation HR-Skills Pay) : statut=%s message=%s issues=%s",
-            erreur.status_code, erreur.message, erreur.issues,
-        )
-        raise PaiementRefuseError("Le numéro de téléphone fourni est invalide.")
-    except hrpay.HRPayError as erreur:
-        db.rollback()
-        logger.warning(
-            "Échec HR-Skills Pay (cash-out) : type=%s code=%s statut=%s message=%s",
-            type(erreur).__name__, erreur.code, erreur.status_code, erreur.message,
-        )
-        raise ServicePaiementIndisponibleError(str(erreur))
-
-    retrait.reference_hrpay = reference
-    db.commit()
-    db.refresh(retrait)
-    return retrait
-
-
-def verifier_retraits_en_attente(db: Session) -> int:
-    """
-    Tâche planifiée (voir worker.tasks) : interroge HR-Skills Pay pour
-    chaque retrait encore PENDING et finalise son statut — miroir de
-    verifier_paiements_en_attente, mais sans changement de plan à
-    appliquer (un retrait ne modifie jamais l'abonnement d'un client).
-    """
-    en_attente = db.query(Retrait).filter(Retrait.statut == "PENDING").all()
-    nb_traites = 0
-
-    for retrait in en_attente:
-        try:
-            statut = _verifier_statut_hrpay(retrait.reference_hrpay)
-        except hrpay.HRPayError:
-            continue  # on retentera au prochain passage
-
-        if statut == "SUCCESS":
-            retrait.statut = "SUCCESS"
-            retrait.date_confirmation = datetime.utcnow()
-            db.commit()
-            nb_traites += 1
-        elif statut in ("FAILED", "REFUNDED"):
-            retrait.statut = "FAILED"
-            db.commit()
-            nb_traites += 1
-        # PENDING ou HOLD (revue AML) : rien à faire, on retentera au
-        # prochain passage.
-
-    return nb_traites

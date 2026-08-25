@@ -93,7 +93,9 @@ def test_admin_obtenir_detail_client(client, db_session):
     detail = res.json()
     assert detail["id_client"] == id_client
     assert detail["email"] == "detail.test@mynkap.cm"
-    assert detail["nombre_comptes_financiers"] == 0
+    # Le compte Abonnement est créé automatiquement à l'inscription (voir
+    # comptes.service.creer_compte_abonnement).
+    assert detail["nombre_comptes_financiers"] == 1
 
 def test_admin_desactiver_et_reactiver_client_avec_audit(client, db_session):
     admin, admin_headers = _create_admin(db_session, username="admin_status")

@@ -34,9 +34,6 @@ from app.modules.admin.schemas import (
     AdminPlanCreate,
     AdminPlanUpdate,
     AdminResetPasswordResponse,
-    AdminRetraitItem,
-    AdminRetraitListResponse,
-    AdminRetraitRequest,
     AdminSecuriteKPIs,
     AdminStatusUpdate,
     AdminTransactionSuspecteDetail,
@@ -63,7 +60,7 @@ from app.modules.comptes.models import CompteFinancier, ComptePrincipal
 from app.modules.dettes.models import Dette
 from app.modules.avis.models import Avis
 from app.modules.plans import service as plans_service
-from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan, Retrait
+from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
 from app.modules.transactions.models import Transaction
 
 # --- Services de Gestion des Clients ---
@@ -1208,30 +1205,14 @@ def valider_paiement_manuel_admin(
         date_confirmation=paiement.date_confirmation,
     )
 
-# --- Services Wallet & Retraits (Cash-Out HR-Skills Pay) ---
-
-def _to_retrait_item(retrait: Retrait, username_administrateur: str) -> AdminRetraitItem:
-    return AdminRetraitItem(
-        id_retrait=retrait.id_retrait,
-        id_administrateur=retrait.id_administrateur,
-        username_administrateur=username_administrateur,
-        montant=Decimal(str(retrait.montant)),
-        devise=retrait.devise,
-        pays=retrait.pays,
-        phone_number=retrait.phone_number,
-        operator=retrait.operator,
-        reference_hrpay=retrait.reference_hrpay,
-        statut=retrait.statut,
-        date_creation=retrait.date_creation,
-        date_confirmation=retrait.date_confirmation,
-    )
+# --- Service Wallet (lecture seule) ---
 
 def obtenir_solde_wallet_admin(admin: Administrateur) -> AdminWalletSoldeOut:
     """
     Solde réel du wallet marchand HR-Skills Pay (l'argent collecté via les
-    abonnements payés). Réservé aux Modérateurs/Superadmins (niveau 2+) :
-    visible, mais seul un Superadmin peut ensuite le retirer (voir
-    initier_retrait_admin).
+    abonnements payés) — informatif uniquement, aucun retrait n'est
+    possible depuis l'espace admin. Réservé aux Modérateurs/Superadmins
+    (niveau 2+).
     """
     if admin.niveau_acces < 2:
         raise HTTPException(
@@ -1333,83 +1314,6 @@ def moderer_avis_admin(
 
     client = db.query(Client).filter(Client.id_client == avis.id_client).first()
     return _to_avis_item(avis, client.email if client else "inconnu@mynkap.cm", f"{client.first_name} {client.last_name}".strip() if client else "Inconnu")
-
-def lister_retraits_admin(
-    db: Session,
-    statut: Optional[str] = None,
-    page: int = 1,
-    page_size: int = 20,
-) -> AdminRetraitListResponse:
-    """Historique des retraits (Cash-Out) — réservé aux Modérateurs/Superadmins (niveau 2+)."""
-    query = db.query(Retrait, Administrateur.username).join(
-        Administrateur, Retrait.id_administrateur == Administrateur.id_administrateur
-    )
-    if statut:
-        query = query.filter(Retrait.statut.ilike(f"%{statut.strip()}%"))
-
-    total = query.count()
-    offset = (page - 1) * page_size
-    results = query.order_by(Retrait.date_creation.desc()).offset(offset).limit(page_size).all()
-
-    items = [_to_retrait_item(retrait, username) for retrait, username in results]
-    return AdminRetraitListResponse(total=total, page=page, page_size=page_size, items=items)
-
-def initier_retrait_admin(
-    db: Session,
-    admin: Administrateur,
-    payload: AdminRetraitRequest,
-    request: Optional[Request] = None,
-) -> AdminRetraitItem:
-    """
-    Démarre un retrait (Cash-Out) réel depuis le wallet marchand MyNkap vers
-    un numéro Mobile Money. Réservé exclusivement aux Superadmins
-    (niveau 3) : c'est la seule action de tout le système qui fait sortir
-    de l'argent réel, contrairement au reste de l'application qui n'est
-    que du suivi déclaratif.
-    Garde-fous : niveau 3 requis. Tracé dans l'AuditLog.
-    """
-    if admin.niveau_acces < 3:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès refusé : le retrait est réservé aux Superadmins (niveau 3).",
-        )
-
-    try:
-        retrait = plans_service.initier_retrait(
-            db, admin.id_administrateur, payload.montant, payload.devise,
-            payload.phone_number, payload.operator, payload.pays,
-        )
-    except plans_service.PaysOuOperateurInvalideError as erreur:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
-    except plans_service.SoldeInsuffisantError:
-        raise HTTPException(
-            status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="Solde disponible insuffisant dans le wallet pour ce retrait.",
-        )
-    except plans_service.PaiementRefuseError as erreur:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
-    except plans_service.ServicePaiementIndisponibleError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Le service de paiement est momentanément indisponible, veuillez réessayer.",
-        )
-
-    enregistrer_action(
-        db,
-        id_utilisateur=admin.id_administrateur,
-        action="ADMIN_INITIER_RETRAIT",
-        ressource="RETRAIT",
-        id_ressource=retrait.id_retrait,
-        donnees_avant=None,
-        donnees_apres={
-            "montant": str(retrait.montant), "devise": retrait.devise, "pays": retrait.pays,
-            "phone_number": retrait.phone_number, "operator": retrait.operator,
-            "raison": payload.raison,
-        },
-        request=request,
-    )
-
-    return _to_retrait_item(retrait, admin.username)
 
 # --- Services de Surveillance Anti-Fraude ---
 

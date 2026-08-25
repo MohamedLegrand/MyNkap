@@ -19,6 +19,23 @@ def _register_and_login(client, email="comptes.test@example.com", mot_de_passe="
     return {"Authorization": f"Bearer {access_token}"}
 
 
+def test_inscription_cree_automatiquement_un_compte_abonnement(client):
+    """
+    Voir comptes.service.creer_compte_abonnement, appelée depuis
+    auth.services.creer_client : chaque nouveau client démarre avec un
+    compte dédié au paiement des abonnements, rechargeable comme les
+    autres, utilisé pour le renouvellement automatique.
+    """
+    headers = _register_and_login(client, "abonnement.auto@example.com")
+
+    comptes = client.get("/api/v1/comptes", headers=headers).json()
+    comptes_abonnement = [c for c in comptes if c["type"] == "ABONNEMENT"]
+    assert len(comptes_abonnement) == 1
+    assert comptes_abonnement[0]["nom"] == "Abonnement"
+    assert Decimal(comptes_abonnement[0]["solde"]) == 0
+    assert comptes_abonnement[0]["est_actif"] is True
+
+
 def test_creer_compte_sans_solde_initial(client):
     headers = _register_and_login(client)
 
@@ -67,12 +84,13 @@ def test_lister_comptes_exclut_les_inactifs_par_defaut(client):
     id_compte_a = r1.json()["id_compte"]
     client.delete(f"/api/v1/comptes/{id_compte_a}", headers=headers)
 
+    # Le compte Abonnement est créé automatiquement à l'inscription (voir
+    # comptes.service.creer_compte_abonnement) et reste toujours actif ici.
     actifs = client.get("/api/v1/comptes", headers=headers).json()
-    assert len(actifs) == 1
-    assert actifs[0]["nom"] == "Compte B"
+    assert {c["nom"] for c in actifs} == {"Compte B", "Abonnement"}
 
     tous = client.get("/api/v1/comptes?include_inactifs=true", headers=headers).json()
-    assert len(tous) == 2
+    assert {c["nom"] for c in tous} == {"Compte A", "Compte B", "Abonnement"}
 
 
 def test_obtenir_compte_dun_autre_client_renvoie_404(client):

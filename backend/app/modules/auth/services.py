@@ -14,6 +14,7 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from app.modules.auth.models import Utilisateur, Client, Profile, RefreshToken
 from app.modules.auth.schemas import UserRegister, UserLogin, ResetPasswordRequest
 from app.modules.budgets import service as budgets_service
+from app.modules.comptes import service as comptes_service
 from app.modules.notifications import service as notifications_service
 from app.modules.plans import service as plans_service
 
@@ -69,13 +70,18 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
     # budgets.service.creer_categories_par_defaut)
     budgets_service.creer_categories_par_defaut(db, db_client.id_client)
 
-    # 5. Essai gratuit de 30 jours, accès complet (voir plans.service.creer_abonnement_essai)
+    # 5. Essai gratuit de 7 jours, accès complet (voir plans.service.creer_abonnement_essai)
     plans_service.creer_abonnement_essai(db, db_client.id_client)
+
+    # 6. Compte financier dédié au paiement des abonnements — rechargeable
+    # par le client et utilisé pour le renouvellement automatique (voir
+    # comptes.service.creer_compte_abonnement)
+    comptes_service.creer_compte_abonnement(db, db_client.id_client)
 
     db.commit()
     db.refresh(db_client)
 
-    # 6. Notifications (bienvenue côté client, signalement côté admin) —
+    # 7. Notifications (bienvenue côté client, signalement côté admin) —
     # non bloquantes pour l'inscription : gérées dans leur propre commit,
     # après que le client existe déjà réellement en base.
     notifications_service.creer_notification_client(

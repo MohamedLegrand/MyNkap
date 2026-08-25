@@ -27,9 +27,6 @@ from app.modules.admin.schemas import (
     AdminPlanCreate,
     AdminPlanUpdate,
     AdminResetPasswordResponse,
-    AdminRetraitItem,
-    AdminRetraitListResponse,
-    AdminRetraitRequest,
     AdminStatusUpdate,
     AdminTransactionSuspecteDetail,
     AdminTransactionSuspecteItem,
@@ -522,7 +519,8 @@ def validate_paiement_manuel(
         db, admin=current_admin, id_paiement=id_paiement, payload=payload, request=request
     )
 
-# --- Endpoints Wallet & Retraits (Cash-Out HR-Skills Pay) ---
+# --- Endpoint Wallet (lecture seule — les retraits ne sont plus possibles
+# depuis l'espace admin, voir plans.service pour l'historique du retrait) ---
 
 @router.get(
     "/wallet/solde",
@@ -539,43 +537,6 @@ def get_wallet_solde(
     """
     return service.obtenir_solde_wallet_admin(current_admin)
 
-@router.get(
-    "/retraits",
-    response_model=AdminRetraitListResponse,
-    summary="Lister l'historique des retraits (Cash-Out) HR-Skills Pay (Admin)"
-)
-def list_retraits(
-    statut: Optional[str] = Query(None, description="Filtre par statut de retrait (PENDING, SUCCESS, FAILED)"),
-    page: int = Query(1, ge=1, description="Numéro de page"),
-    page_size: int = Query(20, ge=1, le=100, description="Taille de page"),
-    current_admin: Administrateur = Depends(get_current_active_admin),
-    db: Session = Depends(get_db),
-):
-    """
-    Consulter l'historique des retraits effectués depuis le wallet marchand
-    MyNkap. Réservé aux administrateurs de niveau 2 minimum.
-    """
-    return service.lister_retraits_admin(db, statut=statut, page=page, page_size=page_size)
-
-@router.post(
-    "/retraits",
-    response_model=AdminRetraitItem,
-    status_code=status.HTTP_201_CREATED,
-    summary="Démarrer un retrait (Cash-Out) réel depuis le wallet marchand MyNkap (Admin)"
-)
-def create_retrait(
-    payload: AdminRetraitRequest,
-    request: Request,
-    current_admin: Administrateur = Depends(get_current_active_admin),
-    db: Session = Depends(get_db),
-):
-    """
-    Démarre un Cash-Out HR-Skills Pay réel vers un numéro Mobile Money.
-    Réservé exclusivement aux Superadmins (niveau 3) : c'est la seule
-    action de tout le système qui fait sortir de l'argent réel.
-    Tracé dans l'AuditLog.
-    """
-    return service.initier_retrait_admin(db, admin=current_admin, payload=payload, request=request)
 
 # --- Endpoints Modération des Avis Clients ---
 

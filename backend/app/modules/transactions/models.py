@@ -45,6 +45,9 @@ IMPACT_PAR_TYPE = {
     "ENCAISSEMENT_CREANCE": 1,
     "DETTE_RECUE": 1,
     "CREANCE_ACCORDEE": -1,
+    # Débit automatique du compte Abonnement dédié lors d'un renouvellement
+    # sans intervention du client (voir plans.service._tenter_renouvellement_auto).
+    "RENOUVELLEMENT_ABONNEMENT": -1,
 }
 
 
@@ -64,11 +67,11 @@ class Transaction(OperationFinanciere, Base):
     id_compte = Column(Integer, ForeignKey("comptes_financiers.id_compte"), nullable=False, index=True)
     # Nullable : les écritures système (DEPOT_INITIAL, ANNULATION,
     # REMBOURSEMENT_DETTE, ENCAISSEMENT_CREANCE, DETTE_RECUE,
-    # CREANCE_ACCORDEE) n'ont pas de catégorie de dépense/revenu — seules
-    # DEPENSE/REVENU en ont une pour le suivi budget.
+    # CREANCE_ACCORDEE, RENOUVELLEMENT_ABONNEMENT) n'ont pas de catégorie de
+    # dépense/revenu — seules DEPENSE/REVENU en ont une pour le suivi budget.
     id_categorie = Column(Integer, ForeignKey("categories.id_categorie"), nullable=True, index=True)
     # DEPENSE, REVENU, DEPOT_INITIAL, ANNULATION, REMBOURSEMENT_DETTE,
-    # ENCAISSEMENT_CREANCE, DETTE_RECUE, CREANCE_ACCORDEE
+    # ENCAISSEMENT_CREANCE, DETTE_RECUE, CREANCE_ACCORDEE, RENOUVELLEMENT_ABONNEMENT
     type = Column(String, nullable=False)
     est_recurrente = Column(Boolean, default=False)
     est_suspecte = Column(Boolean, default=False)

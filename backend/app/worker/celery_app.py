@@ -33,10 +33,10 @@ celery_app.conf.beat_schedule = {
         # direct, contrairement aux snapshots mensuels/récurrences.
         "schedule": 20.0,
     },
-    "verifier-retraits-abonnement": {
-        "task": "app.worker.tasks.verifier_retraits_abonnement",
-        # Même cadence que les paiements entrants — un Superadmin attend la
-        # confirmation de son retrait en direct.
+    "verifier-recharges-compte": {
+        "task": "app.worker.tasks.verifier_recharges_compte",
+        # Même cadence que les paiements d'abonnement — un client attend la
+        # confirmation de sa recharge en direct.
         "schedule": 20.0,
     },
 }

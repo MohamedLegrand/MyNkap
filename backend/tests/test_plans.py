@@ -3,8 +3,11 @@ from decimal import Decimal
 
 import hrpay
 
+from app.modules.comptes.models import CompteFinancier
+from app.modules.comptes import service as comptes_service
 from app.modules.plans import service as plans_service
 from app.modules.plans.models import Abonnement, PaiementAbonnement
+from app.modules.transactions.models import Transaction
 from tests.conftest import se_connecter
 
 
@@ -31,7 +34,7 @@ def test_lister_plans_est_public(client):
     assert noms == {"GRATUIT", "ESSENTIEL", "PREMIUM"}
 
 
-def test_nouveau_client_a_un_essai_premium_de_30_jours(client):
+def test_nouveau_client_a_un_essai_premium_de_7_jours(client):
     headers = _register_and_login(client, "plans.nouveau@example.com")
     reponse = client.get("/api/v1/abonnement", headers=headers)
     assert reponse.status_code == 200
@@ -44,7 +47,7 @@ def test_nouveau_client_a_un_essai_premium_de_30_jours(client):
     date_fin = datetime.fromisoformat(body["date_fin"])
     duree_restante = date_fin - datetime.utcnow()
     # Marge de quelques minutes pour absorber le temps d'exécution du test.
-    assert timedelta(days=29, hours=23) < duree_restante <= timedelta(days=30)
+    assert timedelta(days=6, hours=23) < duree_restante <= timedelta(days=7)
 
     # L'essai donne un accès complet, y compris JARVIS.
     assert client.get("/api/v1/dettes", headers=headers).status_code == 200
@@ -54,7 +57,7 @@ def test_nouveau_client_a_un_essai_premium_de_30_jours(client):
 
 def test_client_gratuit_est_bloque_sur_les_fonctionnalites_payantes(client):
     headers = _register_and_login(client, "plans.gratuit@example.com")
-    # Le client démarre sur l'essai PREMIUM (30 jours) ; on redescend
+    # Le client démarre sur l'essai PREMIUM (7 jours) ; on redescend
     # explicitement sur GRATUIT pour tester le blocage des fonctionnalités
     # payantes une fois l'essai terminé.
     client.post("/api/v1/abonnement/changer-plan", json={"nom_plan": "GRATUIT"}, headers=headers)
@@ -269,9 +272,11 @@ def test_obtenir_paiement_dun_autre_client_renvoie_404(client, monkeypatch):
 
 def test_abonnement_expire_revient_a_gratuit_meme_avec_renouvellement_auto(client, db_session):
     """
-    Depuis l'intégration HR-Skills Pay, aucun renouvellement n'est simulé
-    — même avec renouvellement_auto=True, l'échéance dépassée fait
-    toujours revenir à GRATUIT (voir plans.service.obtenir_abonnement_actif).
+    Même avec renouvellement_auto=True, l'échéance dépassée fait revenir à
+    GRATUIT si le compte Abonnement dédié n'a pas un solde suffisant pour
+    couvrir le renouvellement — voir
+    test_renouvellement_auto_debite_le_compte_abonnement_et_prolonge_labonnement
+    pour le cas où le solde suffit (plans.service.obtenir_abonnement_actif).
     """
     headers = _register_and_login(client, "plans.expiration@example.com")
     id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
@@ -287,6 +292,49 @@ def test_abonnement_expire_revient_a_gratuit_meme_avec_renouvellement_auto(clien
     assert client.get("/api/v1/dettes", headers=headers).status_code == 403
 
 
+def test_renouvellement_auto_debite_le_compte_abonnement_et_prolonge_labonnement(client, db_session):
+    """
+    Si le compte Abonnement dédié (créé automatiquement à l'inscription,
+    voir comptes.service.creer_compte_abonnement) a un solde suffisant à
+    l'échéance, le renouvellement automatique débite ce compte et prolonge
+    l'abonnement au lieu de revenir à GRATUIT.
+    """
+    headers = _register_and_login(client, "plans.renouvellement@example.com")
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    plans_service.changer_plan(db_session, id_client, "ESSENTIEL", "MENSUEL")
+
+    compte_abonnement = (
+        db_session.query(CompteFinancier)
+        .filter(CompteFinancier.id_client == id_client, CompteFinancier.type == "ABONNEMENT")
+        .first()
+    )
+    assert compte_abonnement is not None
+    comptes_service.crediter_compte(compte_abonnement, Decimal("5000"))
+    db_session.commit()
+
+    abonnement = db_session.query(Abonnement).filter(Abonnement.id_client == id_client).first()
+    abonnement.date_fin = datetime.utcnow() - timedelta(days=1)
+    db_session.commit()
+
+    reponse = client.get("/api/v1/abonnement", headers=headers)
+    body = reponse.json()
+    assert body["plan"]["nom"] == "ESSENTIEL"
+    assert body["cycle_facturation"] == "MENSUEL"
+    assert datetime.fromisoformat(body["date_fin"]) > datetime.utcnow()
+
+    db_session.refresh(compte_abonnement)
+    assert compte_abonnement.solde == Decimal("4000")  # 5000 - 1000 (prix mensuel ESSENTIEL)
+
+    debit = (
+        db_session.query(Transaction)
+        .filter(Transaction.id_compte == compte_abonnement.id_compte, Transaction.type == "RENOUVELLEMENT_ABONNEMENT")
+        .first()
+    )
+    assert debit is not None
+    assert debit.montant == Decimal("1000")
+    assert debit.id_categorie is None
+
+
 def test_annuler_renouvellement_garde_lacces_jusqua_la_date_fin(client, db_session):
     headers = _register_and_login(client, "plans.annulation@example.com")
     id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
@@ -300,7 +348,7 @@ def test_annuler_renouvellement_garde_lacces_jusqua_la_date_fin(client, db_sessi
 
 
 def test_notifier_essai_cree_une_notification_pendant_lessai(client):
-    # _register_and_login démarre déjà sur l'essai PREMIUM de 30 jours.
+    # _register_and_login démarre déjà sur l'essai PREMIUM de 7 jours.
     headers = _register_and_login(client, "plans.notifieressai@example.com")
 
     reponse = client.post("/api/v1/abonnement/notifier-essai", headers=headers)

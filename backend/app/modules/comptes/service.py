@@ -43,6 +43,8 @@ def lister_comptes(
     (montant_actuel). `include_epargne_dediees=True` les fait réapparaître
     si besoin (ex : usage administratif).
     """
+    get_or_create_compte_abonnement(db, id_client)
+
     query = db.query(CompteFinancier).filter(CompteFinancier.id_client == id_client)
     if not include_inactifs:
         query = query.filter(CompteFinancier.est_actif.is_(True))
@@ -115,6 +117,57 @@ def creer_compte(db: Session, id_client: int, payload: CompteFinancierCreate) ->
 
     synchroniser_compte_principal(db, id_client)
     return nouveau_compte
+
+
+NOM_COMPTE_ABONNEMENT = "Abonnement"
+
+
+def creer_compte_abonnement(db: Session, id_client: int) -> CompteFinancier:
+    """
+    Crée le compte financier dédié au paiement des abonnements. Pas de
+    commit ici : appelée dans la même transaction SQL que la création du
+    Client (voir auth.services.creer_client), même principe que
+    plans.service.creer_abonnement_essai. Rechargeable comme n'importe quel
+    autre compte (voir module recharges) et utilisé comme source de débit
+    pour le renouvellement automatique de l'abonnement payant (voir
+    plans.service._tenter_renouvellement_auto).
+    """
+    compte = CompteFinancier(
+        id_client=id_client,
+        nom=NOM_COMPTE_ABONNEMENT,
+        type="ABONNEMENT",
+        devise="XAF",
+        solde=0,
+        est_actif=True,
+    )
+    db.add(compte)
+    db.flush()
+    return compte
+
+
+def get_or_create_compte_abonnement(db: Session, id_client: int) -> CompteFinancier:
+    """
+    Filet de sécurité pour les clients déjà existants avant l'ajout de
+    cette fonctionnalité (même principe que
+    plans.service.obtenir_abonnement_actif pour l'Abonnement lui-même) —
+    commit immédiat, contrairement à creer_compte_abonnement. S'il existe
+    déjà plusieurs comptes ABONNEMENT pour ce client (créés avant ce filet
+    de sécurité, ou manuellement), renvoie toujours le plus ancien pour
+    rester déterministe.
+    """
+    compte = (
+        db.query(CompteFinancier)
+        .filter(CompteFinancier.id_client == id_client, CompteFinancier.type == "ABONNEMENT")
+        .order_by(CompteFinancier.date_creation.asc())
+        .first()
+    )
+    if compte is not None:
+        return compte
+
+    compte = creer_compte_abonnement(db, id_client)
+    db.commit()
+    db.refresh(compte)
+    return compte
 
 
 def modifier_compte(db: Session, compte: CompteFinancier, payload: CompteFinancierUpdate) -> CompteFinancier:

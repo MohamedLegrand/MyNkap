@@ -158,10 +158,10 @@
     "summary_suffix_one": "spread across {{count}} active account.",
     "summary_suffix_other": "spread across {{count}} active accounts.",
     "ask_jarvis": "Ask JARVIS",
-    "trial_banner_bold": "You're enjoying Premium for free for 30 days",
+    "trial_banner_bold": "You're enjoying Premium for free for 7 days",
     "trial_banner_part1": ", JARVIS and all features included, still",
     "trial_banner_part2": "After that, you'll automatically return to the Free plan.",
-    "enjoy_premium": "Enjoy my 30 days of Premium",
+    "enjoy_premium": "Enjoy my 7 days of Premium",
     "access_confirmed": "Access confirmed, notification sent",
     "avis_prompt": "Your opinion matters: tell us what you think of MyNkap.",
     "avis_cta": "Leave a review",
@@ -183,10 +183,12 @@
     "error_reconcile": "Reconciliation failed.",
     "create": "Create account",
     "balance": "Balance",
+    "recharge": "Top up",
     "transfer_between": "Transfer between accounts",
     "actions_aria": "Account actions",
     "reconcile": "Reconcile balance",
-    "title": "Account"
+    "title": "Account",
+    "abonnement_description": "Account created automatically to pay for your MyNkap subscription: top it up so your plan renews on its own, with nothing to do at each due date."
   },
   "transfers": {
     "detail_title": "Transfer details",
@@ -495,7 +497,7 @@
     "s2_title": "2. Plans and pricing",
     "s2_body": "MyNkap offers a FREE plan as well as two paid plans, ESSENTIEL and PREMIUM, unlocking additional features (debt tracking, savings, recurring transactions, tontines, advanced financial analysis, JARVIS assistant depending on the plan). Prices, shown in CFA Francs (XAF), are displayed in the app before any subscription and can be billed monthly or annually.",
     "s3_title": "3. Free trial",
-    "s3_body": "Every new account gets a 30-day free trial giving access to all features. At the end of this period, the account automatically reverts to the FREE plan unless a paid plan is subscribed.",
+    "s3_body": "Every new account gets a 7-day free trial giving access to all features. At the end of this period, the account automatically reverts to the FREE plan unless a paid plan is subscribed.",
     "s4_title": "4. Payment terms",
     "s4_body": "Payments for paid subscriptions are processed via Mobile Money through our payment provider, HR-Skills Pay. MyNkap does not store any payment information (Mobile Money number, PIN code): this is processed directly by the payment provider.",
     "s5_title": "5. Renewal",
@@ -989,6 +991,19 @@
       "no_amount_charged": "No amount was charged. You can try again.",
       "retry": "Retry"
     },
+    "recharge": {
+      "title": "Top up an account",
+      "target_account": "Account to top up:",
+      "current_balance": "Current balance:",
+      "amount_label": "Amount to top up",
+      "submit": "Top up",
+      "error_start": "Unable to start the top-up.",
+      "waiting_title": "Confirmation pending",
+      "waiting_desc": "Approve the top-up request for {{montant}} {{devise}} received on your phone ({{phone}}) via {{operateur}}.",
+      "confirmed": "Top-up confirmed!",
+      "confirmed_desc": "The amount has been credited to the {{compte}} account.",
+      "rejected": "Top-up declined or expired"
+    },
     "avis": {
       "title": "Leave a review",
       "error_load": "Unable to load your review.",
@@ -1109,15 +1124,6 @@
         "features_label": "Included features",
         "feature_tontines": "Tontines & Group Savings",
         "submit_create": "Create plan"
-      },
-      "retrait": {
-        "title": "New withdrawal",
-        "available_balance": "Available balance:",
-        "amount_label": "Amount to withdraw",
-        "reason_label": "Reason (optional)",
-        "reason_placeholder": "e.g. Monthly revenue withdrawal",
-        "submit": "Start withdrawal",
-        "error_generic": "Unable to start this withdrawal."
       },
       "transaction_suspecte": {
         "title": "Investigation record",
@@ -1241,15 +1247,6 @@
         "th_action_single": "Action",
         "validate_manually": "Validate manually",
         "none_payments": "No payments.",
-        "tab_retraits": "Withdrawals",
-        "new_retrait": "New withdrawal",
-        "wallet_available": "Available balance",
-        "wallet_pending": "Pending (48h)",
-        "wallet_status": "Wallet status",
-        "wallet_frozen": "Frozen",
-        "wallet_active": "Active",
-        "th_requested_by": "Requested by",
-        "none_retraits": "No withdrawals yet.",
         "access_badges": {
           "dettes": "Debts",
           "epargne": "Savings",

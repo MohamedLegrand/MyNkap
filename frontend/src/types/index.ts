@@ -20,7 +20,7 @@ export interface TokenResponse {
 export interface CompteFinancier {
   id_compte: number;
   nom: string;
-  type: 'MOBILE_MONEY' | 'BANCAIRE' | 'ESPECES' | 'EPARGNE';
+  type: 'MOBILE_MONEY' | 'BANCAIRE' | 'ESPECES' | 'EPARGNE' | 'ABONNEMENT';
   solde: number;
   devise: string;
   est_actif: boolean;
@@ -332,6 +332,18 @@ export interface PaiementAbonnement {
   date_confirmation: string | null;
 }
 
+export interface RechargeCompte {
+  id_recharge: number;
+  id_compte: number;
+  montant: number;
+  devise: string;
+  pays: string;
+  reference_hrpay: string;
+  statut: 'PENDING' | 'SUCCESS' | 'FAILED';
+  date_creation: string;
+  date_confirmation: string | null;
+}
+
 // --- Types Admin ---
 export interface AdminClientListItem {
   id_client: number;
@@ -471,28 +483,6 @@ export interface AdminPaiementItem {
   montant: number;
   devise: string;
   pays: string;
-  reference_hrpay: string;
-  statut: 'PENDING' | 'SUCCESS' | 'FAILED';
-  date_creation: string;
-  date_confirmation: string | null;
-}
-
-export interface AdminWalletSolde {
-  devise: string;
-  disponible: number;
-  en_attente: number;
-  gele: boolean;
-}
-
-export interface AdminRetraitItem {
-  id_retrait: number;
-  id_administrateur: number;
-  username_administrateur: string;
-  montant: number;
-  devise: string;
-  pays: string;
-  phone_number: string;
-  operator: string;
   reference_hrpay: string;
   statut: 'PENDING' | 'SUCCESS' | 'FAILED';
   date_creation: string;

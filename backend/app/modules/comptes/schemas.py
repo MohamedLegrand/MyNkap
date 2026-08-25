@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
-TypeCompte = Literal["MOBILE_MONEY", "BANCAIRE", "ESPECES", "EPARGNE"]
+TypeCompte = Literal["MOBILE_MONEY", "BANCAIRE", "ESPECES", "EPARGNE", "ABONNEMENT"]
 
 
 class CompteFinancierCreate(BaseModel):

@@ -157,10 +157,10 @@
     "summary_suffix_one": "répartis sur {{count}} compte actif.",
     "summary_suffix_other": "répartis sur {{count}} comptes actifs.",
     "ask_jarvis": "Demander à JARVIS",
-    "trial_banner_bold": "Vous bénéficiez de Premium gratuitement pendant 30 jours",
+    "trial_banner_bold": "Vous bénéficiez de Premium gratuitement pendant 7 jours",
     "trial_banner_part1": ", JARVIS et toutes les fonctionnalités inclus, encore",
     "trial_banner_part2": "Passé ce délai, retour automatique à l'offre Gratuite.",
-    "enjoy_premium": "Profiter de mes 30 jours Premium",
+    "enjoy_premium": "Profiter de mes 7 jours Premium",
     "access_confirmed": "Accès confirmé, notification envoyée",
     "avis_prompt": "Votre avis compte : dites-nous ce que vous pensez de MyNkap.",
     "avis_cta": "Laisser un avis",
@@ -182,10 +182,12 @@
     "error_reconcile": "Réconciliation impossible.",
     "create": "Créer compte",
     "balance": "Solde",
+    "recharge": "Recharger",
     "transfer_between": "Transférer entre comptes",
     "actions_aria": "Actions du compte",
     "reconcile": "Réconcilier le solde",
-    "title": "Compte"
+    "title": "Compte",
+    "abonnement_description": "Compte créé automatiquement pour payer votre abonnement MyNkap : rechargez-le pour que votre plan se renouvelle tout seul, sans rien faire à chaque échéance."
   },
   "transfers": {
     "detail_title": "Détail du transfert",
@@ -494,7 +496,7 @@
     "s2_title": "2. Plans et tarifs",
     "s2_body": "MyNkap propose un plan GRATUIT ainsi que deux plans payants, ESSENTIEL et PREMIUM, débloquant des fonctionnalités supplémentaires (suivi des dettes, épargne, transactions récurrentes, tontines, analyse financière avancée, assistant JARVIS selon le plan). Les tarifs, exprimés en Francs CFA (XAF), sont affichés dans l'application avant toute souscription et peuvent être réglés en facturation mensuelle ou annuelle.",
     "s3_title": "3. Essai gratuit",
-    "s3_body": "Chaque nouveau compte bénéficie d'un essai gratuit de 30 jours donnant accès à l'ensemble des fonctionnalités. À l'issue de cette période, le compte repasse automatiquement au plan GRATUIT sauf souscription à un plan payant.",
+    "s3_body": "Chaque nouveau compte bénéficie d'un essai gratuit de 7 jours donnant accès à l'ensemble des fonctionnalités. À l'issue de cette période, le compte repasse automatiquement au plan GRATUIT sauf souscription à un plan payant.",
     "s4_title": "4. Modalités de paiement",
     "s4_body": "Les paiements des abonnements payants sont traités par Mobile Money via notre prestataire de paiement HR-Skills Pay. MyNkap ne stocke aucune information de paiement (numéro Mobile Money, code PIN) : celles-ci sont traitées directement par le prestataire de paiement.",
     "s5_title": "5. Renouvellement",
@@ -988,6 +990,19 @@
       "no_amount_charged": "Aucun montant n'a été débité. Vous pouvez réessayer.",
       "retry": "Réessayer"
     },
+    "recharge": {
+      "title": "Recharger un compte",
+      "target_account": "Compte à recharger :",
+      "current_balance": "Solde actuel :",
+      "amount_label": "Montant à recharger",
+      "submit": "Recharger",
+      "error_start": "Impossible de démarrer la recharge.",
+      "waiting_title": "Confirmation en attente",
+      "waiting_desc": "Validez la demande de recharge de {{montant}} {{devise}} reçue sur votre téléphone ({{phone}}) via {{operateur}}.",
+      "confirmed": "Recharge confirmée !",
+      "confirmed_desc": "Le montant a bien été crédité sur le compte {{compte}}.",
+      "rejected": "Recharge refusée ou expirée"
+    },
     "avis": {
       "title": "Laisser un avis",
       "error_load": "Impossible de charger votre avis.",
@@ -1108,15 +1123,6 @@
         "features_label": "Accès fonctionnels inclus",
         "feature_tontines": "Tontines & Épargne Collective",
         "submit_create": "Créer le plan"
-      },
-      "retrait": {
-        "title": "Nouveau retrait",
-        "available_balance": "Solde disponible :",
-        "amount_label": "Montant à retirer",
-        "reason_label": "Raison (facultatif)",
-        "reason_placeholder": "ex: Retrait mensuel du chiffre d'affaires",
-        "submit": "Démarrer le retrait",
-        "error_generic": "Impossible de démarrer ce retrait."
       },
       "transaction_suspecte": {
         "title": "Fiche d'investigation",
@@ -1240,15 +1246,6 @@
         "th_action_single": "Action",
         "validate_manually": "Valider manuellement",
         "none_payments": "Aucun paiement.",
-        "tab_retraits": "Retraits",
-        "new_retrait": "Nouveau retrait",
-        "wallet_available": "Solde disponible",
-        "wallet_pending": "En attente (48h)",
-        "wallet_status": "État du wallet",
-        "wallet_frozen": "Gelé",
-        "wallet_active": "Actif",
-        "th_requested_by": "Demandé par",
-        "none_retraits": "Aucun retrait effectué.",
         "access_badges": {
           "dettes": "Dettes",
           "epargne": "Épargne",

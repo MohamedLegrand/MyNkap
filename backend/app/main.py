@@ -24,6 +24,7 @@ from app.modules.admin.router import router as admin_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.tontines.router import router as tontines_router
 from app.modules.avis.router import router as avis_router
+from app.modules.recharges.router import router as recharges_router
 
 
 # Le schéma de la base de données est géré par Alembic (voir backend/alembic/).
@@ -70,6 +71,7 @@ app.include_router(admin_router, prefix=settings.API_V1_STR)
 app.include_router(notifications_router, prefix=settings.API_V1_STR)
 app.include_router(tontines_router, prefix=settings.API_V1_STR)
 app.include_router(avis_router, prefix=settings.API_V1_STR)
+app.include_router(recharges_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

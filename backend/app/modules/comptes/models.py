@@ -42,7 +42,10 @@ class CompteFinancier(Base):
     id_compte = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
     nom = Column(String, nullable=False)
-    type = Column(String, nullable=False)  # MOBILE_MONEY, BANCAIRE, ESPECES, EPARGNE
+    # MOBILE_MONEY, BANCAIRE, ESPECES, EPARGNE, ABONNEMENT (compte dédié au
+    # paiement des abonnements, créé automatiquement à l'inscription — voir
+    # comptes.service.creer_compte_abonnement)
+    type = Column(String, nullable=False)
     solde = Column(Numeric(14, 2), default=0, nullable=False)
     devise = Column(String, default="XAF", nullable=False)
     est_actif = Column(Boolean, default=True)

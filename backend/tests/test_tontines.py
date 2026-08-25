@@ -195,7 +195,7 @@ def test_tontine_reservee_au_palier_essentiel(client):
     access_token = se_connecter(client, "tontine.gratuit@example.com", "motdepasse123").json()["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
     id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
-    # Nouvel inscrit = essai PREMIUM 30 jours (voir creer_abonnement_essai) :
+    # Nouvel inscrit = essai PREMIUM 7 jours (voir creer_abonnement_essai) :
     # il faut redescendre explicitement à GRATUIT pour tester le refus.
     _upgrader_plan(id_client, "GRATUIT")
 

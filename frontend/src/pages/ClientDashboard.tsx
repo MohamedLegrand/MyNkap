@@ -39,6 +39,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
 import { PlanUpgradeModal } from '../components/PlanUpgradeModal';
 import { CompteModal } from '../components/CompteModal';
+import { RechargeCompteModal } from '../components/RechargeCompteModal';
 import { TransfertModal } from '../components/TransfertModal';
 import { CategorieModal } from '../components/CategorieModal';
 import { BudgetModal } from '../components/BudgetModal';
@@ -79,6 +80,7 @@ const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
   BANCAIRE: <Building2 className="h-4 w-4" />,
   ESPECES: <Coins className="h-4 w-4" />,
   EPARGNE: <PiggyBank className="h-4 w-4" />,
+  ABONNEMENT: <Crown className="h-4 w-4" />,
 };
 
 const formatMontant = (valeur: number) => `${valeur.toLocaleString('fr-FR')} XAF`;
@@ -96,6 +98,7 @@ export const ClientDashboard: React.FC = () => {
   const [essaiConfirme, setEssaiConfirme] = useState(false);
   const [isCompteModalOpen, setIsCompteModalOpen] = useState(false);
   const [compteEnEdition, setCompteEnEdition] = useState<CompteFinancier | null>(null);
+  const [compteARecharger, setCompteARecharger] = useState<CompteFinancier | null>(null);
   const [compteActionError, setCompteActionError] = useState<string | null>(null);
   const [isTransfertModalOpen, setIsTransfertModalOpen] = useState(false);
   const [isCategorieModalOpen, setIsCategorieModalOpen] = useState(false);
@@ -454,7 +457,7 @@ export const ClientDashboard: React.FC = () => {
       </div>
       )}
 
-      {/* Bandeau d'annonce de l'essai Premium 30 jours — l'accès est déjà
+      {/* Bandeau d'annonce de l'essai Premium 7 jours — l'accès est déjà
           actif automatiquement dès l'inscription (voir creer_abonnement_essai
           côté backend) ; ce bandeau ne fait que le mettre clairement en
           avant, en plus du badge discret de la barre latérale. */}
@@ -619,6 +622,7 @@ export const ClientDashboard: React.FC = () => {
               nomCompte={nomCompte}
               onOpenCompteModal={() => setIsCompteModalOpen(true)}
               onOpenTransfertModal={() => setIsTransfertModalOpen(true)}
+              onOpenRechargeModal={(c) => setCompteARecharger(c)}
               onEditCompte={(c) => setCompteEnEdition(c)}
               onReconcilierCompte={reconcilierCompte}
               onToggleActifCompte={toggleActifCompte}
@@ -791,6 +795,11 @@ export const ClientDashboard: React.FC = () => {
                           </div>
                         </div>
 
+                        {acc.type === 'ABONNEMENT' && (
+                          <p className="text-[11px] text-muted-foreground leading-snug bg-muted/40 rounded-lg px-2.5 py-1.5">
+                            {t('accounts.abonnement_description')}
+                          </p>
+                        )}
                         <div className="pt-1 flex items-baseline justify-between border-t border-border/40">
                           <span className="text-xs font-medium text-muted-foreground">{t('accounts.balance')}</span>
                           <span className="text-lg font-black text-foreground tabular-nums">
@@ -971,6 +980,14 @@ export const ClientDashboard: React.FC = () => {
         compte={compteEnEdition}
       />
 
+      {/* Modal de recharge Mobile Money d'un compte */}
+      <RechargeCompteModal
+        isOpen={compteARecharger !== null}
+        compte={compteARecharger}
+        onClose={() => setCompteARecharger(null)}
+        onSuccess={chargerDonnees}
+      />
+
       {/* Modal de transfert entre comptes */}
       <TransfertModal
         isOpen={isTransfertModalOpen}
@@ -1105,6 +1122,7 @@ interface ComptesSectionProps {
   nomCompte: (idCompte: number) => string;
   onOpenCompteModal: () => void;
   onOpenTransfertModal: () => void;
+  onOpenRechargeModal: (compte: CompteFinancier) => void;
   onEditCompte: (compte: CompteFinancier) => void;
   onReconcilierCompte: (compte: CompteFinancier) => void;
   onToggleActifCompte: (compte: CompteFinancier) => void;
@@ -1171,7 +1189,7 @@ const MenuActions: React.FC<{ items: ActionMenuItem[]; ariaLabel?: string }> = (
 };
 
 const ComptesSection: React.FC<ComptesSectionProps> = ({
-  comptes, transferts, nomCompte, onOpenCompteModal, onOpenTransfertModal, onEditCompte, onReconcilierCompte, onToggleActifCompte,
+  comptes, transferts, nomCompte, onOpenCompteModal, onOpenTransfertModal, onOpenRechargeModal, onEditCompte, onReconcilierCompte, onToggleActifCompte,
   onOpenTransfertDetail, actionError,
 }) => {
   const { t } = useTranslation();
@@ -1246,10 +1264,24 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
                   ]}
                 />
               </div>
+              {acc.type === 'ABONNEMENT' && (
+                <p className="text-[11px] text-muted-foreground leading-snug bg-muted/40 rounded-lg px-2.5 py-1.5">
+                  {t('accounts.abonnement_description')}
+                </p>
+              )}
               <div className="pt-1 flex items-baseline justify-between border-t border-border/40">
                 <span className="text-xs font-medium text-muted-foreground">{t('accounts.balance')}</span>
                 <span className="text-lg font-black text-foreground tabular-nums">{formatMontant(Number(acc.solde))}</span>
               </div>
+              {acc.est_actif && (
+                <button
+                  onClick={() => onOpenRechargeModal(acc)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
+                >
+                  <Wallet className="h-3.5 w-3.5" />
+                  <span>{t('accounts.recharge')}</span>
+                </button>
+              )}
             </div>
           ))}
         </div>

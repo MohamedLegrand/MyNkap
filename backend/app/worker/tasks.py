@@ -1,7 +1,8 @@
 from app.core.database import SessionLocal
 from app.modules.analyse.service import generer_snapshots_mensuels_tous_clients
-from app.modules.plans.service import verifier_paiements_en_attente, verifier_retraits_en_attente
+from app.modules.plans.service import verifier_paiements_en_attente
 from app.modules.rapports.service import generer_rapport
+from app.modules.recharges.service import verifier_recharges_en_attente
 from app.modules.transactions.service import verifier_et_executer_recurrences
 from app.worker.celery_app import celery_app
 
@@ -49,16 +50,17 @@ def verifier_paiements_abonnement() -> int:
         db.close()
 
 
-@celery_app.task(name="app.worker.tasks.verifier_retraits_abonnement")
-def verifier_retraits_abonnement() -> int:
+@celery_app.task(name="app.worker.tasks.verifier_recharges_compte")
+def verifier_recharges_compte() -> int:
     """
     Tâche planifiée toutes les ~20s (voir celery_app.beat_schedule) :
-    interroge HR-Skills Pay pour chaque retrait (Cash-Out) PENDING et
-    finalise son statut — voir plans.service.verifier_retraits_en_attente.
+    interroge HR-Skills Pay pour chaque recharge de compte PENDING et
+    crédite réellement le compte dès que SUCCESS est confirmé — voir
+    recharges.service.
     """
     db = SessionLocal()
     try:
-        return verifier_retraits_en_attente(db)
+        return verifier_recharges_en_attente(db)
     finally:
         db.close()
 
