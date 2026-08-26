@@ -400,6 +400,47 @@ def test_annuler_renouvellement_garde_lacces_jusqua_la_date_fin(client, db_sessi
     assert client.get("/api/v1/dettes", headers=headers).status_code == 200
 
 
+def test_reactiver_renouvellement_apres_annulation_le_remet_actif(client, db_session):
+    headers = _register_and_login(client, "plans.reactivation@example.com")
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    plans_service.changer_plan(db_session, id_client, "ESSENTIEL", "MENSUEL")
+
+    client.post("/api/v1/abonnement/annuler-renouvellement", headers=headers)
+
+    reactivation = client.post("/api/v1/abonnement/reactiver-renouvellement", headers=headers)
+    assert reactivation.status_code == 200
+    body = reactivation.json()
+    assert body["renouvellement_auto"] is True
+    assert body["statut"] == "ACTIF"
+
+    # Le débit automatique reprend bien à l'échéance (voir
+    # _tenter_renouvellement_auto) — pas seulement le flag mis à jour.
+    compte_abonnement = (
+        db_session.query(CompteFinancier)
+        .filter(CompteFinancier.id_client == id_client, CompteFinancier.type == "ABONNEMENT")
+        .first()
+    )
+    comptes_service.crediter_compte(compte_abonnement, Decimal("5000"))
+    db_session.commit()
+
+    abonnement = db_session.query(Abonnement).filter(Abonnement.id_client == id_client).first()
+    abonnement.date_fin = datetime.utcnow() - timedelta(days=1)
+    db_session.commit()
+
+    reponse = client.get("/api/v1/abonnement", headers=headers)
+    assert reponse.json()["plan"]["nom"] == "ESSENTIEL"
+
+
+def test_reactiver_renouvellement_sans_abonnement_payant_est_refuse(client):
+    """_register_and_login démarre sur l'essai PREMIUM (cycle_facturation
+    None, comme le plan GRATUIT) — l'essai ne débite jamais (voir
+    creer_abonnement_essai), rien à réactiver."""
+    headers = _register_and_login(client, "plans.reactivation.gratuit@example.com")
+
+    reponse = client.post("/api/v1/abonnement/reactiver-renouvellement", headers=headers)
+    assert reponse.status_code == 400
+
+
 def test_notifier_essai_cree_une_notification_pendant_lessai(client):
     # _register_and_login démarre déjà sur l'essai PREMIUM de 7 jours.
     headers = _register_and_login(client, "plans.notifieressai@example.com")

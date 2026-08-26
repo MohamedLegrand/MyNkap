@@ -187,7 +187,9 @@
     "actions_aria": "Actions du compte",
     "reconcile": "Réconcilier le solde",
     "title": "Compte",
-    "abonnement_description": "Compte créé automatiquement pour payer votre abonnement MyNkap : rechargez-le pour que votre plan se renouvelle tout seul, sans rien faire à chaque échéance."
+    "abonnement_description": "Compte créé automatiquement pour payer votre abonnement MyNkap : rechargez-le pour que votre plan se renouvelle tout seul, sans rien faire à chaque échéance.",
+    "auto_renewal_on": "Renouvellement auto activé",
+    "auto_renewal_off": "Renouvellement auto désactivé"
   },
   "transfers": {
     "detail_title": "Détail du transfert",

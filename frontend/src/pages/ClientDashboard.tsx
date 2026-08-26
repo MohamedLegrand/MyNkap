@@ -383,6 +383,18 @@ export const ClientDashboard: React.FC = () => {
     }
   };
 
+  const toggleRenouvellementAuto = async () => {
+    if (!abonnement) return;
+    setCompteActionError(null);
+    try {
+      const chemin = abonnement.renouvellement_auto ? 'annuler-renouvellement' : 'reactiver-renouvellement';
+      await api.request(`/abonnement/${chemin}`, { method: 'POST' });
+      chargerAbonnement();
+    } catch (err) {
+      setCompteActionError(err instanceof Error ? err.message : t('common.error_action'));
+    }
+  };
+
   const transactionsRecentes = [...transactions]
     .sort((a, b) => new Date(b.date_creation).getTime() - new Date(a.date_creation).getTime())
     .slice(0, 5);
@@ -620,12 +632,14 @@ export const ClientDashboard: React.FC = () => {
               comptes={comptes}
               transferts={transferts}
               nomCompte={nomCompte}
+              abonnement={abonnement}
               onOpenCompteModal={() => setIsCompteModalOpen(true)}
               onOpenTransfertModal={() => setIsTransfertModalOpen(true)}
               onOpenRechargeModal={(c) => setCompteARecharger(c)}
               onEditCompte={(c) => setCompteEnEdition(c)}
               onReconcilierCompte={reconcilierCompte}
               onToggleActifCompte={toggleActifCompte}
+              onToggleRenouvellementAuto={toggleRenouvellementAuto}
               onOpenTransfertDetail={(id) => setTransfertDetailId(id)}
               actionError={compteActionError}
             />
@@ -1120,12 +1134,14 @@ interface ComptesSectionProps {
   comptes: CompteFinancier[];
   transferts: Transfert[];
   nomCompte: (idCompte: number) => string;
+  abonnement: Abonnement | null;
   onOpenCompteModal: () => void;
   onOpenTransfertModal: () => void;
   onOpenRechargeModal: (compte: CompteFinancier) => void;
   onEditCompte: (compte: CompteFinancier) => void;
   onReconcilierCompte: (compte: CompteFinancier) => void;
   onToggleActifCompte: (compte: CompteFinancier) => void;
+  onToggleRenouvellementAuto: () => void;
   onOpenTransfertDetail: (idTransfert: number) => void;
   actionError: string | null;
 }
@@ -1189,8 +1205,8 @@ const MenuActions: React.FC<{ items: ActionMenuItem[]; ariaLabel?: string }> = (
 };
 
 const ComptesSection: React.FC<ComptesSectionProps> = ({
-  comptes, transferts, nomCompte, onOpenCompteModal, onOpenTransfertModal, onOpenRechargeModal, onEditCompte, onReconcilierCompte, onToggleActifCompte,
-  onOpenTransfertDetail, actionError,
+  comptes, transferts, nomCompte, abonnement, onOpenCompteModal, onOpenTransfertModal, onOpenRechargeModal, onEditCompte, onReconcilierCompte, onToggleActifCompte,
+  onToggleRenouvellementAuto, onOpenTransfertDetail, actionError,
 }) => {
   const { t } = useTranslation();
   const comptesActifs = comptes.filter((c) => c.est_actif);
@@ -1280,6 +1296,19 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
                 >
                   <Wallet className="h-3.5 w-3.5" />
                   <span>{t('accounts.recharge')}</span>
+                </button>
+              )}
+              {acc.type === 'ABONNEMENT' && acc.est_actif && abonnement?.cycle_facturation && (
+                <button
+                  onClick={onToggleRenouvellementAuto}
+                  className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                    abonnement.renouvellement_auto
+                      ? 'bg-forest-500/10 text-forest-600 dark:text-forest-400 hover:bg-forest-500/20'
+                      : 'bg-muted text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  {abonnement.renouvellement_auto ? <Power className="h-3.5 w-3.5" /> : <PowerOff className="h-3.5 w-3.5" />}
+                  <span>{abonnement.renouvellement_auto ? t('accounts.auto_renewal_on') : t('accounts.auto_renewal_off')}</span>
                 </button>
               )}
             </div>

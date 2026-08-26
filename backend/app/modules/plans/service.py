@@ -63,6 +63,10 @@ class EssaiInactifError(Exception):
     """Le client n'est pas (ou plus) en période d'essai — rien à confirmer."""
 
 
+class AucunAbonnementPayantError(Exception):
+    """Le renouvellement automatique ne concerne que les plans payants en cours (voir reactiver_renouvellement)."""
+
+
 def lister_plans(db: Session) -> List[Plan]:
     return db.query(Plan).order_by(Plan.prix_mensuel.asc()).all()
 
@@ -383,6 +387,26 @@ def annuler_renouvellement(db: Session, id_client: int) -> Abonnement:
     abonnement = obtenir_abonnement_actif(db, id_client)
     abonnement.renouvellement_auto = False
     abonnement.statut = "ANNULE"
+    db.commit()
+    db.refresh(abonnement)
+    return abonnement
+
+
+def reactiver_renouvellement(db: Session, id_client: int) -> Abonnement:
+    """
+    Réactive le renouvellement automatique après une annulation (voir
+    annuler_renouvellement) — le prochain débit aura lieu normalement à la
+    date_fin déjà fixée, sur le compte Abonnement du client (voir
+    _tenter_renouvellement_auto). Ne s'applique qu'à un abonnement payant
+    déjà en cours (cycle_facturation défini) : le plan GRATUIT n'expire
+    jamais et l'essai ne débite jamais (voir creer_abonnement_essai) — il
+    n'y a rien à réactiver pour l'un ou l'autre.
+    """
+    abonnement = obtenir_abonnement_actif(db, id_client)
+    if abonnement.cycle_facturation is None:
+        raise AucunAbonnementPayantError()
+    abonnement.renouvellement_auto = True
+    abonnement.statut = "ACTIF"
     db.commit()
     db.refresh(abonnement)
     return abonnement

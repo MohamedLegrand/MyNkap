@@ -188,7 +188,9 @@
     "actions_aria": "Account actions",
     "reconcile": "Reconcile balance",
     "title": "Account",
-    "abonnement_description": "Account created automatically to pay for your MyNkap subscription: top it up so your plan renews on its own, with nothing to do at each due date."
+    "abonnement_description": "Account created automatically to pay for your MyNkap subscription: top it up so your plan renews on its own, with nothing to do at each due date.",
+    "auto_renewal_on": "Auto-renewal on",
+    "auto_renewal_off": "Auto-renewal off"
   },
   "transfers": {
     "detail_title": "Transfer details",

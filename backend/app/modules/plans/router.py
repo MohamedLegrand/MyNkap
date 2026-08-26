@@ -151,3 +151,19 @@ def annuler_renouvellement(
     """Arrête le renouvellement futur — l'accès reste actif jusqu'à la fin
     de la période déjà payée."""
     return service.annuler_renouvellement(db, client.id_client)
+
+
+@router.post("/abonnement/reactiver-renouvellement", response_model=AbonnementOut)
+def reactiver_renouvellement(
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Réactive le renouvellement automatique après une annulation — le
+    prochain débit aura lieu normalement sur le compte Abonnement."""
+    try:
+        return service.reactiver_renouvellement(db, client.id_client)
+    except service.AucunAbonnementPayantError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Aucun abonnement payant en cours à renouveler automatiquement.",
+        )
