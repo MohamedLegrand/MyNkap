@@ -71,6 +71,10 @@ class Abonnement(Base):
     cycle_facturation = Column(String, nullable=True)
     statut = Column(String, default="ESSAI", nullable=False)  # ESSAI, ACTIF, EXPIRE, ANNULE
     renouvellement_auto = Column(Boolean, default=True)
+    # Évite de renotifier chaque jour tant que l'échéance courante n'est pas
+    # passée — remis à False à chaque nouveau cycle (voir plans.service
+    # changer_plan et _tenter_renouvellement_auto).
+    rappel_renouvellement_envoye = Column(Boolean, default=False, nullable=False, server_default="false")
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     client = relationship("Client", back_populates="abonnement")

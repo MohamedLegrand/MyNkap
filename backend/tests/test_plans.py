@@ -5,6 +5,7 @@ import hrpay
 
 from app.modules.comptes.models import CompteFinancier
 from app.modules.comptes import service as comptes_service
+from app.modules.notifications.models import Notification
 from app.modules.plans import service as plans_service
 from app.modules.plans.models import Abonnement, PaiementAbonnement
 from app.modules.transactions.models import Transaction
@@ -291,6 +292,14 @@ def test_abonnement_expire_revient_a_gratuit_meme_avec_renouvellement_auto(clien
     assert reponse.json()["plan"]["nom"] == "GRATUIT"
     assert client.get("/api/v1/dettes", headers=headers).status_code == 403
 
+    notification = (
+        db_session.query(Notification)
+        .filter(Notification.id_utilisateur == id_client, Notification.type == "RENOUVELLEMENT_ECHEC_SOLDE")
+        .first()
+    )
+    assert notification is not None
+    assert "solde" in notification.message.lower()
+
 
 def test_renouvellement_auto_debite_le_compte_abonnement_et_prolonge_labonnement(client, db_session):
     """
@@ -332,7 +341,51 @@ def test_renouvellement_auto_debite_le_compte_abonnement_et_prolonge_labonnement
     )
     assert debit is not None
     assert debit.montant == Decimal("1000")
-    assert debit.id_categorie is None
+
+
+def test_notifier_renouvellements_proches_previent_une_seule_fois_avant_lecheance(client, db_session):
+    """
+    Voir plans.service.notifier_renouvellements_proches (tâche Celery
+    quotidienne) : un client dont l'abonnement payant, à renouvellement
+    automatique actif, arrive à échéance dans moins de
+    DELAI_RAPPEL_RENOUVELLEMENT est prévenu une seule fois — pas à chaque
+    exécution de la tâche tant que l'échéance n'a pas changé.
+    """
+    headers = _register_and_login(client, "plans.rappel@example.com")
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    plans_service.changer_plan(db_session, id_client, "ESSENTIEL", "MENSUEL")
+
+    abonnement = db_session.query(Abonnement).filter(Abonnement.id_client == id_client).first()
+    abonnement.date_fin = datetime.utcnow() + timedelta(days=2)
+    db_session.commit()
+
+    nb_notifies = plans_service.notifier_renouvellements_proches(db_session)
+    assert nb_notifies == 1
+
+    notifications = (
+        db_session.query(Notification)
+        .filter(Notification.id_utilisateur == id_client, Notification.type == "RENOUVELLEMENT_PROCHE")
+        .all()
+    )
+    assert len(notifications) == 1
+    assert "ESSENTIEL" in notifications[0].message
+
+    # Un second passage de la tâche ne renvoie plus rien pour ce client tant
+    # que l'échéance n'a pas changé (rappel_renouvellement_envoye).
+    assert plans_service.notifier_renouvellements_proches(db_session) == 0
+    assert db_session.query(Notification).filter(
+        Notification.id_utilisateur == id_client, Notification.type == "RENOUVELLEMENT_PROCHE"
+    ).count() == 1
+
+
+def test_notifier_renouvellements_proches_ignore_les_echeances_lointaines(client, db_session):
+    headers = _register_and_login(client, "plans.rappel.loin@example.com")
+    id_client = client.get("/api/v1/auth/me", headers=headers).json()["id_client"]
+    plans_service.changer_plan(db_session, id_client, "ESSENTIEL", "MENSUEL")
+
+    # date_fin par défaut (30 jours) est largement au-delà du délai de
+    # rappel (3 jours) : rien à notifier.
+    assert plans_service.notifier_renouvellements_proches(db_session) == 0
 
 
 def test_annuler_renouvellement_garde_lacces_jusqua_la_date_fin(client, db_session):

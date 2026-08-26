@@ -39,5 +39,11 @@ celery_app.conf.beat_schedule = {
         # confirmation de sa recharge en direct.
         "schedule": 20.0,
     },
+    "notifier-renouvellements-abonnement-proches": {
+        "task": "app.worker.tasks.notifier_renouvellements_abonnement_proches",
+        # 00h10, juste après la vérification quotidienne des récurrences
+        # (00h05) — une échéance se compte en jours, pas besoin de plus.
+        "schedule": crontab(hour=0, minute=10),
+    },
 }
 celery_app.conf.timezone = "UTC"

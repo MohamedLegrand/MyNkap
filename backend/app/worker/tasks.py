@@ -1,6 +1,6 @@
 from app.core.database import SessionLocal
 from app.modules.analyse.service import generer_snapshots_mensuels_tous_clients
-from app.modules.plans.service import verifier_paiements_en_attente
+from app.modules.plans.service import notifier_renouvellements_proches, verifier_paiements_en_attente
 from app.modules.rapports.service import generer_rapport
 from app.modules.recharges.service import verifier_recharges_en_attente
 from app.modules.transactions.service import verifier_et_executer_recurrences
@@ -61,6 +61,20 @@ def verifier_recharges_compte() -> int:
     db = SessionLocal()
     try:
         return verifier_recharges_en_attente(db)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.tasks.notifier_renouvellements_abonnement_proches")
+def notifier_renouvellements_abonnement_proches() -> int:
+    """
+    Tâche planifiée quotidiennement (voir celery_app.beat_schedule) :
+    prévient les clients dont l'abonnement payant sera bientôt débité
+    automatiquement — voir plans.service.
+    """
+    db = SessionLocal()
+    try:
+        return notifier_renouvellements_proches(db)
     finally:
         db.close()
 

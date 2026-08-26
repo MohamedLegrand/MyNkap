@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 DUREE_CYCLE = {"MENSUEL": timedelta(days=30), "ANNUEL": timedelta(days=365)}
 DUREE_ESSAI_GRATUIT = timedelta(days=7)
+# Délai avant l'échéance à partir duquel on prévient le client du prochain
+# renouvellement (voir notifier_renouvellements_proches).
+DELAI_RAPPEL_RENOUVELLEMENT = timedelta(days=3)
 
 
 class PlanIntrouvableError(Exception):
@@ -136,12 +139,23 @@ def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
         return abonnement
 
     if abonnement.date_fin is not None and abonnement.date_fin <= datetime.utcnow():
-        if (
-            abonnement.cycle_facturation is not None
-            and abonnement.renouvellement_auto
-            and _tenter_renouvellement_auto(db, id_client, abonnement)
-        ):
+        tentative_renouvellement = abonnement.cycle_facturation is not None and abonnement.renouvellement_auto
+        if tentative_renouvellement and _tenter_renouvellement_auto(db, id_client, abonnement):
             return abonnement
+
+        if tentative_renouvellement:
+            # Le renouvellement a bien été tenté (voir _tenter_renouvellement_auto)
+            # mais a échoué — compte Abonnement introuvable ou solde
+            # insuffisant. Le client doit le savoir avant de découvrir sans
+            # explication qu'il a perdu ses fonctionnalités Premium.
+            plan_precedent = abonnement.plan
+            notifications_service.creer_notification_client(
+                db, id_client, "RENOUVELLEMENT_ECHEC_SOLDE",
+                "Abonnement non renouvelé — solde insuffisant",
+                f"Le renouvellement de votre abonnement {plan_precedent.nom} n'a pas pu être effectué : "
+                "le solde de votre compte Abonnement était insuffisant. Rechargez-le pour retrouver "
+                "vos fonctionnalités Premium.",
+            )
 
         plan_gratuit = _obtenir_plan_gratuit(db)
         abonnement.id_plan = plan_gratuit.id_plan
@@ -196,6 +210,9 @@ def _tenter_renouvellement_auto(db: Session, id_client: int, abonnement: Abonnem
     abonnement.date_debut = datetime.utcnow()
     abonnement.date_fin = datetime.utcnow() + DUREE_CYCLE[abonnement.cycle_facturation]
     abonnement.statut = "ACTIF"
+    # Nouveau cycle : le rappel du précédent ne concerne plus celui-ci (voir
+    # notifier_renouvellements_proches).
+    abonnement.rappel_renouvellement_envoye = False
 
     db.commit()
     db.refresh(abonnement)
@@ -217,6 +234,46 @@ def _tenter_renouvellement_auto(db: Session, id_client: int, abonnement: Abonnem
         "de votre compte Abonnement.",
     )
     return True
+
+
+def notifier_renouvellements_proches(db: Session) -> int:
+    """
+    Tâche planifiée quotidienne (voir worker.tasks) : prévient le client
+    quelques jours avant la prochaine échéance de son abonnement payant à
+    renouvellement automatique actif, pour qu'il puisse vérifier ou
+    recharger son compte Abonnement à temps. Ne notifie qu'une fois par
+    échéance (rappel_renouvellement_envoye, remis à False à chaque nouveau
+    cycle — voir changer_plan et _tenter_renouvellement_auto).
+    """
+    seuil = datetime.utcnow() + DELAI_RAPPEL_RENOUVELLEMENT
+    a_notifier = (
+        db.query(Abonnement)
+        .filter(
+            Abonnement.cycle_facturation.isnot(None),
+            Abonnement.renouvellement_auto.is_(True),
+            Abonnement.statut == "ACTIF",
+            Abonnement.rappel_renouvellement_envoye.is_(False),
+            Abonnement.date_fin.isnot(None),
+            Abonnement.date_fin > datetime.utcnow(),
+            Abonnement.date_fin <= seuil,
+        )
+        .all()
+    )
+
+    for abonnement in a_notifier:
+        plan = abonnement.plan
+        montant = plan.prix_mensuel if abonnement.cycle_facturation == "MENSUEL" else plan.prix_annuel
+        notifications_service.creer_notification_client(
+            db, abonnement.id_client, "RENOUVELLEMENT_PROCHE",
+            "Renouvellement de votre abonnement à venir",
+            f"Votre abonnement {plan.nom} sera renouvelé le {abonnement.date_fin.strftime('%d/%m/%Y')} "
+            f"pour {montant} {plan.devise}, prélevés sur votre compte Abonnement. Vérifiez qu'il est "
+            "suffisamment approvisionné.",
+        )
+        abonnement.rappel_renouvellement_envoye = True
+
+    db.commit()
+    return len(a_notifier)
 
 
 def compter_donnees_verrouillees(db: Session, id_client: int) -> dict:
@@ -289,6 +346,9 @@ def changer_plan(
     abonnement.statut = "ACTIF"
     abonnement.date_debut = datetime.utcnow()
     abonnement.renouvellement_auto = True
+    # Nouveau cycle : le rappel du précédent (le cas échéant) ne concerne
+    # plus celui-ci (voir notifier_renouvellements_proches).
+    abonnement.rappel_renouvellement_envoye = False
 
     if nom_plan == "GRATUIT":
         abonnement.date_fin = None
