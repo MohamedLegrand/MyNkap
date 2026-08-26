@@ -38,6 +38,11 @@ class Utilisateur(Base):
     # dépassé (même principe que Budget.alerte_80/alerte_100).
     tentatives_echouees = Column(Integer, default=0, nullable=False)
     alerte_tentatives_envoyee = Column(Boolean, default=False, nullable=False)
+    # Verrouillage temporaire au-delà de SEUIL_VERROUILLAGE échecs consécutifs
+    # (voir auth.services._signaler_tentative_echouee) — ralentit une attaque
+    # par force brute distribuée sur plusieurs IP (le rate limit par IP seul
+    # ne la voit pas). NULL ou date passée = pas verrouillé.
+    verrouille_jusqua = Column(DateTime, nullable=True)
 
     __mapper_args__ = {
         "polymorphic_on": type,

@@ -376,6 +376,51 @@ def test_plusieurs_mots_de_passe_incorrects_notifient_le_client_une_seule_fois(c
     assert len(notifs_tentatives) == 1
 
 
+def test_verrouillage_apres_trop_dechecs_bloque_meme_le_bon_mot_de_passe(client, db_session):
+    """
+    Voir auth.services.SEUIL_VERROUILLAGE : au-delà d'un nombre soutenu
+    d'échecs consécutifs, le compte est verrouillé temporairement — même
+    une tentative avec le bon mot de passe est refusée tant que le verrou
+    n'a pas expiré (protège contre une force brute distribuée sur
+    plusieurs IP, que le rate limit par IP seul ne peut pas voir).
+    """
+    client.post("/api/v1/auth/register", json=_register_payload())
+
+    for _ in range(auth_services.SEUIL_VERROUILLAGE):
+        client.post(
+            "/api/v1/auth/login",
+            json={"email": "jean.dupont@example.com", "mot_de_passe": "mauvais-mot-de-passe"},
+        )
+
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    assert db_client.verrouille_jusqua is not None
+
+    reponse = se_connecter(client, "jean.dupont@example.com", "motdepasse123")
+    assert reponse.status_code == 429
+
+
+def test_le_verrouillage_expire_et_une_connexion_reussie_reinitialise_les_compteurs(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+
+    for _ in range(auth_services.SEUIL_VERROUILLAGE):
+        client.post(
+            "/api/v1/auth/login",
+            json={"email": "jean.dupont@example.com", "mot_de_passe": "mauvais-mot-de-passe"},
+        )
+
+    from datetime import datetime, timedelta
+    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    db_client.verrouille_jusqua = datetime.utcnow() - timedelta(seconds=1)
+    db_session.commit()
+
+    reponse = se_connecter(client, "jean.dupont@example.com", "motdepasse123")
+    assert reponse.status_code == 200
+
+    db_session.refresh(db_client)
+    assert db_client.verrouille_jusqua is None
+    assert db_client.tentatives_echouees == 0
+
+
 # --- Modification des informations d'identité (PUT /auth/me) ---
 
 def test_update_mes_informations_modifie_selectivement_les_champs(client, db_session):
@@ -460,6 +505,12 @@ def _entete_avec_jeton(client) -> dict:
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
+# Signature binaire réelle d'un PNG (voir auth.router._contenu_correspond_au_type_declare)
+# — un contenu factice qui ne commence pas par ces octets est désormais
+# rejeté même si le Content-Type déclaré est "image/png".
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+
+
 def test_uploader_photo_profil_remplace_lavatar(client, db_session, tmp_path, monkeypatch):
     from app.core.config import settings
 
@@ -469,7 +520,7 @@ def test_uploader_photo_profil_remplace_lavatar(client, db_session, tmp_path, mo
     response = client.post(
         "/api/v1/auth/profile/photo",
         headers=headers,
-        files={"photo": ("avatar.png", b"contenu-image-factice", "image/png")},
+        files={"photo": ("avatar.png", PNG_MAGIC + b"contenu-image-factice", "image/png")},
     )
 
     assert response.status_code == 200
@@ -489,6 +540,30 @@ def test_uploader_photo_profil_rejette_un_format_non_supporte(client, db_session
         "/api/v1/auth/profile/photo",
         headers=headers,
         files={"photo": ("avatar.gif", b"contenu", "image/gif")},
+    )
+
+    assert response.status_code == 400
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_uploader_photo_profil_rejette_un_contenu_qui_ne_correspond_pas_au_type_declare(
+    client, db_session, tmp_path, monkeypatch
+):
+    """
+    Le Content-Type est déclaré par le client, jamais garanti — un fichier
+    quelconque prétendant être un PNG (mais dont les octets ne correspondent
+    pas à la signature réelle) doit être rejeté (voir
+    auth.router._contenu_correspond_au_type_declare).
+    """
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "AVATARS_DOSSIER", str(tmp_path))
+    headers = _entete_avec_jeton(client)
+
+    response = client.post(
+        "/api/v1/auth/profile/photo",
+        headers=headers,
+        files={"photo": ("avatar.png", b"<script>alert(1)</script>", "image/png")},
     )
 
     assert response.status_code == 400
@@ -521,14 +596,14 @@ def test_remplacer_la_photo_supprime_lancien_fichier(client, db_session, tmp_pat
     client.post(
         "/api/v1/auth/profile/photo",
         headers=headers,
-        files={"photo": ("premiere.png", b"premiere-photo", "image/png")},
+        files={"photo": ("premiere.png", PNG_MAGIC + b"premiere-photo", "image/png")},
     )
     assert len(list(tmp_path.iterdir())) == 1
 
     client.post(
         "/api/v1/auth/profile/photo",
         headers=headers,
-        files={"photo": ("seconde.png", b"seconde-photo", "image/png")},
+        files={"photo": ("seconde.png", PNG_MAGIC + b"seconde-photo", "image/png")},
     )
 
     # L'ancien fichier a bien été supprimé, un seul fichier reste sur disque.
@@ -544,7 +619,7 @@ def test_supprimer_photo_profil_efface_le_fichier_et_lavatar(client, db_session,
     client.post(
         "/api/v1/auth/profile/photo",
         headers=headers,
-        files={"photo": ("avatar.png", b"contenu-image-factice", "image/png")},
+        files={"photo": ("avatar.png", PNG_MAGIC + b"contenu-image-factice", "image/png")},
     )
     assert len(list(tmp_path.iterdir())) == 1
 
@@ -573,6 +648,24 @@ def test_une_url_avatar_externe_nest_jamais_supprimee_du_disque(client, db_sessi
     response = client.delete("/api/v1/auth/profile/photo", headers=headers)
     assert response.status_code == 200
     assert response.json()["avatar"] is None
+
+
+def test_avatar_avec_un_schema_non_http_est_rejete(client, db_session):
+    """
+    L'avatar est affiché publiquement (avis client sur la landing page,
+    voir avis.schemas.AvisPublicOut) : accepter n'importe quelle chaîne
+    permettrait d'y stocker un schéma javascript:/data: — voir
+    auth.schemas.ProfileUpdate._avatar_doit_etre_une_url_http.
+    """
+    headers = _entete_avec_jeton(client)
+
+    response = client.put(
+        "/api/v1/auth/profile",
+        headers=headers,
+        json={"avatar": "javascript:alert(1)"},
+    )
+
+    assert response.status_code == 422
 
 
 def test_une_connexion_reussie_reinitialise_le_compteur_de_tentatives(client, db_session):

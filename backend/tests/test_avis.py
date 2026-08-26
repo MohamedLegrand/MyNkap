@@ -135,7 +135,11 @@ def test_avis_publie_reprend_la_photo_de_profil_du_client(client, db_session, tm
     client.post(
         "/api/v1/auth/profile/photo",
         headers=headers,
-        files={"photo": ("avatar.png", b"contenu-image-factice", "image/png")},
+        # Signature PNG réelle requise (voir
+        # auth.router._contenu_correspond_au_type_declare) : un contenu
+        # factice qui ne commence pas par ces octets est rejeté même si le
+        # Content-Type déclaré est "image/png".
+        files={"photo": ("avatar.png", b"\x89PNG\r\n\x1a\ncontenu-image-factice", "image/png")},
     )
     id_avis = client.post(
         "/api/v1/avis", json={"note": 5, "commentaire": "Nickel avec photo."}, headers=headers

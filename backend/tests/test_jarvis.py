@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import app.modules.jarvis.service as jarvis_service
+import app.modules.jarvis.router as jarvis_router
 from app.modules.plans import service as plans_service
 from tests.conftest import TestingSessionLocal
 from tests.conftest import se_connecter
@@ -557,3 +558,27 @@ def test_poser_question_vocale_echec_transcription_renvoie_503(client, monkeypat
 
     detail = client.get(f"/api/v1/jarvis/conversations/{conversation['id_conversation']}", headers=headers).json()
     assert len(detail["messages"]) == 0
+
+
+def test_poser_question_vocale_rejette_un_enregistrement_trop_volumineux(client, monkeypatch):
+    """
+    Voir jarvis.router.TAILLE_MAX_AUDIO_VOCAL : sans cette limite, un
+    enregistrement démesuré serait entièrement chargé en mémoire puis
+    transmis à Groq/Gemini avant tout contrôle — un client authentifié
+    pourrait épuiser la mémoire du serveur ou gaspiller des appels payants.
+    """
+    headers = _register_and_login(client, "jarvis.vocal.troplourd@example.com")
+
+    def jamais_appelee(*a, **k):
+        raise AssertionError("la transcription ne doit jamais être atteinte pour un fichier trop volumineux")
+
+    monkeypatch.setattr(jarvis_service, "_transcrire_audio", jamais_appelee)
+    monkeypatch.setattr(jarvis_router, "TAILLE_MAX_AUDIO_VOCAL", 10)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages/vocal",
+        files={"audio": ("question.wav", b"beaucoup-plus-de-dix-octets", "audio/wav")},
+        headers=headers,
+    )
+    assert reponse.status_code == 400

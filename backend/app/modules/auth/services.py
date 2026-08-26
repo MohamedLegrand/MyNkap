@@ -23,6 +23,15 @@ from app.modules.plans import service as plans_service
 # _signaler_tentative_echouee.
 SEUIL_ALERTE_TENTATIVES = 3
 
+# Au-delà de ce nombre d'échecs consécutifs, le compte est verrouillé
+# temporairement (voir verrouille_jusqua) — le rate limit par IP
+# (10/minute sur /auth/login) ne freine pas une attaque par force brute
+# répartie sur plusieurs IP visant un seul compte ; ce verrou-là si.
+# Volontairement plus élevé que SEUIL_ALERTE_TENTATIVES : la notification
+# prévient tôt, le verrou ne bloque qu'en cas d'échecs vraiment soutenus.
+SEUIL_VERROUILLAGE = 8
+DUREE_VERROUILLAGE = timedelta(minutes=15)
+
 
 class GoogleTokenInvalideError(Exception):
     """Le jeton d'identité Google fourni est invalide, expiré, ou son audience ne correspond pas à GOOGLE_CLIENT_ID."""
@@ -34,6 +43,10 @@ class CompteInexistantPourGoogleError(Exception):
 
 class MotDePasseActuelIncorrectError(Exception):
     """Le mot de passe actuel fourni ne correspond pas — changement refusé (voir changer_mot_de_passe)."""
+
+
+class CompteVerrouilleError(Exception):
+    """Trop d'échecs de connexion consécutifs — compte verrouillé temporairement (voir SEUIL_VERROUILLAGE)."""
 
 # --- Services d'Inscription et Connexion ---
 
@@ -109,6 +122,8 @@ def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utili
     utilisateur = db.query(Utilisateur).filter(Utilisateur.email == login_in.email).first()
     if not utilisateur or not utilisateur.est_actif:
         return None
+    if utilisateur.verrouille_jusqua is not None and utilisateur.verrouille_jusqua > datetime.utcnow():
+        raise CompteVerrouilleError()
     if not verify_password(login_in.mot_de_passe, utilisateur.mot_de_passe):
         _signaler_tentative_echouee(db, utilisateur)
         return None
@@ -155,6 +170,8 @@ def _signaler_tentative_echouee(db: Session, utilisateur: Utilisateur) -> None:
     )
     if faut_alerter:
         utilisateur.alerte_tentatives_envoyee = True
+    if utilisateur.tentatives_echouees >= SEUIL_VERROUILLAGE:
+        utilisateur.verrouille_jusqua = datetime.utcnow() + DUREE_VERROUILLAGE
     db.commit()
 
     if faut_alerter:
@@ -169,6 +186,7 @@ def _signaler_tentative_echouee(db: Session, utilisateur: Utilisateur) -> None:
 def _reinitialiser_tentatives_echouees(utilisateur: Utilisateur) -> None:
     utilisateur.tentatives_echouees = 0
     utilisateur.alerte_tentatives_envoyee = False
+    utilisateur.verrouille_jusqua = None
 
 
 def _notifier_connexion_reussie(db: Session, utilisateur: Utilisateur) -> None:

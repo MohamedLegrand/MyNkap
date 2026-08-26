@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 from app.core.exceptions import MyNkapException
@@ -30,14 +31,43 @@ from app.modules.recharges.router import router as recharges_router
 # Le schéma de la base de données est géré par Alembic (voir backend/alembic/).
 # Lancer `alembic upgrade head` avant de démarrer l'API.
 
+# Documentation interactive (Swagger/ReDoc) et schéma OpenAPI : publiés en
+# développement seulement — en production ils exposeraient tout le plan de
+# l'API (routes admin incluses) à quiconque, sans aucune authentification.
+_est_dev = settings.ENVIRONMENT.lower() == "development"
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="0.1.0",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json" if _est_dev else None,
+    docs_url="/docs" if _est_dev else None,
+    redoc_url="/redoc" if _est_dev else None,
 )
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+class EntetesSecuriteMiddleware(BaseHTTPMiddleware):
+    """
+    En-têtes de durcissement absents par défaut chez FastAPI/Starlette —
+    aucun n'est spécifique à une route, donc posés une fois ici plutôt que
+    dupliqués partout. HSTS est sans effet en HTTP simple (dev local) et ne
+    présente aucun risque à être toujours présent : les navigateurs
+    l'ignorent hors HTTPS.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        reponse = await call_next(request)
+        reponse.headers["X-Content-Type-Options"] = "nosniff"
+        reponse.headers["X-Frame-Options"] = "DENY"
+        reponse.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        reponse.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        reponse.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+        return reponse
+
+
+app.add_middleware(EntetesSecuriteMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

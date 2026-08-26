@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # --- Schémas pour les profils ---
 class ProfileOut(BaseModel):
@@ -13,9 +13,24 @@ class ProfileOut(BaseModel):
         from_attributes = True
 
 class ProfileUpdate(BaseModel):
-    avatar: Optional[str] = None
+    # Une URL externe reste acceptée (compatibilité, voir
+    # auth.services.supprimer_fichier_avatar), mais uniquement http(s) — un
+    # avatar est affiché publiquement (avis client sur la landing page, voir
+    # avis.schemas.AvisPublicOut) : accepter n'importe quelle chaîne
+    # permettrait d'y stocker un schéma javascript:/data: ou une valeur
+    # disproportionnée.
+    avatar: Optional[str] = Field(default=None, max_length=2048)
     devise: Optional[str] = None
     langue: Optional[str] = None
+
+    @field_validator("avatar")
+    @classmethod
+    def _avatar_doit_etre_une_url_http(cls, valeur: Optional[str]) -> Optional[str]:
+        if valeur is None or valeur == "":
+            return valeur
+        if not (valeur.startswith("http://") or valeur.startswith("https://")):
+            raise ValueError("L'avatar doit être une URL http(s) valide.")
+        return valeur
 
 # --- Schéma pour le changement de mot de passe (client déjà connecté) ---
 class ChangePasswordRequest(BaseModel):

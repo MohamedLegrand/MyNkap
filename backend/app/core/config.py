@@ -4,6 +4,12 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "MyNkap Backend"
     API_V1_STR: str = "/api/v1"
 
+    # "development" ou "production" — contrôle l'exposition de la
+    # documentation interactive (Swagger/ReDoc, voir main.py) : inutile de
+    # publier tout le plan de l'API (routes admin incluses) à quiconque en
+    # production, alors que ça reste pratique en développement.
+    ENVIRONMENT: str = "development"
+
     # Base de données
     DATABASE_URL: str = "postgresql://postgres:123@localhost:5432/mynkap"
 

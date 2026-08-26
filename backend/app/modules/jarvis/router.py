@@ -31,6 +31,13 @@ router = APIRouter(
     dependencies=[Depends(exiger_fonctionnalite("acces_jarvis"))],
 )
 
+# Groq Whisper refuse de toute façon au-delà de 25 Mo, mais sans cette
+# limite ici, un enregistrement énorme serait déjà entièrement chargé en
+# mémoire (audio.file.read()) avant même d'atteindre cet appel — un client
+# authentifié pourrait épuiser la mémoire du serveur ou gaspiller des
+# appels payants vers Groq/Gemini avec des fichiers démesurés.
+TAILLE_MAX_AUDIO_VOCAL = 15 * 1024 * 1024  # 15 Mo
+
 
 @router.post("/conversations", response_model=ConversationOut, status_code=status.HTTP_201_CREATED)
 def creer_conversation(
@@ -118,12 +125,19 @@ def poser_question_vocale(
     plus strict qu'en texte : chaque appel déclenche trois requêtes vers
     des fournisseurs externes (transcription, raisonnement, synthèse).
     """
+    contenu_audio = audio.file.read()
+    if len(contenu_audio) > TAILLE_MAX_AUDIO_VOCAL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="L'enregistrement dépasse la taille maximale autorisée (15 Mo).",
+        )
+
     try:
         message, audio_reponse = service.poser_question_vocale(
             db,
             client.id_client,
             id_conversation,
-            audio.file.read(),
+            contenu_audio,
             audio.filename or "audio.webm",
             audio.content_type or "audio/webm",
         )

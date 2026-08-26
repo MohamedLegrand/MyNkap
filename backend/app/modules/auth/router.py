@@ -36,6 +36,23 @@ from app.modules.audit.service import enregistrer_action
 EXTENSIONS_PAR_TYPE_AVATAR = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 TAILLE_MAX_AVATAR = 3 * 1024 * 1024  # 3 Mo
 
+
+def _contenu_correspond_au_type_declare(contenu: bytes, content_type: str) -> bool:
+    """
+    Le Content-Type envoyé par le navigateur n'est qu'une déclaration du
+    client, jamais une garantie — un fichier arbitraire (HTML, script...)
+    peut être envoyé en prétendant être une image. Vérifie la signature
+    binaire réelle des premiers octets avant d'accepter le fichier, plutôt
+    que de faire confiance à l'en-tête seul.
+    """
+    if content_type == "image/png":
+        return contenu.startswith(b"\x89PNG\r\n\x1a\n")
+    if content_type == "image/jpeg":
+        return contenu.startswith(b"\xff\xd8\xff")
+    if content_type == "image/webp":
+        return contenu[:4] == b"RIFF" and contenu[8:12] == b"WEBP"
+    return False
+
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
 @router.post("/register", response_model=RegisterOtpResponse, status_code=status.HTTP_201_CREATED)
@@ -87,7 +104,13 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
     l'inscription, pour vérifier l'adresse e-mail une seule fois (voir
     POST /auth/register puis POST /auth/verify-otp), pas à chaque connexion.
     """
-    utilisateur = services.authentifier_utilisateur(db, login_in)
+    try:
+        utilisateur = services.authentifier_utilisateur(db, login_in)
+    except services.CompteVerrouilleError:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Trop de tentatives échouées. Réessayez dans quelques minutes.",
+        )
     if not utilisateur:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -298,6 +321,11 @@ async def uploader_photo_profil(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La photo dépasse la taille maximale autorisée (3 Mo).",
+        )
+    if not _contenu_correspond_au_type_declare(contenu, photo.content_type):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le fichier envoyé n'est pas une image valide du format annoncé.",
         )
 
     ancien_avatar = profile.avatar
