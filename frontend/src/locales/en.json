@@ -618,9 +618,9 @@
       },
       "essential": {
         "name": "ESSENTIAL",
-        "price": "1,000 XAF",
+        "price": "2,500 XAF",
         "price_suffix": "/ month",
-        "desc": "10,000 XAF / year (2 months free). Everything in Free, plus:",
+        "desc": "25,000 XAF / year (2 months free). Everything in Free, plus:",
         "feature1": "Debts & Claims",
         "feature2": "Savings goals",
         "feature3": "Automatic recurring transactions",
@@ -629,9 +629,9 @@
       },
       "premium": {
         "name": "PREMIUM",
-        "price": "2,500 XAF",
+        "price": "5,000 XAF",
         "price_suffix": "/ month",
-        "desc": "25,000 XAF / year (2 months free). Everything in Essential, plus:",
+        "desc": "50,000 XAF / year (2 months free). Everything in Essential, plus:",
         "feature1": "Financial analysis & predictions",
         "feature2": "Personalized financial score",
         "feature3": "JARVIS: text and voice chat",

@@ -122,7 +122,7 @@ def test_initier_paiement_cree_un_paiement_pending(client, monkeypatch):
     assert body["statut"] == "PENDING"
     assert body["reference_hrpay"] == "ref_test_123"
     assert body["plan_demande"]["nom"] == "ESSENTIEL"
-    assert Decimal(body["montant"]) == Decimal("1000")
+    assert Decimal(body["montant"]) == Decimal("2500")
     assert appels["phone_number"] == "237655500393"
     assert appels["operator"] == "orange"
     assert appels["country"] == "CM"
@@ -332,7 +332,7 @@ def test_renouvellement_auto_debite_le_compte_abonnement_et_prolonge_labonnement
     assert datetime.fromisoformat(body["date_fin"]) > datetime.utcnow()
 
     db_session.refresh(compte_abonnement)
-    assert compte_abonnement.solde == Decimal("4000")  # 5000 - 1000 (prix mensuel ESSENTIEL)
+    assert compte_abonnement.solde == Decimal("2500")  # 5000 - 2500 (prix mensuel ESSENTIEL)
 
     debit = (
         db_session.query(Transaction)
@@ -340,7 +340,7 @@ def test_renouvellement_auto_debite_le_compte_abonnement_et_prolonge_labonnement
         .first()
     )
     assert debit is not None
-    assert debit.montant == Decimal("1000")
+    assert debit.montant == Decimal("2500")
 
 
 def test_notifier_renouvellements_proches_previent_une_seule_fois_avant_lecheance(client, db_session):

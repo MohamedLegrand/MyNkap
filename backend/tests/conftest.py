@@ -26,11 +26,11 @@ PLANS_SEED = [
      "acces_dettes": False, "acces_epargne": False, "acces_recurrentes": False,
      "acces_templates": False, "acces_analyse": False, "acces_jarvis": False, "acces_rapport": False,
      "acces_tontine": False},
-    {"nom": "ESSENTIEL", "prix_mensuel": 1000, "prix_annuel": 10000, "devise": "XAF",
+    {"nom": "ESSENTIEL", "prix_mensuel": 2500, "prix_annuel": 25000, "devise": "XAF",
      "acces_dettes": True, "acces_epargne": True, "acces_recurrentes": True,
      "acces_templates": True, "acces_analyse": False, "acces_jarvis": False, "acces_rapport": False,
      "acces_tontine": True},
-    {"nom": "PREMIUM", "prix_mensuel": 2500, "prix_annuel": 25000, "devise": "XAF",
+    {"nom": "PREMIUM", "prix_mensuel": 5000, "prix_annuel": 50000, "devise": "XAF",
      "acces_dettes": True, "acces_epargne": True, "acces_recurrentes": True,
      "acces_templates": True, "acces_analyse": True, "acces_jarvis": True, "acces_rapport": False,
      "acces_tontine": True},
@@ -41,12 +41,12 @@ PLANS_SEED = [
 # estimations, voir le commentaire dans la migration.
 PRIX_DEVISE_SEED = {
     "ESSENTIEL": {
-        "XAF": (1000, 10000), "XOF": (1000, 10000),
-        "CDF": (4700, 47000), "GNF": (14400, 144000), "GMD": (120, 1200),
+        "XAF": (2500, 25000), "XOF": (2500, 25000),
+        "CDF": (11750, 117500), "GNF": (36000, 360000), "GMD": (300, 3000),
     },
     "PREMIUM": {
-        "XAF": (2500, 25000), "XOF": (2500, 25000),
-        "CDF": (11800, 118000), "GNF": (36000, 360000), "GMD": (290, 2900),
+        "XAF": (5000, 50000), "XOF": (5000, 50000),
+        "CDF": (23600, 236000), "GNF": (72000, 720000), "GMD": (580, 5800),
     },
 }
 

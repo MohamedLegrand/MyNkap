@@ -617,9 +617,9 @@
       },
       "essential": {
         "name": "ESSENTIEL",
-        "price": "1 000 XAF",
+        "price": "2 500 XAF",
         "price_suffix": "/ mois",
-        "desc": "10 000 XAF / an (2 mois offerts). Tout le Gratuit, plus :",
+        "desc": "25 000 XAF / an (2 mois offerts). Tout le Gratuit, plus :",
         "feature1": "Dettes & Créances",
         "feature2": "Objectifs d'épargne",
         "feature3": "Transactions récurrentes automatiques",
@@ -628,9 +628,9 @@
       },
       "premium": {
         "name": "PREMIUM",
-        "price": "2 500 XAF",
+        "price": "5 000 XAF",
         "price_suffix": "/ mois",
-        "desc": "25 000 XAF / an (2 mois offerts). Tout l'Essentiel, plus :",
+        "desc": "50 000 XAF / an (2 mois offerts). Tout l'Essentiel, plus :",
         "feature1": "Analyse & Prédictions financières",
         "feature2": "Score financier personnalisé",
         "feature3": "JARVIS : chat texte et vocal",
