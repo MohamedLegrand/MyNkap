@@ -335,6 +335,74 @@ def test_jarvis_propose_creer_un_compte(client, monkeypatch):
     assert any(c["nom"] == "Épargne vacances" for c in comptes)
 
 
+def test_jarvis_propose_un_budget_et_le_client_le_confirme(client, monkeypatch):
+    """
+    Cas central : un client qui ne sait pas gérer son argent doit pouvoir
+    se voir proposer un vrai plan budgétaire (une action CREER_BUDGET par
+    catégorie), pas juste un conseil textuel — voir SYSTEM_PROMPT_TEMPLATE.
+    """
+    headers = _register_and_login(client, "jarvis.action.budget@example.com")
+    categorie_alimentation = next(
+        c for c in client.get("/api/v1/categories", headers=headers).json()
+        if c["type"] == "DEPENSE" and c["nom"] == "Alimentation"
+    )
+
+    def fausse_reponse(system_prompt, historique, question):
+        assert str(categorie_alimentation["id_categorie"]) in system_prompt
+        return _reponse_groq(
+            contenu="Je vous propose de démarrer avec un budget Alimentation de 60000 XAF ce mois-ci.",
+            actions=[{"type": "CREER_BUDGET", "id_categorie": categorie_alimentation["id_categorie"], "montant_limite": 60000}],
+        )
+
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", fausse_reponse)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Je gagne 200000 par mois mais je ne sais pas comment gérer mon argent"},
+        headers=headers,
+    )
+    action = reponse.json()["actions"][0]
+    assert action["type_action"] == "CREER_BUDGET"
+    assert "60000" in action["resume"]
+
+    # Aucun budget n'existe encore avant confirmation.
+    assert client.get("/api/v1/budgets", headers=headers).json() == []
+
+    confirmation = client.post(f"/api/v1/jarvis/actions/{action['id_action']}/confirmer", headers=headers)
+    assert confirmation.status_code == 200
+    assert confirmation.json()["statut"] == "EXECUTE"
+
+    budgets = client.get("/api/v1/budgets", headers=headers).json()
+    assert len(budgets) == 1
+    assert budgets[0]["id_categorie"] == categorie_alimentation["id_categorie"]
+    assert Decimal(budgets[0]["montant_limite"]) == Decimal("60000")
+
+
+def test_jarvis_ne_propose_pas_de_budget_sur_une_categorie_revenu(client, monkeypatch):
+    """Un budget n'a de sens que sur une catégorie de dépense — une
+    catégorie REVENU hallucinée par erreur ne doit jamais être proposée."""
+    headers = _register_and_login(client, "jarvis.action.budget.revenu@example.com")
+    categorie_revenu = next(
+        c for c in client.get("/api/v1/categories", headers=headers).json() if c["type"] == "REVENU"
+    )
+
+    monkeypatch.setattr(
+        jarvis_service, "_appeler_groq",
+        lambda *a, **k: _reponse_groq(actions=[
+            {"type": "CREER_BUDGET", "id_categorie": categorie_revenu["id_categorie"], "montant_limite": 10000}
+        ]),
+    )
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Question quelconque"},
+        headers=headers,
+    )
+    assert reponse.json()["actions"] == []
+
+
 def test_jarvis_propose_une_action_via_le_canal_vocal(client, monkeypatch):
     """
     Le vocal transcrit puis appelle le même poser_question() que le texte

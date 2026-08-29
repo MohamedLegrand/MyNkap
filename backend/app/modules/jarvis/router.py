@@ -8,6 +8,11 @@ from app.core.database import get_db
 from app.core.limiter import limiter
 from app.modules.auth.dependencies import get_current_active_client
 from app.modules.auth.models import Client
+from app.modules.budgets.service import (
+    BudgetDejaExistantError,
+    CategorieIntrouvableError as BudgetCategorieIntrouvableError,
+    CategorieTypeInvalideError,
+)
 from app.modules.jarvis import service
 from app.modules.jarvis.schemas import (
     ActionIAOut,
@@ -178,6 +183,17 @@ def confirmer_action(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cette catégorie n'existe plus.")
     except SoldeInsuffisantError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Solde insuffisant pour cette dépense.")
+    except BudgetCategorieIntrouvableError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cette catégorie n'existe plus.")
+    except CategorieTypeInvalideError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Un budget ne peut porter que sur une catégorie de dépense."
+        )
+    except BudgetDejaExistantError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un budget existe déjà pour cette catégorie ce mois-ci.",
+        )
 
 
 @router.post("/actions/{id_action}/annuler", response_model=ActionIAOut)

@@ -273,11 +273,33 @@ def predire_depenses_futures(db: Session, id_client: int, periode_debut: date, p
     # Toujours basé sur les derniers mois PLEINS avant aujourd'hui, jamais
     # avant periode_debut (qui est le mois futur prédit, pas une base
     # valable pour la moyenne).
-    montant_predit = _moyenne_mensuelle(db, id_client, "DEPENSE", date.today().replace(day=1))
+    reference = date.today().replace(day=1)
+    montant_predit = _moyenne_mensuelle(db, id_client, "DEPENSE", reference)
     recommandations = (
         f"Vos dépenses du mois prochain sont estimées à {montant_predit} XAF, "
         f"sur la base de votre moyenne des {NB_MOIS_MOYENNE_GLISSANTE} derniers mois."
     )
+
+    # Sans mise en regard du revenu, un chiffre isolé ne dit rien de la
+    # marge réelle du client — un montant "cru" doit toujours être comparé
+    # à ce qu'il gagne, pas laissé nu.
+    revenus_moyens = _moyenne_mensuelle(db, id_client, "REVENU", reference)
+    if revenus_moyens > 0:
+        part_revenu = round(float(montant_predit / revenus_moyens * 100))
+        if part_revenu >= 100:
+            recommandations += (
+                f" Cela représente {part_revenu}% de votre revenu moyen ({revenus_moyens} XAF) : "
+                "à ce rythme vous ne dégagez aucune marge, voire êtes en déficit — identifiez dès "
+                "maintenant une catégorie à réduire avant le début du mois."
+            )
+        elif part_revenu >= 80:
+            recommandations += (
+                f" Cela représente déjà {part_revenu}% de votre revenu moyen ({revenus_moyens} XAF) : "
+                "la marge restante est faible, surveillez vos dépenses de près ce mois-ci."
+            )
+        else:
+            recommandations += f" Cela représente {part_revenu}% de votre revenu moyen ({revenus_moyens} XAF)."
+
     # Heuristique fixe (pas un vrai intervalle de confiance statistique) :
     # une moyenne glissante simple a une fiabilité modérée, jamais parfaite.
     return {"montant_predit": montant_predit, "niveau_confiance": 0.6, "recommandations": recommandations}
@@ -290,19 +312,34 @@ def predire_risque_budgetaire(db: Session, id_client: int, periode_debut: date, 
     aujourdhui = date.today()
     jours_ecoules = max((min(aujourdhui, periode_fin) - periode_debut).days + 1, 1)
     jours_total = (periode_fin - periode_debut).days + 1
+    jours_restants = max(jours_total - jours_ecoules, 1)
 
     a_risque = []
     montant_projete_total = Decimal("0")
+    pire: Optional[Tuple[Decimal, str, Decimal, Decimal]] = None
     for budget, valeurs in budgets:
         if valeurs["est_depasse"]:
             continue
         projection = (valeurs["montant_depense"] / jours_ecoules * jours_total).quantize(Decimal("0.01"))
         if projection > budget.montant_limite:
+            depassement = projection - budget.montant_limite
             a_risque.append(f"{budget.categorie.nom} (projection {projection} XAF / limite {budget.montant_limite} XAF)")
             montant_projete_total += projection
+            if pire is None or depassement > pire[0]:
+                pire = (depassement, budget.categorie.nom, projection, budget.montant_limite)
 
     if a_risque:
-        recommandations = "Au rythme actuel, ces budgets risquent d'être dépassés d'ici la fin du mois : " + ", ".join(a_risque) + "."
+        depassement, nom_pire, _projection_pire, _limite_pire = pire
+        # Combien couper par jour, sur les jours qui restent, pour repasser
+        # sous la limite d'ici la fin du mois — pas juste un constat, un chiffre à suivre.
+        reduction_quotidienne = (depassement / jours_restants).quantize(Decimal("0.01"))
+        recommandations = (
+            "Au rythme actuel, ces budgets risquent d'être dépassés d'ici la fin du mois : "
+            + ", ".join(a_risque) + f". Le plus critique est {nom_pire}, en excédent projeté de "
+            f"{depassement} XAF : réduisez vos dépenses dans cette catégorie d'au moins "
+            f"{reduction_quotidienne} XAF/jour sur les {jours_restants} jours restants pour rester "
+            "dans la limite."
+        )
     else:
         recommandations = "Aucun budget ne semble à risque de dépassement au rythme actuel."
 
@@ -320,18 +357,28 @@ def predire_capacite_epargne(db: Session, id_client: int, periode_debut: date, p
     capacite = revenus_moyens - depenses_moyennes
 
     if capacite <= 0:
-        return {
-            "montant_predit": Decimal("0"),
-            "niveau_confiance": 0.5,
-            "recommandations": "Vos dépenses moyennes couvrent ou dépassent vos revenus moyens : "
-            "aucune capacité d'épargne prévisible ce mois-ci.",
-        }
+        recommandations = (
+            "Vos dépenses moyennes couvrent ou dépassent vos revenus moyens : "
+            "aucune capacité d'épargne prévisible ce mois-ci."
+        )
+        # Nommer le poste qui pèse le plus, pas juste constater le déficit
+        # — c'est le premier levier concret à actionner.
+        moyennes_categories = _depenses_moyennes_par_categorie(db, id_client, reference)
+        if moyennes_categories:
+            nom_pire, montant_pire = max(moyennes_categories.items(), key=lambda ligne: ligne[1])
+            recommandations += (
+                f" Votre plus gros poste de dépense est {nom_pire} ({montant_pire.quantize(Decimal('0.01'))} "
+                "XAF/mois en moyenne) : c'est le premier à réduire pour repasser en positif."
+            )
+        return {"montant_predit": Decimal("0"), "niveau_confiance": 0.5, "recommandations": recommandations}
 
     return {
         "montant_predit": capacite,
         "niveau_confiance": 0.5,
         "recommandations": f"Vous pourriez épargner environ {capacite} XAF ce mois-ci, "
-        f"sur la base de vos {NB_MOIS_MOYENNE_GLISSANTE} derniers mois.",
+        f"sur la base de vos {NB_MOIS_MOYENNE_GLISSANTE} derniers mois. Programmez ce virement vers "
+        "un compte Épargne dès la réception de votre revenu plutôt que d'attendre la fin du mois — "
+        "ce qui reste sur le compte courant part rarement à l'épargne.",
     }
 
 

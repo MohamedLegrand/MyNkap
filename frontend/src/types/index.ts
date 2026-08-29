@@ -197,7 +197,7 @@ export interface Rapport {
 
 export interface ActionIA {
   id_action: string;
-  type_action: 'CREER_TRANSACTION' | 'CREER_COMPTE';
+  type_action: 'CREER_TRANSACTION' | 'CREER_COMPTE' | 'CREER_BUDGET';
   resume: string;
   statut: 'EN_ATTENTE' | 'EXECUTE' | 'ANNULE';
   date_expiration: string | null;

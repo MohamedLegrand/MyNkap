@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import logging
 import secrets
 import wave
 from datetime import datetime, timedelta
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.modules.budgets import service as budgets_service
+from app.modules.budgets.schemas import BudgetCreate
 from app.modules.comptes import service as comptes_service
 from app.modules.comptes.schemas import CompteFinancierCreate
 from app.modules.dettes import service as dettes_service
@@ -21,7 +23,11 @@ from app.modules.transactions import service as transactions_service
 from app.modules.transactions.schemas import TransactionCreate
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# llama-3.3-70b-versatile a été retiré du catalogue Groq (modèle introuvable,
+# 404 model_not_found — vérifié le 29/08/2026 via GET /openai/v1/models).
+# gpt-oss-120b reste dans la même catégorie (grand modèle généraliste, mode
+# JSON structuré) — GROQ_WHISPER_MODEL (transcription) n'est pas affecté.
+GROQ_MODEL = "openai/gpt-oss-120b"
 GROQ_TRANSCRIPTION_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 # whisper-large-v3 (pas la variante "turbo") : la précision prime sur la
 # latence ici — un montant mal transcrit ("15 000" entendu "50 000")
@@ -31,6 +37,8 @@ GROQ_WHISPER_MODEL = "whisper-large-v3"
 GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent"
 GEMINI_TTS_VOICE = "Kore"
 GEMINI_TTS_SAMPLE_RATE = 24000
+
+logger = logging.getLogger(__name__)
 
 # Nombre de messages précédents (question + réponse confondues) envoyés
 # comme contexte à chaque nouvel appel — pas de résumé/compression, une
@@ -48,15 +56,32 @@ possible 2 à 4 choix clairs (QCM) pour que l'utilisateur puisse sélectionner s
 que de la retaper.
 - Tu bases tes réponses financières UNIQUEMENT sur les données réelles fournies ci-dessous. Tu \
 n'inventes jamais de chiffres.
-- Tu peux PROPOSER des actions concrètes (créer une dépense/un revenu sur un compte existant, ou \
-créer un nouveau compte) mais tu ne les exécutes JAMAIS toi-même : elles restent en attente \
-jusqu'à ce que le client les confirme explicitement via un bouton dans l'application. N'invente \
-jamais un id_compte ou id_categorie — utilise EXCLUSIVEMENT ceux listés ci-dessous. S'il manque \
-une information essentielle (montant, quel compte, quelle catégorie) ou que le compte/la \
-catégorie mentionné n'existe pas dans la liste, demande une clarification au lieu de proposer une \
-action incomplète ou incorrecte.
-- Si le client décrit plusieurs opérations dans un seul message (par exemple : "j'ai dépensé 2000 \
-pour manger et 500 de taxi"), propose une action distincte pour chacune dans le tableau "actions".
+- Tes conseils ne sont jamais génériques ou vagues ("épargnez plus", "faites attention à vos \
+dépenses") : donne toujours une stratégie chiffrée et concrète, avec de vrais montants calculés \
+à partir de ce que le client vient de te dire (revenu annoncé, dépenses réelles listées \
+ci-dessous...). Un client qui te dit gagner un montant par mois sans savoir comment le gérer \
+attend un vrai plan (par catégorie, avec des montants), pas un rappel de bon sens.
+- Si le client dit explicitement ne pas savoir comment gérer son argent (ou une phrase \
+équivalente) et qu'il n'a pas encore de budget défini pour le mois en cours, PROPOSE \
+immédiatement, sans attendre qu'il le redemande, un plan budgétaire complet : une action \
+CREER_BUDGET par catégorie de dépense pertinente parmi celles listées ci-dessous, avec un \
+montant_limite raisonnable pour chacune, de sorte que la somme des montants proposés reste \
+nettement inférieure au revenu mentionné (laisse une marge pour l'épargne et les imprévus — \
+n'alloue jamais 100% du revenu aux dépenses). Explique brièvement ta répartition dans "contenu" \
+ou "conseil_supplementaire" (ex: priorité au logement/alimentation, part modérée pour les \
+loisirs, reste mis de côté).
+- Tu peux PROPOSER des actions concrètes (créer une dépense/un revenu sur un compte existant, \
+créer un nouveau compte, ou définir un budget mensuel par catégorie) mais tu ne les exécutes \
+JAMAIS toi-même : elles restent en attente jusqu'à ce que le client les confirme explicitement \
+via un bouton dans l'application (il peut aussi les rejeter). N'invente jamais un id_compte ou \
+id_categorie — utilise EXCLUSIVEMENT ceux listés ci-dessous. Pour CREER_BUDGET, id_categorie doit \
+obligatoirement être une catégorie de type DEPENSE de la liste. S'il manque une information \
+essentielle (montant, quel compte, quelle catégorie) ou que le compte/la catégorie mentionné \
+n'existe pas dans la liste, demande une clarification au lieu de proposer une action incomplète \
+ou incorrecte.
+- Si le client décrit plusieurs opérations ou plusieurs catégories à budgéter dans un seul \
+message, propose une action distincte pour chacune dans le tableau "actions" — n'hésite pas à en \
+proposer plusieurs à la fois.
 
 Situation financière actuelle du client :
 {contexte_financier}
@@ -73,7 +98,8 @@ Tu dois TOUJOURS répondre en JSON valide, avec exactement cette forme, sans auc
   "conseil_supplementaire": "un conseil court" ou null,
   "actions": [
     {{"type": "CREER_TRANSACTION", "id_compte": 30, "id_categorie": 12, "montant": 2000, "type_transaction": "DEPENSE", "description": "Courses au marché"}},
-    {{"type": "CREER_COMPTE", "nom": "Épargne vacances", "type_compte": "EPARGNE", "devise": "XAF", "solde_initial": 20000}}
+    {{"type": "CREER_COMPTE", "nom": "Épargne vacances", "type_compte": "EPARGNE", "devise": "XAF", "solde_initial": 20000}},
+    {{"type": "CREER_BUDGET", "id_categorie": 5, "montant_limite": 50000}}
   ]
 }}
 Le tableau "actions" est [] si tu ne proposes aucune action.
@@ -293,6 +319,34 @@ def _valider_et_creer_actions(
                 statut="EN_ATTENTE", date_expiration=date_expiration,
             ))
 
+        elif type_action == "CREER_BUDGET":
+            categorie = categories_par_id.get(brute.get("id_categorie"))
+            if categorie is None or categorie.type != "DEPENSE":
+                continue
+            try:
+                montant_limite = Decimal(str(brute.get("montant_limite")))
+            except (InvalidOperation, TypeError):
+                continue
+            if montant_limite <= 0:
+                continue
+
+            # Toujours le mois en cours — jamais laissé au fournisseur IA de
+            # choisir une période, un budget proposé porte forcément sur
+            # "ce mois-ci" dans la conversation.
+            aujourdhui = datetime.utcnow()
+            resume = f"Budget « {categorie.nom} » : {montant_limite} XAF pour {aujourdhui.strftime('%m/%Y')}"
+            donnees_cible = json.dumps({
+                "id_categorie": categorie.id_categorie,
+                "montant_limite": str(montant_limite),
+                "mois": aujourdhui.month,
+                "annee": aujourdhui.year,
+            })
+            actions.append(ActionIA(
+                id_client=id_client, id_message=message.id_message, type_action="CREER_BUDGET",
+                donnees_cible=donnees_cible, resume=resume, confirmation_token=secrets.token_urlsafe(24),
+                statut="EN_ATTENTE", date_expiration=date_expiration,
+            ))
+
     return actions
 
 
@@ -329,6 +383,16 @@ def _appeler_groq(system_prompt: str, historique: List[dict], question: str) -> 
         contenu_brut = reponse.json()["choices"][0]["message"]["content"]
         return json.loads(contenu_brut)
     except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError) as erreur:
+        # Toujours logué côté serveur : le message générique renvoyé au
+        # client (voir router.poser_question) ne dit jamais pourquoi — sans
+        # ce log, une clé invalide ou un modèle retiré du catalogue Groq
+        # (déjà arrivé, voir GROQ_MODEL) serait indiagnosticable à distance.
+        corps_reponse = getattr(erreur, "response", None)
+        logger.warning(
+            "Échec Groq (chat completions) : type=%s message=%s statut=%s corps=%s",
+            type(erreur).__name__, erreur, getattr(corps_reponse, "status_code", None),
+            getattr(corps_reponse, "text", "")[:500],
+        )
         raise ServiceIAIndisponibleError(str(erreur))
 
 
@@ -415,6 +479,12 @@ def _transcrire_audio(contenu_audio: bytes, nom_fichier: str, type_contenu: str)
         reponse.raise_for_status()
         texte = reponse.json()["text"]
     except (httpx.HTTPError, KeyError) as erreur:
+        corps_reponse = getattr(erreur, "response", None)
+        logger.warning(
+            "Échec Groq (transcription) : type=%s message=%s statut=%s corps=%s",
+            type(erreur).__name__, erreur, getattr(corps_reponse, "status_code", None),
+            getattr(corps_reponse, "text", "")[:500],
+        )
         raise ServiceIAIndisponibleError(str(erreur))
 
     if not texte or not texte.strip():
@@ -438,13 +508,24 @@ def _synthetiser_voix(texte: str) -> bytes:
                     },
                 },
             },
-            timeout=30.0,
+            # 30s s'est déjà avéré trop court pour une réponse un peu longue
+            # (ex. l'explication d'un plan budgétaire complet) — un
+            # ReadTimeout dégradait alors silencieusement vers du texte
+            # seul (voir le catch ci-dessous) alors que la synthèse aurait
+            # simplement fini par aboutir.
+            timeout=60.0,
         )
         reponse.raise_for_status()
         donnees = reponse.json()
         audio_base64 = donnees["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
         pcm = base64.b64decode(audio_base64)
     except (httpx.HTTPError, KeyError, IndexError) as erreur:
+        corps_reponse = getattr(erreur, "response", None)
+        logger.warning(
+            "Échec Gemini (synthèse vocale) : type=%s message=%s statut=%s corps=%s",
+            type(erreur).__name__, erreur, getattr(corps_reponse, "status_code", None),
+            getattr(corps_reponse, "text", "")[:500],
+        )
         raise ServiceIAIndisponibleError(str(erreur))
 
     return _pcm_vers_wav(pcm)
@@ -524,6 +605,16 @@ def confirmer_action(db: Session, id_client: int, id_action: UUID) -> ActionIA:
                 type=donnees["type_compte"],
                 devise=donnees.get("devise", "XAF"),
                 solde_initial=Decimal(donnees["solde_initial"]),
+            ),
+        )
+    elif action.type_action == "CREER_BUDGET":
+        budgets_service.creer_budget(
+            db, id_client,
+            BudgetCreate(
+                id_categorie=donnees["id_categorie"],
+                montant_limite=Decimal(donnees["montant_limite"]),
+                mois=donnees["mois"],
+                annee=donnees["annee"],
             ),
         )
 

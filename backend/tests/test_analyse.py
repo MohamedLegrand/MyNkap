@@ -230,11 +230,37 @@ def test_prediction_depenses_futures_et_capacite_epargne(client):
 
     depenses = client.get("/api/v1/analyse/predictions/DEPENSES_FUTURES", headers=headers)
     assert depenses.status_code == 200
-    assert Decimal(depenses.json()["montant_predit"]) == Decimal("9000.00")
+    body_depenses = depenses.json()
+    assert Decimal(body_depenses["montant_predit"]) == Decimal("9000.00")
+    # 9000 / 100000 = 9% du revenu moyen — mis en regard du revenu plutôt
+    # que laissé nu (voir predire_depenses_futures).
+    assert "9%" in body_depenses["recommandations"]
 
     epargne = client.get("/api/v1/analyse/predictions/CAPACITE_EPARGNE", headers=headers)
     assert epargne.status_code == 200
     assert Decimal(epargne.json()["montant_predit"]) == Decimal("91000.00")
+
+
+def test_prediction_capacite_epargne_en_deficit_nomme_le_plus_gros_poste(client):
+    headers = _register_and_login(client, "analyse.deficit@example.com")
+    compte = _creer_compte(client, headers)
+    logement = _categorie(client, headers, "Logement")
+    alimentation = _categorie(client, headers, "Alimentation")
+    salaire = _categorie(client, headers, "Salaire")
+
+    reference = date.today().replace(day=1)
+    for debut, _fin in _mois_precedents(reference, 3):
+        _depense(client, headers, compte, logement, 80000, debut)
+        _depense(client, headers, compte, alimentation, 20000, debut)
+        _revenu(client, headers, compte, salaire, 50000, debut)
+
+    reponse = client.get("/api/v1/analyse/predictions/CAPACITE_EPARGNE", headers=headers)
+    assert reponse.status_code == 200
+    body = reponse.json()
+    assert Decimal(body["montant_predit"]) == Decimal("0")
+    # Déficit (50000 de revenu contre 100000 de dépenses) : le poste le
+    # plus lourd (Logement, 80000) doit être nommé comme premier levier.
+    assert "Logement" in body["recommandations"]
 
 
 def test_prediction_risque_budgetaire_detecte_un_depassement_projete(client):
@@ -264,6 +290,58 @@ def test_prediction_risque_budgetaire_detecte_un_depassement_projete(client):
     # Période passée entièrement écoulée -> projection == dépense réelle (900),
     # qui ne dépasse PAS la limite de 1000 : rien à signaler.
     assert "Aucun budget" in body["recommandations"]
+
+
+def test_prediction_risque_budgetaire_nomme_le_pire_depassement(client, monkeypatch):
+    """Avec plusieurs budgets en dépassement PROJETÉ (pas encore dépassés
+    en réalité — sinon predire_risque_budgetaire les ignore, voir
+    valeurs["est_depasse"]), le plus critique doit être nommé explicitement
+    avec une réduction quotidienne suggérée — pas juste une liste brute
+    sans hiérarchie ni action concrète. "Aujourd'hui" est figé à mi-mois
+    pour un multiplicateur de projection déterministe, indépendant du jour
+    réel d'exécution des tests."""
+    import app.modules.analyse.service as analyse_service
+    from datetime import date as date_reelle
+
+    class DateFigee(date_reelle):
+        @classmethod
+        def today(cls):
+            return date_reelle(2026, 3, 15)
+
+    monkeypatch.setattr(analyse_service, "date", DateFigee)
+
+    headers = _register_and_login(client, "analyse.risque.pire@example.com")
+    compte = _creer_compte(client, headers)
+    alimentation = _categorie(client, headers, "Alimentation")
+    transport = _categorie(client, headers, "Transport")
+
+    # Mois de mars 2026 (31 jours), 15 écoulés -> multiplicateur x31/15.
+    # Dépense encore sous la limite (est_depasse=False) mais dont la
+    # projection en fin de mois la dépasse.
+    for categorie, limite, depense in [(alimentation, 1000, 600), (transport, 500, 400)]:
+        client.post(
+            "/api/v1/budgets",
+            json={
+                "id_categorie": categorie["id_categorie"],
+                "montant_limite": limite,
+                "mois": PERIODE_FIXE_DEBUT.month,
+                "annee": PERIODE_FIXE_DEBUT.year,
+            },
+            headers=headers,
+        )
+        _depense(client, headers, compte, categorie, depense, PERIODE_FIXE_DEBUT)
+
+    reponse = client.get(
+        "/api/v1/analyse/predictions/RISQUE_BUDGETAIRE",
+        params={"periode_debut": PERIODE_FIXE_DEBUT.isoformat(), "periode_fin": PERIODE_FIXE_FIN.isoformat()},
+        headers=headers,
+    )
+    assert reponse.status_code == 200
+    body = reponse.json()
+    # Alimentation : projection 600*31/15=1240, excédent 240.
+    # Transport : projection 400*31/15≈826.67, excédent ≈326.67 — pire.
+    assert "plus critique est Transport" in body["recommandations"]
+    assert "XAF/jour" in body["recommandations"]
 
 
 def test_generer_snapshots_mensuels_persiste_analyse_et_prediction(client, db_session):
