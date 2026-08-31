@@ -1102,6 +1102,8 @@
         "title": "Fiche client détaillée",
         "error_load": "Impossible de charger ce client.",
         "not_found": "Client introuvable.",
+        "status_active": "Compte actif",
+        "status_suspended": "Compte suspendu",
         "client_since": "Client depuis le {{date}}",
         "main_balance": "Solde principal",
         "current_plan": "Plan actuel",

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, ShieldCheck, Key, Sliders, CheckCircle2, FileCode, Loader2, UserCog, Crown, AlertOctagon, Wand2 } from 'lucide-react';
+import { X, ShieldCheck, ShieldOff, Key, Sliders, CheckCircle2, FileCode, Loader2, UserCog, Crown, AlertOctagon, Wand2 } from 'lucide-react';
 import { api } from '../services/api';
 import { PasswordInput } from './PasswordInput';
 import { genererMotDePasse } from '../utils/genererMotDePasse';
@@ -377,6 +377,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
   const [dureeJours, setDureeJours] = useState('30');
   const [isForcing, setIsForcing] = useState(false);
   const [messageForcage, setMessageForcage] = useState<string | null>(null);
+  const [isTogglingStatut, setIsTogglingStatut] = useState(false);
 
   useEffect(() => {
     if (!isOpen || idClient === null) return;
@@ -424,6 +425,27 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
     }
   };
 
+  const handleToggleStatut = async () => {
+    if (!detail) return;
+    setIsTogglingStatut(true);
+    setError(null);
+    try {
+      const misAJour = await api.request<{ est_actif: boolean }>(`/admin/clients/${idClient}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ est_actif: !detail.est_actif }),
+      });
+      // Désactivation logique uniquement — jamais de suppression réelle
+      // (principe d'immuabilité du cahier des charges) : le compte et
+      // toutes ses données restent intactes, seul l'accès est coupé.
+      setDetail((prev) => (prev ? { ...prev, est_actif: misAJour.est_actif } : prev));
+      onForced();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error_action'));
+    } finally {
+      setIsTogglingStatut(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -448,6 +470,32 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
                 <p className="font-bold text-foreground text-sm">{detail.first_name} {detail.last_name}</p>
                 <p className="text-muted-foreground">{detail.email} • {detail.phone}</p>
                 <p className="text-muted-foreground">{t('admin.modals.client_detail.client_since', { date: new Date(detail.date_creation).toLocaleDateString('fr-FR') })}</p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-border flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {detail.est_actif ? (
+                    <ShieldCheck className="h-4 w-4 text-forest-600 dark:text-forest-400" />
+                  ) : (
+                    <ShieldOff className="h-4 w-4 text-destructive" />
+                  )}
+                  <span className={`text-xs font-bold ${detail.est_actif ? 'text-forest-600 dark:text-forest-400' : 'text-destructive'}`}>
+                    {detail.est_actif ? t('admin.modals.client_detail.status_active') : t('admin.modals.client_detail.status_suspended')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleStatut}
+                  disabled={isTogglingStatut}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                    detail.est_actif
+                      ? 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20'
+                      : 'bg-forest-500/10 text-forest-600 dark:text-forest-400 border-forest-500/20 hover:bg-forest-500/20'
+                  }`}
+                >
+                  {isTogglingStatut && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <span>{detail.est_actif ? t('admin.dashboard.common.suspend') : t('common.reactivate')}</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">

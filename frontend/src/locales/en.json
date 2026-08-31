@@ -1103,6 +1103,8 @@
         "title": "Detailed client record",
         "error_load": "Unable to load this client.",
         "not_found": "Client not found.",
+        "status_active": "Active account",
+        "status_suspended": "Suspended account",
         "client_since": "Client since {{date}}",
         "main_balance": "Main balance",
         "current_plan": "Current plan",
