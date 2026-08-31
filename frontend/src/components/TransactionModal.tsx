@@ -1,13 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, ArrowDownCircle, ArrowUpCircle, Wallet, Tag, FileText, Calendar, Loader2, AlertTriangle } from 'lucide-react';
+import { X, ArrowDownCircle, ArrowUpCircle, Wallet, Tag, FileText, Calendar, Loader2, AlertTriangle, Zap } from 'lucide-react';
 import { api } from '../services/api';
-import type { CompteFinancier, Categorie } from '../types';
+import { ICONES_CATEGORIE, ICONE_CATEGORIE_PAR_DEFAUT } from '../utils/categorieIcons';
+import type { CompteFinancier, Categorie, TemplateTransaction, Transaction } from '../types';
 
 interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  // Historique récent, pour trier les catégories par fréquence d'usage
+  // (les plus utilisées en premier) — optionnel, dégrade simplement vers
+  // l'ordre par défaut si non fourni.
+  transactions?: Transaction[];
+  // Les modèles sont un palier payant (voir plans.acces_templates) : évite
+  // un appel /templates garanti 403 pour un client non éligible.
+  accesTemplates?: boolean;
 }
 
 // Format YYYY-MM-DD en heure locale (pas toISOString(), qui bascule sur UTC
@@ -22,12 +30,37 @@ const formatDateLocale = (d: Date): string => {
 
 const AUJOURDHUI = formatDateLocale(new Date());
 
-export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSuccess }) => {
+// Mémorise le dernier compte utilisé (par appareil, jamais synchronisé
+// entre clients) pour le présélectionner au prochain ajout — évite un
+// clic répétitif à chaque saisie pour qui utilise toujours le même compte.
+const CLE_DERNIER_COMPTE = 'mynkap_dernier_compte_transaction';
+
+const MONTANTS_RAPIDES = [500, 1000, 2000, 5000, 10000];
+
+// Correspondance mot-clé -> nom de catégorie par défaut (voir
+// budgets.service.CATEGORIES_PAR_DEFAUT côté backend), pour suggérer une
+// catégorie de dépense pendant la saisie de la description. Volontairement
+// une simple recherche de sous-chaîne, pas d'IA : rapide, prévisible, sans
+// appel réseau. Ne s'applique qu'aux dépenses — les catégories de revenu
+// sont trop peu nombreuses pour en avoir besoin.
+const MOTS_CLES_PAR_CATEGORIE: Record<string, string[]> = {
+  'Alimentation': ['marché', 'marche', 'restaurant', 'nourriture', 'repas', 'courses', 'supermarché', 'supermarche', 'boisson'],
+  'Transport': ['taxi', 'moto', 'essence', 'carburant', 'bus', 'transport', 'uber', 'péage', 'peage', 'moto-taxi'],
+  'Logement': ['loyer', 'maison', 'charges', 'entretien'],
+  'Santé': ['pharmacie', 'médecin', 'medecin', 'hôpital', 'hopital', 'médicament', 'medicament', 'clinique'],
+  'Éducation': ['école', 'ecole', 'université', 'universite', 'scolarité', 'scolarite', 'fournitures', 'formation'],
+  'Factures & Services': ['facture', 'internet', 'abonnement', 'électricité', 'electricite', 'eau', 'téléphone', 'telephone'],
+  'Loisirs': ['cinéma', 'cinema', 'sortie', 'jeu', 'concert', 'fête', 'fete', 'bar'],
+  'Achats personnels': ['vêtement', 'vetement', 'chaussure', 'habit', 'shopping', 'coiffure'],
+};
+
+export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSuccess, transactions, accesTemplates }) => {
   const { t } = useTranslation();
   const [type, setType] = useState<'DEPENSE' | 'REVENU'>('DEPENSE');
   const [montant, setMontant] = useState('');
   const [idCompte, setIdCompte] = useState('');
   const [idCategorie, setIdCategorie] = useState('');
+  const [categorieChoisieManuellement, setCategorieChoisieManuellement] = useState(false);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(AUJOURDHUI);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +68,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
 
   const [comptes, setComptes] = useState<CompteFinancier[]>([]);
   const [categories, setCategories] = useState<Categorie[]>([]);
+  const [templates, setTemplates] = useState<TemplateTransaction[]>([]);
+  const [idTemplateEnCours, setIdTemplateEnCours] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Création du tout premier compte financier (aucune transaction n'est
@@ -48,14 +83,26 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
   const chargerComptesEtCategories = () => {
     setError(null);
     setIsLoading(true);
-    return Promise.all([
+    const requetes: [Promise<CompteFinancier[]>, Promise<Categorie[]>, Promise<TemplateTransaction[]>] = [
       api.request<CompteFinancier[]>('/comptes'),
       api.request<Categorie[]>('/categories'),
-    ])
-      .then(([comptesData, categoriesData]) => {
+      accesTemplates ? api.request<TemplateTransaction[]>('/templates') : Promise.resolve([]),
+    ];
+    return Promise.all(requetes)
+      .then(([comptesData, categoriesData, templatesData]) => {
         setComptes(comptesData);
         setCategories(categoriesData);
-        if (comptesData.length > 0) setIdCompte(String(comptesData[0].id_compte));
+        setTemplates(templatesData);
+        if (comptesData.length > 0) {
+          let dernierCompte: string | null = null;
+          try {
+            dernierCompte = localStorage.getItem(CLE_DERNIER_COMPTE);
+          } catch {
+            // Stockage indisponible (navigation privée...) : retombe sur le premier compte.
+          }
+          const dernierToujoursValide = dernierCompte && comptesData.some((c) => String(c.id_compte) === dernierCompte);
+          setIdCompte(dernierToujoursValide ? dernierCompte! : String(comptesData[0].id_compte));
+        }
       })
       .catch((err) => setError(err instanceof Error ? err.message : t('modals.transaction.error_load')))
       .finally(() => setIsLoading(false));
@@ -68,8 +115,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     // eslint-disable-next-line react-hooks/set-state-in-effect
     chargerComptesEtCategories();
     setDate(AUJOURDHUI);
+    setCategorieChoisieManuellement(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, accesTemplates]);
 
   const handleCreerCompte = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +145,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
 
   const categoriesFiltrees = categories.filter((c) => c.type === type);
 
+  // Les plus utilisées récemment en premier — plus rapide à repérer dans
+  // la grille qu'un ordre alphabétique ou de création.
+  const frequenceParCategorie = useMemo(() => {
+    const compte: Record<number, number> = {};
+    for (const tx of transactions ?? []) {
+      if (tx.id_categorie != null) compte[tx.id_categorie] = (compte[tx.id_categorie] ?? 0) + 1;
+    }
+    return compte;
+  }, [transactions]);
+
+  const categoriesTriees = useMemo(
+    () => [...categoriesFiltrees].sort((a, b) => (frequenceParCategorie[b.id_categorie] ?? 0) - (frequenceParCategorie[a.id_categorie] ?? 0)),
+    [categoriesFiltrees, frequenceParCategorie]
+  );
+
+  // Les modèles les plus rejoués en premier (voir TemplateTransaction.nombre_utilisations).
+  const templatesTries = useMemo(
+    () => [...templates].filter((tpl) => tpl.est_actif).sort((a, b) => b.nombre_utilisations - a.nombre_utilisations),
+    [templates]
+  );
+
   useEffect(() => {
     // Réinitialise la catégorie sélectionnée quand la liste filtrée change
     // (bascule DEPENSE/REVENU) — un choix de l'utilisateur reste ensuite
@@ -108,10 +177,54 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     } else {
       setIdCategorie('');
     }
+    setCategorieChoisieManuellement(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, categories]);
 
+  useEffect(() => {
+    // Suggestion automatique de catégorie à partir de la description — ne
+    // prend jamais le dessus sur un choix déjà fait explicitement par le
+    // client (voir categorieChoisieManuellement), et seulement pour une
+    // dépense (les catégories de revenu sont trop peu nombreuses pour ça).
+    if (type !== 'DEPENSE' || categorieChoisieManuellement || !description.trim()) return;
+    const texte = description.toLowerCase();
+    for (const [nomCategorie, motsCles] of Object.entries(MOTS_CLES_PAR_CATEGORIE)) {
+      if (motsCles.some((mot) => texte.includes(mot))) {
+        const trouvee = categoriesFiltrees.find((c) => c.nom === nomCategorie);
+        if (trouvee) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setIdCategorie(String(trouvee.id_categorie));
+        }
+        break;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [description]);
+
   if (!isOpen) return null;
+
+  const memoriserDernierCompte = (id: string) => {
+    try {
+      localStorage.setItem(CLE_DERNIER_COMPTE, id);
+    } catch {
+      // Stockage indisponible : purement un confort, jamais bloquant.
+    }
+  };
+
+  const handleRejouerTemplate = async (tpl: TemplateTransaction) => {
+    setError(null);
+    setIdTemplateEnCours(tpl.id_template);
+    try {
+      await api.request(`/templates/${tpl.id_template}/rejouer`, { method: 'POST' });
+      memoriserDernierCompte(String(tpl.id_compte));
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('modals.transaction.error_generic'));
+    } finally {
+      setIdTemplateEnCours(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,6 +244,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
           date,
         }),
       });
+      memoriserDernierCompte(idCompte);
       setMontant('');
       setDescription('');
       setDate(AUJOURDHUI);
@@ -145,9 +259,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         {/* Header Modal */}
-        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
+        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <h3 className="text-lg font-bold tracking-tight">{t('modals.transaction.title')}</h3>
           <button
             onClick={onClose}
@@ -162,7 +276,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : comptes.length === 0 ? (
-          <form onSubmit={handleCreerCompte} className="p-6 space-y-4">
+          <form onSubmit={handleCreerCompte} className="p-6 space-y-4 overflow-y-auto">
             <div className="text-center space-y-2">
               <AlertTriangle className="h-8 w-8 mx-auto text-amber-500" />
               <p className="text-sm font-semibold text-foreground">{t('modals.transaction.no_account')}</p>
@@ -225,7 +339,34 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
             </div>
           </form>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+            {/* Modèles en un tap — le plus rapide possible, saute tout le reste du formulaire. */}
+            {templatesTries.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5" />
+                  <span>{t('modals.transaction.quick_templates')}</span>
+                </label>
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                  {templatesTries.slice(0, 6).map((tpl) => (
+                    <button
+                      key={tpl.id_template}
+                      type="button"
+                      onClick={() => handleRejouerTemplate(tpl)}
+                      disabled={idTemplateEnCours !== null}
+                      className="shrink-0 flex flex-col items-start gap-0.5 px-3 py-2 rounded-xl border border-border bg-muted/40 hover:border-primary/50 hover:bg-primary/5 transition-colors text-left disabled:opacity-50"
+                    >
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        {idTemplateEnCours === tpl.id_template && <Loader2 className="h-3 w-3 animate-spin" />}
+                        <span>{tpl.nom}</span>
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">{tpl.montant.toLocaleString('fr-FR')} XAF</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Selector Type (DEPENSE / REVENU) */}
             <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
               <button
@@ -269,6 +410,22 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary pr-16"
                 />
                 <span className="absolute right-4 top-3.5 text-xs font-black text-muted-foreground uppercase">XAF</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {MONTANTS_RAPIDES.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMontant(String(m))}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                      montant === String(m)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                    }`}
+                  >
+                    {m.toLocaleString('fr-FR')}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -318,22 +475,35 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 <Tag className="h-3.5 w-3.5" />
                 <span>{t('modals.transaction.category_label')}</span>
               </label>
-              {categoriesFiltrees.length === 0 ? (
+              {categoriesTriees.length === 0 ? (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   {type === 'DEPENSE' ? t('modals.transaction.no_expense_category') : t('modals.transaction.no_income_category')}
                 </p>
               ) : (
-                <select
-                  value={idCategorie}
-                  onChange={(e) => setIdCategorie(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  {categoriesFiltrees.map((c) => (
-                    <option key={c.id_categorie} value={c.id_categorie}>
-                      {c.nom}
-                    </option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-3 gap-2">
+                  {categoriesTriees.map((c) => {
+                    const Icon = (c.icone && ICONES_CATEGORIE[c.icone]) || ICONE_CATEGORIE_PAR_DEFAUT;
+                    const selectionnee = idCategorie === String(c.id_categorie);
+                    return (
+                      <button
+                        key={c.id_categorie}
+                        type="button"
+                        onClick={() => {
+                          setIdCategorie(String(c.id_categorie));
+                          setCategorieChoisieManuellement(true);
+                        }}
+                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border text-[11px] font-semibold transition-colors ${
+                          selectionnee
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="truncate w-full text-center">{c.nom}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
 

@@ -886,6 +886,7 @@
       "error_load": "Unable to load accounts/categories.",
       "error_generic": "An error occurred.",
       "title": "New Financial Transaction",
+      "quick_templates": "Your templates (1 tap)",
       "no_account": "No financial account",
       "no_account_desc": "First create a financial account (Mobile Money, bank, cash...) before recording a transaction.",
       "income_deposit": "Income / Deposit",

@@ -885,6 +885,7 @@
       "error_load": "Impossible de charger les comptes/catégories.",
       "error_generic": "Une erreur est survenue.",
       "title": "Nouvelle Opération Financière",
+      "quick_templates": "Vos modèles (1 tap)",
       "no_account": "Aucun compte financier",
       "no_account_desc": "Créez d'abord un compte financier (Mobile Money, banque, espèces...) avant d'enregistrer une transaction.",
       "income_deposit": "Revenu / Dépôt",

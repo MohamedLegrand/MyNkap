@@ -969,6 +969,8 @@ export const ClientDashboard: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={chargerDonnees}
+        transactions={transactions}
+        accesTemplates={abonnement?.plan.acces_templates ?? false}
       />
 
       {/* Modal de changement de formule (Standard / Premium) */}
