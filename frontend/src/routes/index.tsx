@@ -170,9 +170,14 @@ const SiteFooter = () => {
 
           {/* Réseaux sociaux */}
           <div className="flex gap-4 pt-2 text-muted-foreground">
-            <a href="#" className="hover:text-primary transition-colors" title="Twitter / X">
+            <a href="#" className="hover:text-primary transition-colors" title="WhatsApp">
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.79.47 3.45 1.29 4.9L2 22l5.31-1.4c1.4.76 3.02 1.19 4.73 1.19h.01c5.46 0 9.9-4.45 9.9-9.9 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 1.67c2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.82c0 4.54-3.7 8.23-8.24 8.23-1.48 0-2.93-.39-4.19-1.15l-.3-.18-3.15.83.84-3.07-.2-.32a8.18 8.18 0 0 1-1.25-4.36c0-4.54 3.7-8.22 8.25-8.22zm-4.65 4.66c-.15 0-.4.06-.6.29-.21.24-.8.78-.8 1.9s.82 2.2.93 2.36c.11.15 1.62 2.55 3.98 3.47 1.97.77 2.37.62 2.8.58.43-.04 1.38-.56 1.58-1.11.19-.55.19-1.02.13-1.11-.05-.1-.2-.16-.42-.27-.22-.11-1.31-.65-1.51-.72-.2-.07-.35-.11-.5.11-.15.22-.57.72-.7.87-.13.15-.26.16-.48.05-.22-.11-.94-.35-1.79-1.11-.66-.59-1.11-1.32-1.24-1.54-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.21-.7-1.66-.18-.44-.37-.38-.5-.39-.13-.01-.28-.01-.43-.01z" />
+              </svg>
+            </a>
+            <a href="#" className="hover:text-primary transition-colors" title="Facebook">
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z" />
               </svg>
             </a>
             <a href="#" className="hover:text-primary transition-colors" title="GitHub">
@@ -207,7 +212,6 @@ const SiteFooter = () => {
             <li><Link to="/contact" className="hover:text-foreground transition-colors">{t('nav.contact')}</Link></li>
             <li><a href="/#about" className="hover:text-foreground transition-colors">{t('footer.accounting_principles')}</a></li>
             <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.help_center')}</a></li>
-            <li><a href="#" className="hover:text-foreground transition-colors">{t('footer.developer_api')}</a></li>
           </ul>
         </div>
 
@@ -237,13 +241,6 @@ const SiteFooter = () => {
               <span className="text-muted-foreground">{t('footer.location')}</span>
             </li>
           </ul>
-          {/* Badge Sécurisé */}
-          <div className="pt-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold uppercase tracking-wider">
-              <Shield className="h-3 w-3" />
-              {t('footer.encrypted_data')}
-            </span>
-          </div>
         </div>
 
       </div>
@@ -335,9 +332,7 @@ const AiChatDemo = () => {
   return (
     <div className="w-full max-w-sm bg-card rounded-2xl shadow-xl border border-border p-6 space-y-4 text-left">
       <div className="flex items-center gap-2 border-b border-border pb-3">
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex justify-center items-center text-primary">
-          <Sparkles className="w-6 h-6" />
-        </div>
+        <img src="/ia.jpg" alt={t('landing.ia.demo_title')} className="w-10 h-10 rounded-full object-cover" />
         <div>
           <h4 className="font-bold text-sm">{t('landing.ia.demo_title')}</h4>
           <span className="text-xs text-green-500 flex items-center gap-1">
@@ -456,12 +451,8 @@ const LandingPage = () => {
       <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
-              <Sparkles className="h-4 w-4" />
-              <span>{t('landing.hero.badge')}</span>
-            </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
-              {t('landing.hero.title_part1')} <span className="text-primary">{t('landing.hero.title_budget')}</span> {t('landing.hero.title_part2')} <span className="text-secondary">{t('landing.hero.title_finances')}</span> {t('landing.hero.title_part3')}
+              {t('landing.hero.title_part1')} {t('landing.hero.title_budget')} {t('landing.hero.title_part2')} {t('landing.hero.title_finances')} {t('landing.hero.title_part3')}
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
               {t('landing.hero.subtitle')}
@@ -496,9 +487,7 @@ const LandingPage = () => {
           <div className="flex w-max animate-marquee">
             {[...TRUST_PILLS, ...TRUST_PILLS].map((pill, idx) => (
               <div key={idx} className="flex items-center gap-3 pr-10 shrink-0">
-                <span className="p-2.5 rounded-xl bg-card border border-border shadow-sm text-primary shrink-0">
-                  <pill.icon className="h-5 w-5" />
-                </span>
+                <pill.icon className="h-5 w-5 text-primary shrink-0" />
                 <div className="text-left leading-tight">
                   <span className="block text-sm font-bold text-foreground whitespace-nowrap">{t(`landing.trust.${pill.key}_title`)}</span>
                   <span className="block text-[11px] text-muted-foreground whitespace-nowrap">{t(`landing.trust.${pill.key}_desc`)}</span>
@@ -523,7 +512,7 @@ const LandingPage = () => {
             {/* Right Column (Content) */}
             <div className="lg:col-span-7 space-y-6 text-left">
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                {t('landing.ia.title_part1')} <span className="text-primary">{t('landing.ia.title_highlight')}</span>
+                {t('landing.ia.title_part1')} {t('landing.ia.title_highlight')}
               </h2>
               <p className="text-base text-muted-foreground leading-relaxed">
                 {t('landing.ia.description')}
@@ -553,7 +542,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-6">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              {t('landing.features.title_part1')} <span className="text-secondary">{t('landing.features.title_highlight')}</span> {t('landing.features.title_part2')}
+              {t('landing.features.title_part1')} {t('landing.features.title_highlight')} {t('landing.features.title_part2')}
             </h2>
             <p className="text-base text-muted-foreground leading-relaxed">
               {t('landing.features.description')}
@@ -580,12 +569,8 @@ const LandingPage = () => {
 
             {/* Left Column (Content) */}
             <div className="lg:col-span-7 space-y-6 text-left order-last lg:order-first">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold uppercase tracking-wide">
-                <Sparkles className="h-3.5 w-3.5" />
-                {t('landing.tontines.badge')}
-              </span>
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                {t('landing.tontines.title_part1')} <span className="text-secondary">{t('landing.tontines.title_highlight')}</span> {t('landing.tontines.title_part2')}
+                {t('landing.tontines.title_part1')} {t('landing.tontines.title_highlight')} {t('landing.tontines.title_part2')}
               </h2>
               <p className="text-base text-muted-foreground leading-relaxed">
                 {t('landing.tontines.description')}
@@ -728,10 +713,7 @@ const LandingPage = () => {
             </div>
 
             {/* Plan Essentiel */}
-            <div className="bg-card p-8 rounded-2xl border-2 border-primary shadow-md flex flex-col justify-between text-left relative transform md:-translate-y-2">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full">
-                {t('landing.pricing.recommended')}
-              </div>
+            <div className="bg-card p-8 rounded-2xl border border-border shadow-sm flex flex-col justify-between text-left relative">
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">{t('landing.pricing.essential.name')}</h3>
                 <div className="text-3xl font-extrabold text-primary">{t('landing.pricing.essential.price')} <span className="text-xs font-normal text-muted-foreground">{t('landing.pricing.essential.price_suffix')}</span></div>
@@ -744,13 +726,16 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.essential.feature4')}</li>
                 </ul>
               </div>
-              <Link to="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
+              <Link to="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
                 {t('landing.pricing.essential.cta')}
               </Link>
             </div>
 
             {/* Plan Premium */}
-            <div className="bg-card p-8 rounded-2xl border border-border shadow-sm flex flex-col justify-between text-left relative">
+            <div className="bg-card p-8 rounded-2xl border-2 border-primary shadow-md flex flex-col justify-between text-left relative transform md:-translate-y-2">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full">
+                {t('landing.pricing.recommended')}
+              </div>
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">{t('landing.pricing.premium.name')}</h3>
                 <div className="text-3xl font-extrabold text-primary">{t('landing.pricing.premium.price')} <span className="text-xs font-normal text-muted-foreground">{t('landing.pricing.premium.price_suffix')}</span></div>
@@ -763,7 +748,7 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.premium.feature4')}</li>
                 </ul>
               </div>
-              <Link to="/register" className="mt-8 block text-center bg-muted hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl transition-all text-xs">
+              <Link to="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
                 {t('landing.pricing.premium.cta')}
               </Link>
             </div>
@@ -814,7 +799,7 @@ const AboutPage = () => {
             <span>{t('about_page.badge')}</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight">
-            {t('about_page.title_part1')} <span className="text-primary">{t('about_page.title_highlight')}</span>
+            {t('about_page.title_part1')} {t('about_page.title_highlight')}
           </h1>
           <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
             {t('about_page.subtitle')}
@@ -932,7 +917,7 @@ const ContactPage = () => {
             <span>{t('nav.contact')}</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight">
-            {t('contact_page.title_part1')} <span className="text-primary">{t('contact_page.title_highlight')}</span>
+            {t('contact_page.title_part1')} {t('contact_page.title_highlight')}
           </h1>
           <p className="text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto">
             {t('contact_page.subtitle')}
@@ -1130,7 +1115,7 @@ const TermsOfServicePage = () => {
 
 const LegalNoticePage = () => {
   const { t } = useTranslation();
-  const sections = Array.from({ length: 6 }, (_, i) => i + 1).map((n) => ({
+  const sections = Array.from({ length: 4 }, (_, i) => i + 1).map((n) => ({
     title: t(`legal_notice_page.s${n}_title`),
     body: t(`legal_notice_page.s${n}_body`),
   }));
@@ -1187,14 +1172,14 @@ const AuthLayout = ({
       </div>
 
       <div className={`w-full ${maxWidthClassName}`}>
-        <Link to="/" className="flex flex-col items-center gap-3 mb-8">
-          <img src="/logo.jpg" alt="MyNkap" className="h-20 w-20 rounded-2xl object-cover shadow-md border border-border" />
-          <span className="text-2xl font-black tracking-tight text-primary">
-            MyNkap
-          </span>
-        </Link>
-
         <div className="bg-card p-8 rounded-2xl shadow-lg border border-border">
+          <Link to="/" className="flex flex-col items-center gap-3 mb-6">
+            <img src="/logo.jpg" alt="MyNkap" className="h-16 w-16 rounded-2xl object-cover shadow-md border border-border" />
+            <span className="text-xl font-black tracking-tight text-primary">
+              MyNkap
+            </span>
+          </Link>
+
           <h2 className="text-2xl font-bold mb-2 text-center">{title}</h2>
           <p className="text-muted-foreground text-center mb-6 text-sm">{subtitle}</p>
           {children}

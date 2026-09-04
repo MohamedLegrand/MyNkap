@@ -11,6 +11,31 @@ interface DetteModalProps {
   comptes: CompteFinancier[];
 }
 
+// Mémorise le dernier compte utilisé (par appareil) pour le présélectionner
+// au prochain ajout — même principe que TransactionModal.
+const CLE_DERNIER_COMPTE = 'mynkap_dernier_compte_dette';
+
+const MONTANTS_RAPIDES = [5000, 10000, 25000, 50000, 100000];
+
+const formatDateLocale = (d: Date): string => {
+  const annee = d.getFullYear();
+  const mois = String(d.getMonth() + 1).padStart(2, '0');
+  const jour = String(d.getDate()).padStart(2, '0');
+  return `${annee}-${mois}-${jour}`;
+};
+
+// Décalages courants pour une échéance — évite d'ouvrir le sélecteur de
+// date pour le cas le plus fréquent (une échéance approximative plutôt
+// qu'un jour précis en tête). Les dates cibles sont calculées une seule
+// fois au chargement du module (comme AUJOURDHUI dans TransactionModal),
+// jamais pendant le rendu — un composant React doit rester pur.
+const MAINTENANT_MS = Date.now();
+const ECHEANCES_RAPIDES: { date: string; labelKey: string }[] = [
+  { date: formatDateLocale(new Date(MAINTENANT_MS + 7 * 24 * 60 * 60 * 1000)), labelKey: 'modals.dette.due_in_week' },
+  { date: formatDateLocale(new Date(MAINTENANT_MS + 30 * 24 * 60 * 60 * 1000)), labelKey: 'modals.dette.due_in_month' },
+  { date: formatDateLocale(new Date(MAINTENANT_MS + 90 * 24 * 60 * 60 * 1000)), labelKey: 'modals.dette.due_in_3months' },
+];
+
 export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSuccess, comptes }) => {
   const { t } = useTranslation();
   const [type, setType] = useState<'DETTE' | 'CREANCE'>('DETTE');
@@ -23,12 +48,21 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Présélectionne le premier compte dès qu'il est disponible — la liste
-    // des comptes se charge de façon asynchrone après le montage de la
-    // modale, donc l'état initial ne peut pas s'y fier directement.
+    // Présélectionne le compte dès qu'il est disponible — la liste des
+    // comptes se charge de façon asynchrone après le montage de la modale,
+    // donc l'état initial ne peut pas s'y fier directement. Le dernier
+    // compte utilisé pour une dette/créance est privilégié s'il existe
+    // toujours, sinon on retombe sur le premier.
     if (isOpen && comptes.length > 0 && !idCompte) {
+      let dernierCompte: string | null = null;
+      try {
+        dernierCompte = localStorage.getItem(CLE_DERNIER_COMPTE);
+      } catch {
+        // Stockage indisponible (navigation privée...) : retombe sur le premier compte.
+      }
+      const dernierToujoursValide = dernierCompte && comptes.some((c) => String(c.id_compte) === dernierCompte);
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIdCompte(String(comptes[0].id_compte));
+      setIdCompte(dernierToujoursValide ? dernierCompte! : String(comptes[0].id_compte));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, comptes]);
@@ -52,6 +86,11 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
           date_echeance: dateEcheance || undefined,
         }),
       });
+      try {
+        localStorage.setItem(CLE_DERNIER_COMPTE, idCompte);
+      } catch {
+        // Purement un confort, jamais bloquant.
+      }
       setNom('');
       setMontantTotal('');
       setPersonneImpliquee('');
@@ -120,6 +159,22 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
               onChange={(e) => setMontantTotal(e.target.value)}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            <div className="flex flex-wrap gap-1.5">
+              {MONTANTS_RAPIDES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMontantTotal(String(m))}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                    montantTotal === String(m)
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                  }`}
+                >
+                  {m.toLocaleString('fr-FR')}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -154,6 +209,22 @@ export const DetteModal: React.FC<DetteModalProps> = ({ isOpen, onClose, onSucce
               onChange={(e) => setDateEcheance(e.target.value)}
               className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            <div className="flex flex-wrap gap-1.5">
+              {ECHEANCES_RAPIDES.map(({ date: dateCible, labelKey }) => (
+                <button
+                  key={labelKey}
+                  type="button"
+                  onClick={() => setDateEcheance(dateCible)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                    dateEcheance === dateCible
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                  }`}
+                >
+                  {t(labelKey)}
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <p className="text-sm text-destructive text-center">{error}</p>}

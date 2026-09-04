@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
+import { ICONES_CATEGORIE, ICONE_CATEGORIE_PAR_DEFAUT } from '../utils/categorieIcons';
 import type { Budget, Categorie } from '../types';
 
 interface BudgetModalProps {
@@ -20,12 +21,17 @@ const MOIS_KEYS = [
   'common.month_7', 'common.month_8', 'common.month_9', 'common.month_10', 'common.month_11', 'common.month_12',
 ];
 
+const MONTANTS_RAPIDES = [5000, 10000, 25000, 50000, 100000];
+
 export const BudgetModal: React.FC<BudgetModalProps> = ({
   isOpen, onClose, onSuccess, categoriesDepense, budget = null, nomCategorie,
 }) => {
   const { t } = useTranslation();
   const modeEdition = budget !== null;
   const maintenant = new Date();
+  // Décalé d'un mois par rapport à `maintenant` — sert pour le raccourci
+  // "Mois prochain" (définir un budget en avance).
+  const moisProchain = new Date(maintenant.getFullYear(), maintenant.getMonth() + 1, 1);
   const [idCategorie, setIdCategorie] = useState('');
   const [montantLimite, setMontantLimite] = useState('');
   const [mois, setMois] = useState(maintenant.getMonth() + 1);
@@ -132,15 +138,27 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
             ) : (
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.category_label')}</label>
-                <select
-                  value={idCategorie}
-                  onChange={(e) => setIdCategorie(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  {categoriesDepense.map((c) => (
-                    <option key={c.id_categorie} value={c.id_categorie}>{c.nom}</option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-3 gap-2">
+                  {categoriesDepense.map((c) => {
+                    const Icon = (c.icone && ICONES_CATEGORIE[c.icone]) || ICONE_CATEGORIE_PAR_DEFAUT;
+                    const selectionnee = idCategorie === String(c.id_categorie);
+                    return (
+                      <button
+                        key={c.id_categorie}
+                        type="button"
+                        onClick={() => setIdCategorie(String(c.id_categorie))}
+                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border text-[11px] font-semibold transition-colors ${
+                          selectionnee
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="truncate w-full text-center">{c.nom}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -156,33 +174,75 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
                 onChange={(e) => setMontantLimite(e.target.value)}
                 className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
               />
+              <div className="flex flex-wrap gap-1.5">
+                {MONTANTS_RAPIDES.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMontantLimite(String(m))}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                      montantLimite === String(m)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                    }`}
+                  >
+                    {m.toLocaleString('fr-FR')}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {!modeEdition && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.month_label')}</label>
-                  <select
-                    value={mois}
-                    onChange={(e) => setMois(Number(e.target.value))}
-                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setMois(maintenant.getMonth() + 1); setAnnee(maintenant.getFullYear()); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                      mois === maintenant.getMonth() + 1 && annee === maintenant.getFullYear()
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                    }`}
                   >
-                    {MOIS_KEYS.map((key, idx) => (
-                      <option key={key} value={idx + 1}>{t(key)}</option>
-                    ))}
-                  </select>
+                    {t('modals.budget.this_month')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMois(moisProchain.getMonth() + 1); setAnnee(moisProchain.getFullYear()); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                      mois === moisProchain.getMonth() + 1 && annee === moisProchain.getFullYear()
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                    }`}
+                  >
+                    {t('modals.budget.next_month')}
+                  </button>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.year_label')}</label>
-                  <input
-                    type="number"
-                    required
-                    min={2000}
-                    max={2100}
-                    value={annee}
-                    onChange={(e) => setAnnee(Number(e.target.value))}
-                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.month_label')}</label>
+                    <select
+                      value={mois}
+                      onChange={(e) => setMois(Number(e.target.value))}
+                      className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      {MOIS_KEYS.map((key, idx) => (
+                        <option key={key} value={idx + 1}>{t(key)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground">{t('modals.budget.year_label')}</label>
+                    <input
+                      type="number"
+                      required
+                      min={2000}
+                      max={2100}
+                      value={annee}
+                      onChange={(e) => setAnnee(Number(e.target.value))}
+                      className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
                 </div>
               </div>
             )}

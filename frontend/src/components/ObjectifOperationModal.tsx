@@ -13,6 +13,14 @@ interface ObjectifOperationModalProps {
   comptes: CompteFinancier[];
 }
 
+// Mémorise le dernier compte utilisé par sens d'opération (alimenter vs
+// retirer/abandonner ont rarement le même compte source/destination) —
+// même principe que TransactionModal.
+const CLE_DERNIER_COMPTE = (estAlimentation: boolean) =>
+  `mynkap_dernier_compte_epargne_${estAlimentation ? 'source' : 'destination'}`;
+
+const MONTANTS_RAPIDES = [5000, 10000, 20000, 50000];
+
 // Alimenter (verser vers l'épargne), retirer (reprendre de l'épargne) ou
 // abandonner (vider et verrouiller définitivement) : même formulaire de
 // base, seul l'endpoint et les champs affichés changent selon l'opération.
@@ -28,11 +36,18 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
 
   useEffect(() => {
     if (isOpen && comptes.length > 0 && !idCompte) {
+      let dernierCompte: string | null = null;
+      try {
+        dernierCompte = localStorage.getItem(CLE_DERNIER_COMPTE(operation === 'alimenter'));
+      } catch {
+        // Stockage indisponible (navigation privée...) : retombe sur le premier compte.
+      }
+      const dernierToujoursValide = dernierCompte && comptes.some((c) => String(c.id_compte) === dernierCompte);
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIdCompte(String(comptes[0].id_compte));
+      setIdCompte(dernierToujoursValide ? dernierCompte! : String(comptes[0].id_compte));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, comptes]);
+  }, [isOpen, comptes, operation]);
 
   useEffect(() => {
     // Relit l'objectif depuis le serveur à l'ouverture plutôt que de se fier
@@ -63,6 +78,13 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
         ? { id_compte_destination: Number(idCompte) }
         : { montant: Number(montant), [estAlimentation ? 'id_compte_source' : 'id_compte_destination']: Number(idCompte) };
       await api.request(endpoint, { method: 'POST', body: JSON.stringify(body) });
+      if (!estAbandon) {
+        try {
+          localStorage.setItem(CLE_DERNIER_COMPTE(estAlimentation), idCompte);
+        } catch {
+          // Purement un confort, jamais bloquant.
+        }
+      }
       setMontant('');
       onSuccess?.();
       onClose();
@@ -112,6 +134,35 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
                 onChange={(e) => setMontant(e.target.value)}
                 className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
               />
+              <div className="flex flex-wrap gap-1.5">
+                {MONTANTS_RAPIDES.filter((m) => estAlimentation || m <= Number(objectifAffiche.montant_actuel)).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMontant(String(m))}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                      montant === String(m)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                    }`}
+                  >
+                    {m.toLocaleString('fr-FR')}
+                  </button>
+                ))}
+                {!estAlimentation && Number(objectifAffiche.montant_actuel) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMontant(String(objectifAffiche.montant_actuel))}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                      montant === String(objectifAffiche.montant_actuel)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                    }`}
+                  >
+                    {t('modals.objectif_operation.withdraw_all')}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
