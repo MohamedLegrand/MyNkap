@@ -389,29 +389,50 @@ const RenduComparaison: React.FC<{ resultats: Record<string, unknown> }> = ({ re
   );
 };
 
-const StatComportement: React.FC<{ label: string; valeur: number; alerte?: boolean }> = ({ label, valeur, alerte }) => (
+const StatComportement: React.FC<{ label: string; valeur: number; alerte?: boolean; sousTexte?: string }> = ({ label, valeur, alerte, sousTexte }) => (
   <div className="bg-card rounded-2xl border border-border p-5 shadow-sm text-center space-y-1.5">
     <p className={`text-2xl font-black tabular-nums ${alerte && valeur > 0 ? 'text-destructive' : 'text-foreground'}`}>{valeur}</p>
     <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+    {sousTexte && valeur > 0 && <p className="text-[11px] text-destructive font-semibold">{sousTexte}</p>}
   </div>
 );
 
+// Le comportement du client ne se limite pas aux dépenses/budgets du mois :
+// une créance jamais remboursée, une dette en retard, un objectif d'épargne
+// abandonné ou une tontine mal suivie disent tout autant sur sa gestion —
+// ces signaux viennent de calculer_comportement côté backend, cumulatifs
+// sur tout l'historique actif (pas bornés à la période affichée).
 const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ resultats }) => {
   const { t } = useTranslation();
   const suspectes = Number(resultats.transactions_suspectes ?? 0);
   const depasses = Number(resultats.budgets_depasses ?? 0);
   const actifs = Number(resultats.nombre_budgets_actifs ?? 0);
+  const creancesPerdues = Number(resultats.creances_perdues ?? 0);
+  const montantCreancesPerdues = Number(resultats.montant_creances_perdues ?? 0);
+  const enRetard = Number(resultats.dettes_creances_en_retard ?? 0);
+  const objectifsAbandonnes = Number(resultats.objectifs_epargne_abandonnes ?? 0);
+  const cotisationsImpayees = Number(resultats.cotisations_tontine_impayees ?? 0);
 
   const labelSuspectes = t('analyse.suspicious_transactions');
   const labelDepasses = t('analyse.exceeded_budgets');
   const labelActifs = t('analyse.active_budgets');
+  const labelCreancesPerdues = t('analyse.claims_lost');
+  const labelEnRetard = t('analyse.debts_overdue');
+  const labelObjectifsAbandonnes = t('analyse.savings_abandoned');
+  const labelCotisationsImpayees = t('analyse.tontine_unpaid');
   const donneesGraphique = [
     { label: labelSuspectes, valeur: suspectes },
     { label: labelDepasses, valeur: depasses },
     { label: labelActifs, valeur: actifs },
+    { label: labelCreancesPerdues, valeur: creancesPerdues },
+    { label: labelEnRetard, valeur: enRetard },
+    { label: labelObjectifsAbandonnes, valeur: objectifsAbandonnes },
+    { label: labelCotisationsImpayees, valeur: cotisationsImpayees },
   ];
 
-  const rienASignaler = suspectes === 0 && depasses === 0;
+  const rienASignaler =
+    suspectes === 0 && depasses === 0 && creancesPerdues === 0 && enRetard === 0
+    && objectifsAbandonnes === 0 && cotisationsImpayees === 0;
   let messageComportement: string;
   if (rienASignaler) {
     messageComportement = t('analyse.nothing_to_report');
@@ -419,23 +440,38 @@ const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ r
     const points: string[] = [];
     if (suspectes > 0) points.push(t('analyse.suspicious_count', { count: suspectes }));
     if (depasses > 0) points.push(t('analyse.exceeded_count', { count: depasses }));
+    if (creancesPerdues > 0) {
+      points.push(t('analyse.claims_lost_count', { count: creancesPerdues, montant: formatMontant(montantCreancesPerdues) }));
+    }
+    if (enRetard > 0) points.push(t('analyse.debts_overdue_count', { count: enRetard }));
+    if (objectifsAbandonnes > 0) points.push(t('analyse.savings_abandoned_count', { count: objectifsAbandonnes }));
+    if (cotisationsImpayees > 0) points.push(t('analyse.tontine_unpaid_count', { count: cotisationsImpayees }));
     messageComportement = t('analyse.points_to_watch', { points: points.join(` ${t('common.and')} `) });
   }
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         <StatComportement label={labelSuspectes} valeur={suspectes} alerte />
         <StatComportement label={labelDepasses} valeur={depasses} alerte />
         <StatComportement label={labelActifs} valeur={actifs} />
+        <StatComportement
+          label={labelCreancesPerdues}
+          valeur={creancesPerdues}
+          alerte
+          sousTexte={montantCreancesPerdues > 0 ? `-${formatMontant(montantCreancesPerdues)}` : undefined}
+        />
+        <StatComportement label={labelEnRetard} valeur={enRetard} alerte />
+        <StatComportement label={labelObjectifsAbandonnes} valeur={objectifsAbandonnes} alerte />
+        <StatComportement label={labelCotisationsImpayees} valeur={cotisationsImpayees} alerte />
       </div>
 
       <CarteGraphique titre={t('analyse.overview_title')}>
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height={260}>
           <BarChart layout="vertical" data={donneesGraphique} margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
             <XAxis type="number" allowDecimals={false} tick={AXE_STYLE} />
-            <YAxis type="category" dataKey="label" tick={AXE_STYLE} width={130} />
+            <YAxis type="category" dataKey="label" tick={AXE_STYLE} width={150} />
             <Tooltip {...STYLE_TOOLTIP} />
             <Bar dataKey="valeur" radius={[0, 6, 6, 0]} isAnimationActive={false}>
               {donneesGraphique.map((d, i) => (

@@ -83,6 +83,32 @@ const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
   ABONNEMENT: <Crown className="h-4 w-4" />,
 };
 
+// Logo réel à afficher pour un compte : espèces et carte bancaire ont un
+// logo fixe par type, mobile money dépend de l'opérateur reconnu dans le nom
+// que le client a donné à son compte (le type MOBILE_MONEY ne distingue pas
+// les opérateurs côté backend). Épargne et abonnement restent sur l'icône.
+const obtenirLogoCompte = (acc: CompteFinancier): string | null => {
+  if (acc.type === 'ESPECES') return '/cash.jpg';
+  if (acc.type === 'BANCAIRE') return '/carte.svg';
+  if (acc.type === 'MOBILE_MONEY') {
+    const nom = acc.nom.toLowerCase();
+    return nom.includes('orange') ? '/orange.jpg' : '/momo.jpg';
+  }
+  return null;
+};
+
+const IconeCompte = ({ acc }: { acc: CompteFinancier }) => {
+  const logo = obtenirLogoCompte(acc);
+  if (logo) {
+    return <img src={logo} alt={acc.type} className="h-9 w-9 rounded-lg object-cover shrink-0" />;
+  }
+  return (
+    <div className="p-2 rounded-xl text-xs font-bold bg-primary/10 text-primary shrink-0">
+      {ICONS_PAR_TYPE_COMPTE[acc.type] ?? <Wallet className="h-4 w-4" />}
+    </div>
+  );
+};
+
 const formatMontant = (valeur: number) => `${valeur.toLocaleString('fr-FR')} XAF`;
 
 // Nombre de jours restants avant la fin de l'essai — même principe que
@@ -799,9 +825,7 @@ export const ClientDashboard: React.FC = () => {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
-                            <div className="p-2 rounded-xl text-xs font-bold bg-primary/10 text-primary">
-                              {ICONS_PAR_TYPE_COMPTE[acc.type] ?? <Wallet className="h-4 w-4" />}
-                            </div>
+                            <IconeCompte acc={acc} />
                             <div>
                               <h4 className="text-sm font-bold text-foreground leading-tight">{acc.nom}</h4>
                               <span className="text-[11px] text-muted-foreground leading-tight">{acc.type}</span>
@@ -1258,9 +1282,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="p-2 rounded-xl text-xs font-bold bg-primary/10 text-primary shrink-0">
-                    {ICONS_PAR_TYPE_COMPTE[acc.type] ?? <Wallet className="h-4 w-4" />}
-                  </div>
+                  <IconeCompte acc={acc} />
                   <div className="min-w-0">
                     <h4 className="text-sm font-bold text-foreground leading-tight truncate">{acc.nom}</h4>
                     <span className="text-[11px] text-muted-foreground leading-tight">
@@ -1291,7 +1313,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
                 <span className="text-xs font-medium text-muted-foreground">{t('accounts.balance')}</span>
                 <span className="text-lg font-black text-foreground tabular-nums">{formatMontant(Number(acc.solde))}</span>
               </div>
-              {acc.est_actif && (
+              {acc.type === 'ABONNEMENT' && acc.est_actif && (
                 <button
                   onClick={() => onOpenRechargeModal(acc)}
                   className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors"
@@ -1696,7 +1718,15 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <h4 className="text-sm font-bold text-foreground truncate">{d.nom}</h4>
-                  {d.personne_impliquee && <span className="text-xs text-muted-foreground">{d.personne_impliquee}</span>}
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {d.personne_impliquee && (
+                      <>
+                        <span className="truncate">{d.personne_impliquee}</span>
+                        <span>•</span>
+                      </>
+                    )}
+                    <span className="shrink-0">{new Date(d.date_creation).toLocaleDateString('fr-FR')}</span>
+                  </div>
                 </div>
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${
                   d.statut === 'SOLDE' ? 'bg-forest-500/10 text-forest-600' : d.statut === 'PERTE' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'

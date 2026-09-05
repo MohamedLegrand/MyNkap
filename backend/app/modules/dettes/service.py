@@ -184,7 +184,7 @@ def _operer(
         id_dette=dette.id_dette,
         montant=montant,
         type=type_transaction,
-        description=f"{verbe} de la dette #{dette.id_dette}",
+        description=f"{verbe} : {dette.nom}",
     )
     db.add(transaction)
     db.flush()

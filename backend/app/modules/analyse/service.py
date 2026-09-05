@@ -12,6 +12,7 @@ from app.modules.budgets.models import Categorie
 from app.modules.comptes import service as comptes_service
 from app.modules.dettes import service as dettes_service
 from app.modules.epargne.models import ObjectifEpargne
+from app.modules.tontines.models import CotisationTour, Tontine, TourTontine
 from app.modules.transactions.models import Transaction, Transfert
 
 # Nombre de mois utilisés comme base de comparaison pour les tendances et
@@ -252,10 +253,56 @@ def calculer_comportement(db: Session, id_client: int, periode_debut: date, peri
     ).count()
     budgets = _budgets_de_la_periode(db, id_client, periode_debut)
     nb_budgets_depasses = sum(1 for _, valeurs in budgets if valeurs["est_depasse"])
+
+    # Le comportement du client ne se limite pas aux dépenses/budgets du
+    # mois : une créance perdue, une dette en retard, un objectif d'épargne
+    # abandonné ou des tontines mal suivies disent tout autant sur sa
+    # gestion. Ces signaux sont volontairement cumulatifs (tout l'historique
+    # actif), pas bornés à periode_debut/periode_fin — un incident de ce
+    # genre reste un point d'attention au-delà du mois où il est survenu.
+    dettes_et_creances = dettes_service.lister_dettes(db, id_client)
+    aujourdhui = date.today()
+
+    creances_perdues = [d for d in dettes_et_creances if d.type == "CREANCE" and d.statut == "PERTE"]
+    montant_creances_perdues = sum((d.get_montant_restant() for d in creances_perdues), Decimal("0"))
+
+    nb_en_retard = sum(
+        1 for d in dettes_et_creances
+        if d.statut not in dettes_service.STATUTS_VERROUILLES
+        and d.date_echeance is not None
+        and d.date_echeance < aujourdhui
+    )
+
+    nb_objectifs_abandonnes = db.query(ObjectifEpargne).filter(
+        ObjectifEpargne.id_client == id_client,
+        ObjectifEpargne.statut == "ABANDONNE",
+    ).count()
+
+    # Cotisation attendue (tour déjà échu) mais jamais cochée comme versée
+    # par l'organisateur — signale des membres peu fiables dans les
+    # tontines que CE client dirige (voir Tontine.client, il n'y a qu'un
+    # seul trésorier par tontine).
+    nb_cotisations_impayees = (
+        db.query(CotisationTour)
+        .join(TourTontine, CotisationTour.id_tour == TourTontine.id_tour)
+        .join(Tontine, TourTontine.id_tontine == Tontine.id_tontine)
+        .filter(
+            Tontine.id_client == id_client,
+            CotisationTour.est_versee.is_(False),
+            TourTontine.date_prevue < aujourdhui,
+        )
+        .count()
+    )
+
     return {
         "transactions_suspectes": nb_suspectes,
         "budgets_depasses": nb_budgets_depasses,
         "nombre_budgets_actifs": len(budgets),
+        "creances_perdues": len(creances_perdues),
+        "montant_creances_perdues": str(montant_creances_perdues),
+        "dettes_creances_en_retard": nb_en_retard,
+        "objectifs_epargne_abandonnes": nb_objectifs_abandonnes,
+        "cotisations_tontine_impayees": nb_cotisations_impayees,
     }
 
 

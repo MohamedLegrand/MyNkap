@@ -127,10 +127,10 @@ def creer_compte_abonnement(db: Session, id_client: int) -> CompteFinancier:
     Crée le compte financier dédié au paiement des abonnements. Pas de
     commit ici : appelée dans la même transaction SQL que la création du
     Client (voir auth.services.creer_client), même principe que
-    plans.service.creer_abonnement_essai. Rechargeable comme n'importe quel
-    autre compte (voir module recharges) et utilisé comme source de débit
-    pour le renouvellement automatique de l'abonnement payant (voir
-    plans.service._tenter_renouvellement_auto).
+    plans.service.creer_abonnement_essai. C'est le seul type de compte
+    rechargeable via Mobile Money (voir module recharges) ; il sert aussi
+    de source de débit pour le renouvellement automatique de l'abonnement
+    payant (voir plans.service._tenter_renouvellement_auto).
     """
     compte = CompteFinancier(
         id_client=id_client,

@@ -31,6 +31,11 @@ def initier_recharge(
         )
     except service.CompteIntrouvableError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable.")
+    except service.CompteNonRechargeableError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seul le compte Abonnement peut être rechargé via Mobile Money.",
+        )
     except service.TelephoneOperateurRequisError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

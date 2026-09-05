@@ -188,6 +188,75 @@ def test_comportement_transactions_suspectes_et_budgets_depasses(client):
     assert resultats["nombre_budgets_actifs"] == 1
 
 
+def test_comportement_couvre_dettes_creances_epargne_et_tontines(client):
+    """
+    Le comportement du client ne se limite pas aux dépenses/budgets : une
+    créance perdue, une dette en retard, un objectif d'épargne abandonné et
+    une tontine mal suivie doivent aussi ressortir — quel que soit le mois
+    analysé (signaux cumulatifs, pas bornés à periode_debut/periode_fin).
+    """
+    headers = _register_and_login(client, "analyse.comportement.global@example.com")
+    compte = _creer_compte(client, headers)
+    hier = date.today() - timedelta(days=1)
+
+    # Créance jamais remboursée, constatée en perte.
+    creance = client.post(
+        "/api/v1/dettes",
+        json={
+            "id_compte": compte["id_compte"], "type": "CREANCE", "nom": "Prêt à un ami",
+            "montant_total": 20000, "personne_impliquee": "Un ami",
+        },
+        headers=headers,
+    ).json()
+    client.post(f"/api/v1/dettes/{creance['id_dette']}/marquer-perte", headers=headers)
+
+    # Dette reçue, échéance dépassée, jamais remboursée.
+    client.post(
+        "/api/v1/dettes",
+        json={
+            "id_compte": compte["id_compte"], "type": "DETTE", "nom": "Emprunt urgent",
+            "montant_total": 15000, "date_echeance": hier.isoformat(),
+        },
+        headers=headers,
+    )
+
+    # Objectif d'épargne abandonné.
+    objectif = client.post(
+        "/api/v1/epargne",
+        json={"nom": "Voyage", "montant_cible": 100000},
+        headers=headers,
+    ).json()
+    client.post(
+        f"/api/v1/epargne/{objectif['id_objectif']}/abandonner",
+        json={"id_compte_destination": compte["id_compte"]},
+        headers=headers,
+    )
+
+    # Tontine dont le premier tour est déjà échu, cotisation non cochée.
+    client.post(
+        "/api/v1/tontines",
+        json={
+            "nom": "Tontine du quartier", "montant_cotisation": 5000, "frequence": "HEBDOMADAIRE",
+            "date_debut": hier.isoformat(),
+            "membres": [{"nom": "Membre A"}, {"nom": "Membre B"}],
+        },
+        headers=headers,
+    )
+
+    reponse = client.get(
+        "/api/v1/analyse/COMPORTEMENT",
+        params={"periode_debut": PERIODE_FIXE_DEBUT.isoformat(), "periode_fin": PERIODE_FIXE_FIN.isoformat()},
+        headers=headers,
+    )
+    assert reponse.status_code == 200
+    resultats = reponse.json()["resultats"]
+    assert resultats["creances_perdues"] == 1
+    assert Decimal(resultats["montant_creances_perdues"]) == Decimal("20000")
+    assert resultats["dettes_creances_en_retard"] == 1
+    assert resultats["objectifs_epargne_abandonnes"] == 1
+    assert resultats["cotisations_tontine_impayees"] == 2  # les 2 membres, sur le tour déjà échu
+
+
 def test_score_financier_client_neuf_sans_donnees(client):
     headers = _register_and_login(client, "analyse.scoreneuf@example.com")
     # Aucun compte, aucune transaction, aucun budget, aucune dette.

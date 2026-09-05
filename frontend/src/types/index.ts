@@ -136,6 +136,8 @@ export interface Dette {
   jours_avant_echeance: number | null;
   impact_patrimoine_net: number;
   est_actif: boolean;
+  date_creation: string;
+  date_modification: string;
 }
 
 export interface MembreTontine {

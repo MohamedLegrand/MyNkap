@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from decimal import Decimal
 
 import app.modules.jarvis.service as jarvis_service
@@ -123,6 +124,58 @@ def test_poser_question_cree_question_et_reponse_avec_contexte_financier(client,
     assert detail["messages"][1]["type"] == "REPONSE"
     # Titre auto-rempli à partir de la première question
     assert detail["titre"] == "Puis-je me permettre 5000 XAF de dépense ?"
+
+
+def test_contexte_financier_inclut_creances_perdues_et_tontines(client, monkeypatch):
+    """
+    JARVIS ne doit rien oublier du comportement du client : une créance
+    jamais remboursée (constatée en perte) et une tontine dont un tour est
+    en retard doivent apparaître dans le contexte injecté, même si la
+    créance perdue est verrouillée (STATUTS_VERROUILLES) et donc absente
+    des listes "actives" habituelles.
+    """
+    headers = _register_and_login(client, "jarvis.contexte.complet@example.com")
+    compte = client.post(
+        "/api/v1/comptes", json={"nom": "Cash", "type": "ESPECES", "solde_initial": 100000}, headers=headers
+    ).json()
+
+    creance = client.post(
+        "/api/v1/dettes",
+        json={"id_compte": compte["id_compte"], "type": "CREANCE", "nom": "Prêt à Paul", "montant_total": 15000},
+        headers=headers,
+    ).json()
+    client.post(f"/api/v1/dettes/{creance['id_dette']}/marquer-perte", headers=headers)
+
+    client.post(
+        "/api/v1/tontines",
+        json={
+            "nom": "Tontine du bureau", "montant_cotisation": 5000, "frequence": "HEBDOMADAIRE",
+            "date_debut": (date.today() - timedelta(days=1)).isoformat(),
+            "membres": [{"nom": "Membre A"}, {"nom": "Membre B"}],
+        },
+        headers=headers,
+    )
+
+    contexte_capture = {}
+
+    def fausse_reponse(system_prompt, historique, question):
+        contexte_capture["system_prompt"] = system_prompt
+        return _reponse_groq()
+
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", fausse_reponse)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Je veux prêter de l'argent à un ami, qu'en penses-tu ?"},
+        headers=headers,
+    )
+
+    prompt = contexte_capture["system_prompt"]
+    assert "Prêt à Paul" in prompt
+    assert "constatées en perte" in prompt
+    assert "Tontine du bureau" in prompt
+    assert "cotisation(s) impayée(s)" in prompt
 
 
 def test_reponse_clarification_avec_options(client, monkeypatch):

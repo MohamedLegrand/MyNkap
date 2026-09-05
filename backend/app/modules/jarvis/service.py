@@ -4,7 +4,7 @@ import json
 import logging
 import secrets
 import wave
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import List, Optional, Tuple
 from uuid import UUID
@@ -19,6 +19,7 @@ from app.modules.comptes.schemas import CompteFinancierCreate
 from app.modules.dettes import service as dettes_service
 from app.modules.epargne import service as epargne_service
 from app.modules.jarvis.models import ActionIA, Conversation, Message
+from app.modules.tontines import service as tontines_service
 from app.modules.transactions import service as transactions_service
 from app.modules.transactions.schemas import TransactionCreate
 
@@ -70,6 +71,12 @@ nettement inférieure au revenu mentionné (laisse une marge pour l'épargne et 
 n'alloue jamais 100% du revenu aux dépenses). Explique brièvement ta répartition dans "contenu" \
 ou "conseil_supplementaire" (ex: priorité au logement/alimentation, part modérée pour les \
 loisirs, reste mis de côté).
+- La situation ci-dessous n'inclut pas que les comptes/budgets : elle liste aussi les dettes/ \
+créances en retard, les créances déjà perdues (jamais remboursées) et les tontines dont des \
+cotisations restent impayées. N'ignore jamais ces éléments : si le client reparle de prêter de \
+l'argent, d'emprunter, ou de sa tontine, appuie-toi explicitement dessus (ex: rappelle qu'une \
+précédente créance n'a jamais été remboursée pour conseiller la prudence — montant limité, \
+garantie, écrit — avant d'accorder un nouveau prêt).
 - Tu peux PROPOSER des actions concrètes (créer une dépense/un revenu sur un compte existant, \
 créer un nouveau compte, ou définir un budget mensuel par catégorie) mais tu ne les exécutes \
 JAMAIS toi-même : elles restent en attente jusqu'à ce que le client les confirme explicitement \
@@ -197,7 +204,9 @@ def _construire_contexte_financier(db: Session, id_client: int) -> str:
     if dettes_actives:
         lignes.append("- Dettes en cours :")
         for dette in dettes_actives:
-            lignes.append(f"  - {dette.nom} : {dette.get_montant_restant()} XAF restants")
+            jours = dette.get_jours_avant_echeance()
+            retard = " — EN RETARD" if jours is not None and jours < 0 else ""
+            lignes.append(f"  - {dette.nom} : {dette.get_montant_restant()} XAF restants{retard}")
 
     creances_actives = [
         c for c in dettes_service.lister_dettes(db, id_client, "CREANCE") if c.statut not in ("SOLDE", "PERTE")
@@ -205,7 +214,24 @@ def _construire_contexte_financier(db: Session, id_client: int) -> str:
     if creances_actives:
         lignes.append("- Créances en cours :")
         for creance in creances_actives:
-            lignes.append(f"  - {creance.nom} : {creance.get_montant_restant()} XAF à recevoir")
+            jours = creance.get_jours_avant_echeance()
+            retard = " — EN RETARD" if jours is not None and jours < 0 else ""
+            lignes.append(f"  - {creance.nom} : {creance.get_montant_restant()} XAF à recevoir{retard}")
+
+    # Volontairement incluses (contrairement à creances_actives ci-dessus) :
+    # une créance jamais remboursée est un fait passé important sur le
+    # comportement du client — si le client reparle de prêter de l'argent,
+    # JARVIS doit pouvoir s'appuyer dessus pour conseiller la prudence
+    # (montant limité, garantie...), pas faire comme si de rien n'était.
+    creances_perdues = [c for c in dettes_service.lister_dettes(db, id_client, "CREANCE") if c.statut == "PERTE"]
+    if creances_perdues:
+        montant_perdu = sum((c.get_montant_restant() for c in creances_perdues), Decimal("0"))
+        noms = ", ".join(c.nom for c in creances_perdues)
+        lignes.append(
+            f"- Créances accordées jamais remboursées, déjà constatées en perte : {len(creances_perdues)} "
+            f"({noms}) pour {montant_perdu} XAF au total — à garder en tête si le sujet des prêts entre "
+            "proches revient dans la conversation."
+        )
 
     objectifs = epargne_service.lister_objectifs(db, id_client)
     if objectifs:
@@ -214,6 +240,20 @@ def _construire_contexte_financier(db: Session, id_client: int) -> str:
             valeurs = epargne_service.calculer_valeurs_objectif(objectif)
             lignes.append(
                 f"  - {objectif.nom} : {valeurs['montant_actuel']}/{objectif.montant_cible} XAF ({objectif.statut})"
+            )
+
+    tontines_actives = [t for t in tontines_service.lister_tontines(db, id_client) if t.statut == "ACTIVE"]
+    if tontines_actives:
+        lignes.append("- Tontines actives :")
+        for tontine in tontines_actives:
+            tour_en_cours = next((t for t in tontine.tours if t.statut == "EN_COURS"), None)
+            if tour_en_cours is None:
+                lignes.append(f"  - {tontine.nom} : aucun tour en cours")
+                continue
+            nb_impayees = sum(1 for c in tour_en_cours.cotisations if not c.est_versee)
+            retard = " — tour en retard" if tour_en_cours.date_prevue < date.today() and nb_impayees > 0 else ""
+            lignes.append(
+                f"  - {tontine.nom} : tour {tour_en_cours.numero}, {nb_impayees} cotisation(s) impayée(s){retard}"
             )
 
     return "\n".join(lignes)

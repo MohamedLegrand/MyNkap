@@ -30,9 +30,15 @@ def _creer_compte(client, headers, solde_initial=0):
     ).json()
 
 
+def _compte_abonnement(client, headers):
+    """Seul compte rechargeable : créé automatiquement à l'inscription."""
+    comptes = client.get("/api/v1/comptes", headers=headers).json()
+    return next(c for c in comptes if c["type"] == "ABONNEMENT")
+
+
 def test_initier_recharge_cree_une_recharge_pending(client, monkeypatch):
     headers = _register_and_login(client, "recharge.initier@example.com")
-    compte = _creer_compte(client, headers)
+    compte = _compte_abonnement(client, headers)
 
     appels = {}
 
@@ -65,10 +71,26 @@ def test_initier_recharge_cree_une_recharge_pending(client, monkeypatch):
     assert Decimal(solde) == Decimal("0")
 
 
+def test_initier_recharge_sur_un_compte_non_abonnement_est_refuse(client, monkeypatch):
+    headers = _register_and_login(client, "recharge.nonabonnement@example.com")
+    compte = _creer_compte(client, headers)
+    monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_test")
+
+    reponse = client.post(
+        "/api/v1/recharges",
+        json={
+            "id_compte": compte["id_compte"], "montant": 5000,
+            "phone_number": "237655500393", "operator": "orange", "pays": "CM",
+        },
+        headers=headers,
+    )
+    assert reponse.status_code == 400
+
+
 def test_initier_recharge_sur_compte_dun_autre_client_est_refuse(client, monkeypatch):
     headers_a = _register_and_login(client, "recharge.a@example.com")
     headers_b = _register_and_login(client, "recharge.b@example.com")
-    compte_a = _creer_compte(client, headers_a)
+    compte_a = _compte_abonnement(client, headers_a)
     monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_test")
 
     reponse = client.post(
@@ -84,7 +106,7 @@ def test_initier_recharge_sur_compte_dun_autre_client_est_refuse(client, monkeyp
 
 def test_initier_recharge_sans_telephone_est_refuse(client, monkeypatch):
     headers = _register_and_login(client, "recharge.sanstelephone@example.com")
-    compte = _creer_compte(client, headers)
+    compte = _compte_abonnement(client, headers)
     monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_test")
 
     reponse = client.post(
@@ -97,7 +119,7 @@ def test_initier_recharge_sans_telephone_est_refuse(client, monkeypatch):
 
 def test_initier_recharge_echec_hrpay_ne_cree_rien(client, db_session, monkeypatch):
     headers = _register_and_login(client, "recharge.echechrpay@example.com")
-    compte = _creer_compte(client, headers)
+    compte = _compte_abonnement(client, headers)
 
     def echec(*a, **k):
         raise hrpay.HRPayError("panne réseau")
@@ -118,7 +140,7 @@ def test_initier_recharge_echec_hrpay_ne_cree_rien(client, db_session, monkeypat
 
 def test_verifier_recharges_en_attente_confirme_et_credite_le_compte(client, db_session, monkeypatch):
     headers = _register_and_login(client, "recharge.confirmation@example.com")
-    compte = _creer_compte(client, headers, solde_initial=2000)
+    compte = _compte_abonnement(client, headers)
     monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_success")
 
     client.post(
@@ -139,9 +161,9 @@ def test_verifier_recharges_en_attente_confirme_et_credite_le_compte(client, db_
     assert recharge.date_confirmation is not None
     assert recharge.id_transaction is not None
 
-    # Le compte est réellement crédité (2000 initial + 10000 rechargés).
+    # Le compte est réellement crédité (0 initial + 10000 rechargés).
     solde = client.get(f"/api/v1/comptes/{compte['id_compte']}", headers=headers).json()["solde"]
-    assert Decimal(solde) == Decimal("12000")
+    assert Decimal(solde) == Decimal("10000")
 
     # Traçable comme un DEPOT_INITIAL, sans catégorie forcée.
     transactions = client.get("/api/v1/transactions", headers=headers).json()
@@ -153,7 +175,7 @@ def test_verifier_recharges_en_attente_confirme_et_credite_le_compte(client, db_
 
 def test_verifier_recharges_en_attente_marque_failed_sans_crediter(client, db_session, monkeypatch):
     headers = _register_and_login(client, "recharge.echecconfirmation@example.com")
-    compte = _creer_compte(client, headers, solde_initial=2000)
+    compte = _compte_abonnement(client, headers)
     monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_failed")
 
     client.post(
@@ -172,12 +194,12 @@ def test_verifier_recharges_en_attente_marque_failed_sans_crediter(client, db_se
     assert recharge.statut == "FAILED"
 
     solde = client.get(f"/api/v1/comptes/{compte['id_compte']}", headers=headers).json()["solde"]
-    assert Decimal(solde) == Decimal("2000")
+    assert Decimal(solde) == Decimal("0")
 
 
 def test_verifier_recharges_en_attente_ignore_ceux_toujours_pending(client, db_session, monkeypatch):
     headers = _register_and_login(client, "recharge.toujourspending@example.com")
-    compte = _creer_compte(client, headers)
+    compte = _compte_abonnement(client, headers)
     monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_pending")
 
     client.post(
@@ -200,7 +222,7 @@ def test_verifier_recharges_en_attente_ignore_ceux_toujours_pending(client, db_s
 def test_obtenir_recharge_dun_autre_client_renvoie_404(client, monkeypatch):
     headers_a = _register_and_login(client, "recharge.priv.a@example.com")
     headers_b = _register_and_login(client, "recharge.priv.b@example.com")
-    compte_a = _creer_compte(client, headers_a)
+    compte_a = _compte_abonnement(client, headers_a)
     monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_prive")
 
     recharge = client.post(

@@ -29,7 +29,7 @@ const LANGUES: { valeur: string; label: string }[] = [
 const TYPES_PHOTO_ACCEPTES = ['image/jpeg', 'image/png', 'image/webp'];
 const TAILLE_MAX_PHOTO = 3 * 1024 * 1024; // 3 Mo, même limite que le backend
 
-const CARD = 'bg-card p-6 rounded-2xl border border-border shadow-sm space-y-4';
+const CARD = 'bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4';
 const INPUT = 'w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary';
 const LABEL = 'text-xs font-semibold text-muted-foreground';
 const BTN_PRIMARY = 'py-2.5 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50';
@@ -244,7 +244,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({ plan, abonneme
           <UserCircle2 className="h-5 w-5 text-primary" />
           <span>{t('dashboard.settings.photo_title')}</span>
         </h3>
-        <div className="flex items-center gap-5">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
           <div className="relative shrink-0">
             <Avatar src={avatar} nom={firstName} className="h-20 w-20 text-2xl" />
             {isPhotoBusy && (
@@ -253,7 +253,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({ plan, abonneme
               </div>
             )}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <input
               ref={fileInputRef}
               type="file"
@@ -261,7 +261,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({ plan, abonneme
               onChange={handleFichierChoisi}
               className="hidden"
             />
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center sm:justify-start flex-wrap gap-3">
               <button
                 type="button"
                 onClick={handleChoisirPhoto}
@@ -294,7 +294,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({ plan, abonneme
           <UserCircle2 className="h-5 w-5 text-primary" />
           <span>{t('dashboard.settings.info_title')}</span>
         </h3>
-        <p className="text-xs text-muted-foreground">{email}</p>
+        <p className="text-xs text-muted-foreground break-all">{email}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className={LABEL}>{t('modals.profile.firstname_label')}</label>
@@ -393,7 +393,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({ plan, abonneme
           <Crown className="h-5 w-5 text-primary" />
           <span>{t('dashboard.settings.subscription_title')}</span>
         </h3>
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <span className="inline-flex items-center gap-1 text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
               <Crown className="h-4 w-4" />
@@ -414,7 +414,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({ plan, abonneme
           ) : (
             <button
               onClick={onOpenUpgradeModal}
-              className="text-sm font-semibold py-2 px-4 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center gap-1.5"
+              className="w-full sm:w-auto justify-center text-sm font-semibold py-2 px-4 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center gap-1.5"
             >
               <Sparkles className="h-4 w-4 text-primary" />
               <span>{estEnEssai ? t('dashboard.keep_access') : t('dashboard.upgrade')}</span>

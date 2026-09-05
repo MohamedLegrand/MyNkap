@@ -19,6 +19,16 @@ class CompteIntrouvableError(Exception):
     """Le compte n'existe pas, n'appartient pas au client, ou est désactivé."""
 
 
+class CompteNonRechargeableError(Exception):
+    """
+    Seul le compte ABONNEMENT peut être rechargé via Mobile Money : les
+    autres comptes (mobile money, bancaire, espèces, épargne) ne sont que
+    des soldes suivis dans l'app, jamais reliés à un vrai paiement HR-Skills
+    Pay entrant — les alimenter se fait via une transaction (dépôt/revenu),
+    pas une recharge.
+    """
+
+
 class PaysOuOperateurInvalideError(Exception):
     """
     Le pays n'est pas couvert par HR-Skills Pay, ou l'opérateur demandé
@@ -110,6 +120,8 @@ def initier_recharge(
     )
     if compte is None:
         raise CompteIntrouvableError()
+    if compte.type != "ABONNEMENT":
+        raise CompteNonRechargeableError()
     if not phone_number or not operator:
         raise TelephoneOperateurRequisError()
 
