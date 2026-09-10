@@ -1016,6 +1016,24 @@
       "confirmed_desc": "Le montant a bien été crédité sur le compte {{compte}}.",
       "rejected": "Recharge refusée ou expirée"
     },
+    "payment_method": {
+      "label": "Moyen de paiement",
+      "mobile_money": "Mobile Money",
+      "card": "Carte bancaire",
+      "card_fee_notice": "Des frais de traitement carte (environ 3,5 %) s'ajoutent au montant : votre compte est crédité du montant demandé, votre carte est débitée du montant + frais.",
+      "card_submit": "Payer par carte"
+    },
+    "card_return": {
+      "title_recharge": "Recharge par carte",
+      "title_subscription": "Paiement par carte",
+      "checking_title": "Vérification du paiement…",
+      "checking_desc": "Nous confirmons votre paiement auprès de la banque. Cela peut prendre quelques instants.",
+      "success_title": "Paiement confirmé !",
+      "success_recharge": "Votre compte a été crédité de {{montant}}.",
+      "success_subscription": "Votre abonnement est actif.",
+      "failed_title": "Paiement échoué",
+      "canceled_title": "Paiement annulé"
+    },
     "avis": {
       "title": "Laisser un avis",
       "error_load": "Impossible de charger votre avis.",

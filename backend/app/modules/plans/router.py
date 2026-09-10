@@ -1,5 +1,5 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -17,6 +17,15 @@ from app.modules.plans.schemas import (
 )
 
 router = APIRouter(tags=["Plans & Abonnement"])
+
+
+def _ip_client(request: Request) -> Optional[str]:
+    """IP réelle du client final — alimente le contrôle anti-fraude carte
+    (derrière Nginx, X-Forwarded-For porte la vraie IP)."""
+    transmis = request.headers.get("x-forwarded-for")
+    if transmis:
+        return transmis.split(",")[0].strip()
+    return request.client.host if request.client else None
 
 
 @router.get("/plans", response_model=List[PlanOut])
@@ -77,16 +86,39 @@ def changer_plan(
 @router.post("/abonnement/paiements", response_model=PaiementAbonnementOut, status_code=status.HTTP_201_CREATED)
 def initier_paiement(
     payload: InitierPaiementRequest,
+    request: Request,
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_active_client),
 ):
     """
-    Démarre un paiement Mobile Money réel (HR-Skills Pay) pour souscrire à
-    un plan payant. Renvoie un statut PENDING — le plan n'est changé
-    qu'une fois le paiement confirmé par la tâche planifiée (polling,
-    toutes les ~20s). Interroger GET /abonnement/paiements/{id} pour
-    suivre l'évolution.
+    Démarre un paiement réel (HR-Skills Pay) pour souscrire à un plan
+    payant, par Mobile Money (`methode=MOBILE_MONEY`, défaut) ou par carte
+    bancaire (`methode=CARTE` : la réponse porte `checkout_url`, page vers
+    laquelle rediriger le client). Renvoie un statut PENDING — le plan
+    n'est changé qu'une fois le paiement confirmé par la tâche planifiée
+    (polling, toutes les ~20s). Interroger GET /abonnement/paiements/{id}
+    pour suivre l'évolution.
     """
+    if payload.methode == "CARTE":
+        try:
+            return service.initier_paiement_plan_carte(
+                db, client.id_client, payload.nom_plan, payload.cycle_facturation, client, _ip_client(request),
+            )
+        except service.PlanIntrouvableError:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan introuvable.")
+        except service.CycleFacturationRequisError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Un cycle de facturation (MENSUEL ou ANNUEL) est requis pour ce plan.",
+            )
+        except service.PaiementRefuseError as erreur:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
+        except service.ServicePaiementIndisponibleError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Le service de paiement est momentanément indisponible, veuillez réessayer.",
+            )
+
     try:
         return service.initier_paiement_plan(
             db, client.id_client, payload.nom_plan, payload.cycle_facturation,

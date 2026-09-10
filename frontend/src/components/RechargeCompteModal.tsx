@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Wallet, Loader2, Smartphone, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, Wallet, Loader2, Smartphone, CreditCard, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type { CompteFinancier, PaysOperateur, RechargeCompte } from '../types';
@@ -31,6 +31,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
   const [error, setError] = useState<string | null>(null);
 
   const [montant, setMontant] = useState('');
+  const [methode, setMethode] = useState<'MOBILE_MONEY' | 'CARTE'>('MOBILE_MONEY');
   const [phone, setPhone] = useState('');
   const [paysDisponibles, setPaysDisponibles] = useState<PaysOperateur[]>([]);
   const [pays, setPays] = useState('CM');
@@ -55,6 +56,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
     setEtape('formulaire');
     setError(null);
     setMontant('');
+    setMethode('MOBILE_MONEY');
     setRecharge(null);
     setPhone(client?.phone ?? '');
     setPays('CM');
@@ -99,18 +101,35 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const montantNombre = Number(montant);
-    if (!montantNombre || montantNombre <= 0 || !phone.trim()) return;
+    if (!montantNombre || montantNombre <= 0) return;
+    if (methode === 'MOBILE_MONEY' && !phone.trim()) return;
 
     setError(null);
     setIsSubmitting(true);
     try {
+      const corps = methode === 'CARTE'
+        ? { id_compte: compte.id_compte, montant: montantNombre, methode }
+        : { id_compte: compte.id_compte, montant: montantNombre, methode, phone_number: phone.trim(), operator, pays };
       const resultat = await api.request<RechargeCompte>('/recharges', {
         method: 'POST',
-        body: JSON.stringify({
-          id_compte: compte.id_compte, montant: montantNombre,
-          phone_number: phone.trim(), operator, pays,
-        }),
+        body: JSON.stringify(corps),
       });
+
+      if (methode === 'CARTE') {
+        if (resultat.checkout_url) {
+          // Redirection vers la page de paiement hébergée Flocash ; le
+          // retour est géré par PaiementCarteRetourModal (via ?carte=...).
+          window.location.href = resultat.checkout_url;
+          return; // on laisse isSubmitting à true pendant la navigation
+        }
+        // Pas de checkout_url : paiement gelé en revue anti-fraude. On
+        // suit son évolution comme un paiement en attente.
+        setRecharge(resultat);
+        setEtape('attente');
+        demarrerPolling(resultat.id_recharge);
+        return;
+      }
+
       setRecharge(resultat);
       setEtape('attente');
       demarrerPolling(resultat.id_recharge);
@@ -158,6 +177,32 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
               </div>
 
               <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">{t('modals.payment_method.label')}</label>
+                <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setMethode('MOBILE_MONEY')}
+                    className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      methode === 'MOBILE_MONEY' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Smartphone className="h-3.5 w-3.5" />
+                    <span>{t('modals.payment_method.mobile_money')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMethode('CARTE')}
+                    className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      methode === 'CARTE' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    <span>{t('modals.payment_method.card')}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">{t('modals.recharge.amount_label')}</label>
                 <input
                   type="number"
@@ -170,6 +215,14 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                 />
               </div>
 
+              {methode === 'CARTE' && (
+                <p className="p-3 rounded-xl bg-muted/40 border border-border text-[11px] text-muted-foreground leading-snug flex items-start gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>{t('modals.payment_method.card_fee_notice')}</span>
+                </p>
+              )}
+
+              {methode === 'MOBILE_MONEY' && (<>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">{t('modals.plan_upgrade.country_label')}</label>
                 <select
@@ -215,6 +268,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                   className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
+              </>)}
 
               <div className="pt-2 flex gap-3">
                 <button type="button" onClick={handleClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
@@ -226,7 +280,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                   className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <span>{t('modals.recharge.submit')}</span>
+                  <span>{methode === 'CARTE' ? t('modals.payment_method.card_submit') : t('modals.recharge.submit')}</span>
                 </button>
               </div>
             </form>

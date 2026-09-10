@@ -45,6 +45,26 @@ class Settings(BaseSettings):
     HRPAY_PUBLIC_KEY: str | None = None
     HRPAY_SECRET_KEY: str | None = None
 
+    # --- Paiement par carte bancaire (E-NKAP via HR-Skills Pay) ---
+    # API REST distincte du SDK Mobile Money (hrpay ne la couvre pas) : page
+    # de paiement hébergée chez Flocash, le client est redirigé puis revient
+    # sur return_url/cancel_url, le statut réel se lit via l'API (polling,
+    # comme le Mobile Money). Réutilise les mêmes clés HRPAY_* (mêmes
+    # identifiants marchand). Voir app/core/hrpay_card.py.
+    HRPAY_CARD_BASE_URL: str = "https://api.hrskills-pay.com"
+    # true → préfixe /sandbox sur chaque route + clés de test hrsk_*_test_
+    # (aucun appel réel à E-NKAP). Passer à false en production.
+    HRPAY_SANDBOX: bool = True
+    # Commission carte : plancher strict de 3,5 % côté plateforme
+    # (fee = amount × taux). Sert au « gross-up » : le client règle le
+    # montant voulu + les frais, le compte/abonnement est crédité du montant
+    # voulu (voir recharges.service.initier_recharge_carte).
+    HRPAY_CARD_TAUX_COMMISSION: float = 0.035
+    # Secret de signature des webhooks carte (en-tête X-Hub-Signature).
+    # Laissé vide pour l'instant : la confirmation passe par la relecture du
+    # statut (polling). À renseigner le jour où le webhook sera activé.
+    HRPAY_WEBHOOK_SECRET: str | None = None
+
     # Envoi d'e-mails transactionnels (mot de passe oublié...) via l'API
     # REST Brevo — optionnelle, même raison que ci-dessus (sans clé, on
     # retombe sur une simulation console, cf. auth.services).
@@ -82,6 +102,16 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def hrpay_card_api_base(self) -> str:
+        """
+        URL de base des routes carte, préfixe /sandbox inclus en mode
+        sandbox (doc E-NKAP : même host, pas d'URL séparée — c'est le
+        préfixe de chemin qui bascule sur l'environnement de test).
+        """
+        base = self.HRPAY_CARD_BASE_URL.rstrip("/")
+        return f"{base}/sandbox" if self.HRPAY_SANDBOX else base
 
     class Config:
         env_file = ".env"

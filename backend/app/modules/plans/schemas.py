@@ -70,12 +70,18 @@ class ChangerPlanRequest(BaseModel):
 class InitierPaiementRequest(BaseModel):
     nom_plan: Literal["ESSENTIEL", "PREMIUM"]
     cycle_facturation: Literal["MENSUEL", "ANNUEL"]
-    phone_number: str
-    operator: str
+    # MOBILE_MONEY (défaut) : phone_number + operator + pays utilisés
+    # (Cash-In hrpay), prix appliqué dans la devise du pays ; leur absence
+    # est refusée côté service (400). CARTE : les trois sont ignorés (rail
+    # carte hébergé, XAF uniquement), prix de référence XAF ; la réponse
+    # porte `checkout_url` vers laquelle rediriger le client.
+    methode: Literal["MOBILE_MONEY", "CARTE"] = "MOBILE_MONEY"
+    phone_number: str = ""
+    operator: str = ""
     # Code pays HR-Skills Pay (ex. "CM", "SN") — détermine à la fois
     # l'opérateur valide et la devise/prix réels appliqués (voir
-    # service._valider_pays_et_operateur).
-    pays: str
+    # service._valider_pays_et_operateur). Ignoré pour la carte.
+    pays: str = "CM"
 
 
 class PaiementAbonnementOut(BaseModel):
@@ -85,7 +91,11 @@ class PaiementAbonnementOut(BaseModel):
     montant: Decimal
     devise: str
     pays: str
+    methode: str
     reference_hrpay: str
+    # Renseignés pour un paiement carte uniquement.
+    montant_facture: Optional[Decimal] = None
+    checkout_url: Optional[str] = None
     statut: str
     date_creation: datetime
     date_confirmation: Optional[datetime]

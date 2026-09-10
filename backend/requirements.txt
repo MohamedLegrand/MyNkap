@@ -29,10 +29,14 @@ redis==5.2.1
 # Paiement Mobile Money (module Plans/Abonnement)
 hrpay==0.1.0
 
+# Client HTTP pour l'API "Encaissement par carte bancaire" d'E-NKAP : le SDK
+# hrpay ne couvre que le Mobile Money (voir app/core/hrpay_card.py). Sert
+# aussi aux tests (TestClient s'appuie sur httpx).
+httpx==0.28.1
+
 # Génération de rapports PDF (module Rapports)
 xhtml2pdf==0.2.17
 jinja2==3.1.6
 
-# Tests et Validation
+# Tests et Validation (httpx : voir section paiement carte ci-dessus)
 pytest==8.3.4
-httpx==0.28.1

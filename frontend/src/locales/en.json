@@ -1017,6 +1017,24 @@
       "confirmed_desc": "The amount has been credited to the {{compte}} account.",
       "rejected": "Top-up declined or expired"
     },
+    "payment_method": {
+      "label": "Payment method",
+      "mobile_money": "Mobile Money",
+      "card": "Bank card",
+      "card_fee_notice": "A card processing fee (about 3.5%) is added on top: your account is credited with the requested amount, your card is charged the amount + fee.",
+      "card_submit": "Pay by card"
+    },
+    "card_return": {
+      "title_recharge": "Card top-up",
+      "title_subscription": "Card payment",
+      "checking_title": "Checking payment…",
+      "checking_desc": "We are confirming your payment with the bank. This may take a few moments.",
+      "success_title": "Payment confirmed!",
+      "success_recharge": "Your account has been credited with {{montant}}.",
+      "success_subscription": "Your subscription is active.",
+      "failed_title": "Payment failed",
+      "canceled_title": "Payment canceled"
+    },
     "avis": {
       "title": "Leave a review",
       "error_load": "Unable to load your review.",

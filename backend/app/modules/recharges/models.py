@@ -22,8 +22,20 @@ class RechargeCompte(Base):
     devise = Column(String, default="XAF", nullable=False)
     # Code pays HR-Skills Pay (ex. "CM", "SN") — même rôle que
     # PaiementAbonnement.pays, traçabilité du rail Mobile Money employé.
+    # "CM" fixe pour une recharge carte (rail carte : XAF uniquement).
     pays = Column(String, nullable=False)
+    # MOBILE_MONEY (Cash-In SDK hrpay) ou CARTE (API E-NKAP, page hébergée).
+    methode = Column(String, nullable=False, default="MOBILE_MONEY", server_default="MOBILE_MONEY")
+    # Référence HR-Skills Pay : Transaction.reference (Mobile Money) ou
+    # "card_xxxx" (carte). Colonne unique commune aux deux rails.
     reference_hrpay = Column(String, unique=True, nullable=False, index=True)
+    # Montant réellement débité sur la carte, commission incluse (gross-up,
+    # voir service.initier_recharge_carte). NULL pour le Mobile Money, où le
+    # client paie exactement `montant`.
+    montant_facture = Column(Numeric(14, 2), nullable=True)
+    # URL de la page de paiement hébergée Flocash (carte uniquement). NULL
+    # pour le Mobile Money, ou pour une carte gelée en revue anti-fraude.
+    checkout_url = Column(String, nullable=True)
     statut = Column(String, default="PENDING", nullable=False)  # PENDING, SUCCESS, FAILED
     id_transaction = Column(Integer, ForeignKey("transactions.id_transaction"), nullable=True)
     date_creation = Column(DateTime, default=datetime.utcnow)

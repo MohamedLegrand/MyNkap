@@ -321,6 +321,8 @@ export interface DonneesVerrouillees {
   jarvis: number;
 }
 
+export type MethodePaiement = 'MOBILE_MONEY' | 'CARTE';
+
 export interface PaiementAbonnement {
   id_paiement: number;
   plan_demande: Plan;
@@ -328,7 +330,12 @@ export interface PaiementAbonnement {
   montant: number;
   devise: string;
   pays: string;
+  methode: MethodePaiement;
   reference_hrpay: string;
+  // Renseignés pour un paiement carte : montant réellement débité (frais
+  // inclus) et URL de la page de paiement hébergée vers laquelle rediriger.
+  montant_facture: number | null;
+  checkout_url: string | null;
   statut: 'PENDING' | 'SUCCESS' | 'FAILED';
   date_creation: string;
   date_confirmation: string | null;
@@ -340,7 +347,10 @@ export interface RechargeCompte {
   montant: number;
   devise: string;
   pays: string;
+  methode: MethodePaiement;
   reference_hrpay: string;
+  montant_facture: number | null;
+  checkout_url: string | null;
   statut: 'PENDING' | 'SUCCESS' | 'FAILED';
   date_creation: string;
   date_confirmation: string | null;

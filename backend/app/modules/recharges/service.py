@@ -1,4 +1,5 @@
 import logging
+import math
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
@@ -6,6 +7,7 @@ import hrpay
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core import hrpay_card
 from app.modules.comptes.models import CompteFinancier
 from app.modules.comptes.service import crediter_compte, synchroniser_compte_principal
 from app.modules.notifications import service as notifications_service
@@ -162,6 +164,106 @@ def initier_recharge(
     return recharge
 
 
+# --- Recharge par carte bancaire (E-NKAP via HR-Skills Pay) ---
+
+
+def _creer_paiement_carte(recharge: RechargeCompte, compte, client, ip_client: Optional[str]):
+    """
+    Isolée pour rester mockable en test — miroir de _appeler_hrpay_cash_in.
+    idempotency_key basé sur id_recharge : un retry réseau ne crée jamais
+    deux paiements carte. Les URL de retour ramènent sur le tableau de bord,
+    qui rouvre la modale de recharge et poll le statut (le rebond navigateur
+    n'est jamais la source de vérité — voir hrpay_card).
+    """
+    base = settings.FRONTEND_URL.rstrip("/")
+    retour = f"{base}/dashboard?carte=recharge&ref={recharge.id_recharge}"
+    return hrpay_card.creer_paiement(
+        montant=recharge.montant_facture,
+        devise=recharge.devise,
+        description=f"Recharge compte MyNkap ({compte.nom})",
+        return_url=retour,
+        cancel_url=f"{retour}&annule=1",
+        client_nom=f"{client.first_name} {client.last_name}".strip(),
+        client_email=client.email,
+        client_phone=client.phone or "",
+        client_ip=ip_client,
+        idempotency_key=f"recharge-carte-{recharge.id_recharge}",
+    )
+
+
+def _lire_paiement_carte(reference: str):
+    """Isolée pour rester mockable en test — voir _verifier_statut_hrpay."""
+    return hrpay_card.lire_paiement(reference)
+
+
+def _montant_a_facturer_carte(montant: Decimal) -> Decimal:
+    """
+    « Gross-up » de la commission carte : le client règle le montant voulu
+    + les frais, le compte est crédité du montant voulu. On applique le
+    plancher de 3,5 % (HRPAY_CARD_TAUX_COMMISSION) ; si le taux réel du
+    marchand est plus élevé, le petit écart est absorbé par MyNkap (le
+    compte reste crédité de `montant`).
+    """
+    taux = Decimal(str(settings.HRPAY_CARD_TAUX_COMMISSION))
+    return Decimal(math.ceil(montant / (Decimal(1) - taux)))
+
+
+def initier_recharge_carte(
+    db: Session, id_client: int, id_compte: int, montant: Decimal, client, ip_client: Optional[str]
+) -> RechargeCompte:
+    """
+    Démarre une recharge par carte bancaire. Renvoie la ligne avec
+    `checkout_url` (page Flocash vers laquelle rediriger le client) — sauf
+    si le paiement est gelé en revue anti-fraude, auquel cas `checkout_url`
+    reste None et le client doit patienter. Le compte n'est crédité qu'une
+    fois CAPTURED confirmé par verifier_recharges_en_attente().
+    """
+    compte = (
+        db.query(CompteFinancier)
+        .filter(
+            CompteFinancier.id_compte == id_compte,
+            CompteFinancier.id_client == id_client,
+            CompteFinancier.est_actif.is_(True),
+        )
+        .first()
+    )
+    if compte is None:
+        raise CompteIntrouvableError()
+    if compte.type != "ABONNEMENT":
+        raise CompteNonRechargeableError()
+
+    recharge = RechargeCompte(
+        id_client=id_client,
+        id_compte=id_compte,
+        montant=montant,
+        montant_facture=_montant_a_facturer_carte(montant),
+        devise="XAF",  # rail carte E-NKAP : XAF uniquement
+        pays="CM",
+        methode="CARTE",
+        reference_hrpay="",
+        statut="PENDING",
+    )
+    db.add(recharge)
+    db.flush()  # pour obtenir id_recharge avant l'appel externe (idempotency_key / return_url)
+
+    try:
+        resultat = _creer_paiement_carte(recharge, compte, client, ip_client)
+    except hrpay_card.CartePaiementRefuseError as erreur:
+        db.rollback()
+        logger.warning("Recharge carte refusée : %s", erreur)
+        raise PaiementRefuseError(str(erreur))
+    except hrpay_card.ServiceCarteIndisponibleError as erreur:
+        db.rollback()
+        logger.warning("Échec HR-Skills Pay (création recharge carte) : %s", erreur)
+        raise ServicePaiementIndisponibleError(str(erreur))
+
+    recharge.reference_hrpay = resultat.reference
+    recharge.checkout_url = resultat.checkout_url
+    db.commit()
+    db.refresh(recharge)
+    return recharge
+
+
 def lister_recharges_du_client(db: Session, id_client: int) -> List[RechargeCompte]:
     return (
         db.query(RechargeCompte)
@@ -194,8 +296,11 @@ def verifier_recharges_en_attente(db: Session) -> int:
 
     for recharge in en_attente:
         try:
-            statut = _verifier_statut_hrpay(recharge.reference_hrpay)
-        except hrpay.HRPayError:
+            if recharge.methode == "CARTE":
+                statut = hrpay_card.mapper_statut(_lire_paiement_carte(recharge.reference_hrpay).statut)
+            else:
+                statut = _verifier_statut_hrpay(recharge.reference_hrpay)
+        except (hrpay.HRPayError, hrpay_card.CarteError):
             continue  # on retentera au prochain passage
 
         if statut == "SUCCESS":
@@ -206,12 +311,13 @@ def verifier_recharges_en_attente(db: Session) -> int:
                 .first()
             )
             crediter_compte(compte, recharge.montant)
+            libelle_rail = "carte bancaire" if recharge.methode == "CARTE" else "Mobile Money"
             transaction = Transaction(
                 id_client=recharge.id_client,
                 id_compte=recharge.id_compte,
                 id_categorie=None,
                 montant=recharge.montant,
-                description=f"Recharge Mobile Money ({recharge.pays})",
+                description=f"Recharge {libelle_rail} ({recharge.pays})",
                 type="DEPOT_INITIAL",
             )
             db.add(transaction)

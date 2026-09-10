@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Crown, Check, Loader2, Smartphone, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, Crown, Check, Loader2, Smartphone, CreditCard, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type { Plan, PaiementAbonnement, Abonnement, PaysOperateur } from '../types';
@@ -65,6 +65,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
 
   const [planChoisi, setPlanChoisi] = useState<'ESSENTIEL' | 'PREMIUM'>('PREMIUM');
   const [cycle, setCycle] = useState<'MENSUEL' | 'ANNUEL'>('MENSUEL');
+  const [methode, setMethode] = useState<'MOBILE_MONEY' | 'CARTE'>('MOBILE_MONEY');
   const [phone, setPhone] = useState('');
   const [paysDisponibles, setPaysDisponibles] = useState<PaysOperateur[]>([]);
   const [pays, setPays] = useState('CM');
@@ -92,6 +93,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
     setError(null);
     setPaiement(null);
     setGestionMessage(null);
+    setMethode('MOBILE_MONEY');
     setPhone(client?.phone ?? '');
     setPays('CM');
     setOperator('ORANGE');
@@ -168,21 +170,33 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
 
   const handleInitierPaiement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone.trim()) return;
+    if (methode === 'MOBILE_MONEY' && !phone.trim()) return;
 
     setError(null);
     setIsSubmitting(true);
     try {
+      const corps = methode === 'CARTE'
+        ? { nom_plan: planChoisi, cycle_facturation: cycle, methode }
+        : { nom_plan: planChoisi, cycle_facturation: cycle, methode, phone_number: phone.trim(), operator, pays };
       const resultat = await api.request<PaiementAbonnement>('/abonnement/paiements', {
         method: 'POST',
-        body: JSON.stringify({
-          nom_plan: planChoisi,
-          cycle_facturation: cycle,
-          phone_number: phone.trim(),
-          operator,
-          pays,
-        }),
+        body: JSON.stringify(corps),
       });
+
+      if (methode === 'CARTE') {
+        if (resultat.checkout_url) {
+          // Redirection vers la page de paiement hébergée Flocash ; le
+          // retour est géré par PaiementCarteRetourModal (via ?carte=...).
+          window.location.href = resultat.checkout_url;
+          return; // on laisse isSubmitting à true pendant la navigation
+        }
+        // Pas de checkout_url : paiement gelé en revue anti-fraude.
+        setPaiement(resultat);
+        setEtape('attente');
+        demarrerPolling(resultat.id_paiement);
+        return;
+      }
+
       setPaiement(resultat);
       setEtape('attente');
       demarrerPolling(resultat.id_paiement);
@@ -359,9 +373,45 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
             <form onSubmit={handleInitierPaiement} className="space-y-4">
               <div className="p-3 rounded-xl bg-muted/40 border border-border text-xs text-muted-foreground">
                 {t('modals.plan_upgrade.plan_label')} <strong className="text-foreground">{LABEL_PLAN_KEY[planChoisi] ? t(LABEL_PLAN_KEY[planChoisi]) : planChoisi}</strong> —{' '}
-                <strong className="text-foreground">{montantLocal.toLocaleString('fr-FR')} {deviseLocale}</strong> / {cycle === 'MENSUEL' ? t('modals.plan_upgrade.month_short') : t('modals.plan_upgrade.year_short')}
+                <strong className="text-foreground">
+                  {(methode === 'CARTE' ? montant : montantLocal).toLocaleString('fr-FR')} {methode === 'CARTE' ? 'XAF' : deviseLocale}
+                </strong> / {cycle === 'MENSUEL' ? t('modals.plan_upgrade.month_short') : t('modals.plan_upgrade.year_short')}
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">{t('modals.payment_method.label')}</label>
+                <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setMethode('MOBILE_MONEY')}
+                    className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      methode === 'MOBILE_MONEY' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Smartphone className="h-3.5 w-3.5" />
+                    <span>{t('modals.payment_method.mobile_money')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMethode('CARTE')}
+                    className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      methode === 'CARTE' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    <span>{t('modals.payment_method.card')}</span>
+                  </button>
+                </div>
+              </div>
+
+              {methode === 'CARTE' && (
+                <p className="p-3 rounded-xl bg-muted/40 border border-border text-[11px] text-muted-foreground leading-snug flex items-start gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>{t('modals.payment_method.card_fee_notice')}</span>
+                </p>
+              )}
+
+              {methode === 'MOBILE_MONEY' && (<>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">{t('modals.plan_upgrade.country_label')}</label>
                 <select
@@ -407,6 +457,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
                   className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
+              </>)}
 
               <div className="pt-2 flex gap-3">
                 <button
@@ -422,7 +473,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
                   className="flex-1 py-3 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <span>{t('modals.plan_upgrade.pay_now')}</span>
+                  <span>{methode === 'CARTE' ? t('modals.payment_method.card_submit') : t('modals.plan_upgrade.pay_now')}</span>
                 </button>
               </div>
             </form>

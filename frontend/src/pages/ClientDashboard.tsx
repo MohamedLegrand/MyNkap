@@ -35,9 +35,11 @@ import {
   Users,
   MessageSquareHeart,
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
 import { PlanUpgradeModal } from '../components/PlanUpgradeModal';
+import { PaiementCarteRetourModal } from '../components/PaiementCarteRetourModal';
 import { CompteModal } from '../components/CompteModal';
 import { RechargeCompteModal } from '../components/RechargeCompteModal';
 import { TransfertModal } from '../components/TransfertModal';
@@ -118,6 +120,20 @@ const joursRestantsEssai = (dateFin: string): number =>
 
 export const ClientDashboard: React.FC = () => {
   const { t } = useTranslation();
+  // Retour d'un paiement par carte bancaire : Flocash redirige vers
+  // /dashboard?carte=recharge|abonnement&ref=<id>[&annule=1]. On rouvre un
+  // écran de suivi qui interroge le backend jusqu'au statut définitif.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const carteRetourType = searchParams.get('carte');
+  const carteRetourRef = searchParams.get('ref');
+  const carteRetourAnnule = searchParams.get('annule') === '1';
+  const fermerRetourCarte = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('carte');
+    next.delete('ref');
+    next.delete('annule');
+    setSearchParams(next, { replace: true });
+  };
   const [activeTab, setActiveTab] = useState('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -1020,12 +1036,22 @@ export const ClientDashboard: React.FC = () => {
         compte={compteEnEdition}
       />
 
-      {/* Modal de recharge Mobile Money d'un compte */}
+      {/* Modal de recharge (Mobile Money / carte bancaire) d'un compte */}
       <RechargeCompteModal
         isOpen={compteARecharger !== null}
         compte={compteARecharger}
         onClose={() => setCompteARecharger(null)}
         onSuccess={chargerDonnees}
+      />
+
+      {/* Retour d'un paiement par carte bancaire (redirection Flocash) */}
+      <PaiementCarteRetourModal
+        isOpen={carteRetourType === 'recharge' || carteRetourType === 'abonnement'}
+        type={carteRetourType === 'abonnement' ? 'abonnement' : 'recharge'}
+        idPaiement={carteRetourRef ? Number(carteRetourRef) : null}
+        annule={carteRetourAnnule}
+        onClose={fermerRetourCarte}
+        onSuccess={() => { chargerDonnees(); chargerAbonnement(); }}
       />
 
       {/* Modal de transfert entre comptes */}

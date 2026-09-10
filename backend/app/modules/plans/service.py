@@ -1,10 +1,13 @@
 import logging
+import math
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import List, Optional
 import hrpay
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core import hrpay_card
 from app.modules.audit.service import enregistrer_action
 from app.modules.comptes import service as comptes_service
 from app.modules.comptes.models import CompteFinancier
@@ -593,6 +596,100 @@ def initier_paiement_plan(
     return paiement
 
 
+# --- Paiement d'abonnement par carte bancaire (E-NKAP via HR-Skills Pay) ---
+
+
+def _creer_paiement_carte(paiement: PaiementAbonnement, plan: Plan, client, ip_client: Optional[str]):
+    """
+    Isolée pour rester mockable en test — miroir de _appeler_hrpay_cash_in.
+    idempotency_key basé sur id_paiement : un retry réseau ne crée jamais
+    deux paiements carte. Les URL de retour ramènent sur le tableau de bord,
+    qui rouvre la modale d'abonnement et poll le statut.
+    """
+    base = settings.FRONTEND_URL.rstrip("/")
+    retour = f"{base}/dashboard?carte=abonnement&ref={paiement.id_paiement}"
+    return hrpay_card.creer_paiement(
+        montant=paiement.montant_facture,
+        devise=paiement.devise,
+        description=f"Abonnement MyNkap {plan.nom} ({paiement.cycle_facturation.lower()})",
+        return_url=retour,
+        cancel_url=f"{retour}&annule=1",
+        client_nom=f"{client.first_name} {client.last_name}".strip(),
+        client_email=client.email,
+        client_phone=client.phone or "",
+        client_ip=ip_client,
+        idempotency_key=f"abonnement-carte-{paiement.id_paiement}",
+    )
+
+
+def _lire_paiement_carte(reference: str):
+    """Isolée pour rester mockable en test — voir _verifier_statut_hrpay."""
+    return hrpay_card.lire_paiement(reference)
+
+
+def _montant_a_facturer_carte(montant: Decimal) -> Decimal:
+    """
+    « Gross-up » de la commission carte : le client règle le prix du plan
+    + les frais carte, le marchand encaisse le prix du plan. Plancher de
+    3,5 % (HRPAY_CARD_TAUX_COMMISSION) ; un taux marchand réel plus élevé
+    est absorbé par MyNkap. Même principe que
+    recharges.service._montant_a_facturer_carte (dupliqué volontairement,
+    chaque module reste autonome).
+    """
+    taux = Decimal(str(settings.HRPAY_CARD_TAUX_COMMISSION))
+    return Decimal(math.ceil(montant / (Decimal(1) - taux)))
+
+
+def initier_paiement_plan_carte(
+    db: Session, id_client: int, nom_plan: str, cycle_facturation: str, client, ip_client: Optional[str]
+) -> PaiementAbonnement:
+    """
+    Démarre le paiement par carte bancaire d'un plan payant. Le montant est
+    le prix de référence XAF du plan (le rail carte E-NKAP ne traite que le
+    XAF), majoré de la commission carte. Le plan n'est changé qu'une fois
+    CAPTURED confirmé par verifier_paiements_en_attente().
+    """
+    plan = db.query(Plan).filter(Plan.nom == nom_plan).first()
+    if plan is None:
+        raise PlanIntrouvableError()
+    if cycle_facturation not in DUREE_CYCLE:
+        raise CycleFacturationRequisError()
+
+    montant = plan.prix_mensuel if cycle_facturation == "MENSUEL" else plan.prix_annuel
+
+    paiement = PaiementAbonnement(
+        id_client=id_client,
+        id_plan_demande=plan.id_plan,
+        cycle_facturation=cycle_facturation,
+        montant=montant,
+        montant_facture=_montant_a_facturer_carte(montant),
+        devise="XAF",  # rail carte E-NKAP : XAF uniquement
+        pays="CM",
+        methode="CARTE",
+        reference_hrpay="",
+        statut="PENDING",
+    )
+    db.add(paiement)
+    db.flush()  # pour obtenir id_paiement avant l'appel externe (idempotency_key / return_url)
+
+    try:
+        resultat = _creer_paiement_carte(paiement, plan, client, ip_client)
+    except hrpay_card.CartePaiementRefuseError as erreur:
+        db.rollback()
+        logger.warning("Paiement abonnement carte refusé : %s", erreur)
+        raise PaiementRefuseError(str(erreur))
+    except hrpay_card.ServiceCarteIndisponibleError as erreur:
+        db.rollback()
+        logger.warning("Échec HR-Skills Pay (création paiement abonnement carte) : %s", erreur)
+        raise ServicePaiementIndisponibleError(str(erreur))
+
+    paiement.reference_hrpay = resultat.reference
+    paiement.checkout_url = resultat.checkout_url
+    db.commit()
+    db.refresh(paiement)
+    return paiement
+
+
 def verifier_paiements_en_attente(db: Session) -> int:
     """
     Tâche planifiée (~toutes les 20s, voir worker.tasks) : interroge
@@ -606,8 +703,11 @@ def verifier_paiements_en_attente(db: Session) -> int:
 
     for paiement in en_attente:
         try:
-            statut = _verifier_statut_hrpay(paiement.reference_hrpay)
-        except hrpay.HRPayError:
+            if paiement.methode == "CARTE":
+                statut = hrpay_card.mapper_statut(_lire_paiement_carte(paiement.reference_hrpay).statut)
+            else:
+                statut = _verifier_statut_hrpay(paiement.reference_hrpay)
+        except (hrpay.HRPayError, hrpay_card.CarteError):
             continue  # on retentera au prochain passage
 
         if statut == "SUCCESS":
