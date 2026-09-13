@@ -19,8 +19,13 @@ bcrypt==4.0.1
 slowapi==0.1.9
 
 # Authentification "Se connecter avec Google" (vérification du jeton
-# d'identité OAuth émis par Google Identity Services côté frontend)
+# d'identité OAuth émis par Google Identity Services côté frontend).
+# requests==2.34.2 : dépendance requise par google.auth.transport.requests
+# (voir auth.services) — ne pas compter sur un paquet tiers (pyHanko...)
+# pour l'installer par hasard, une version plus récente pourrait s'en passer
+# et casser le démarrage de l'app (constaté en déploiement : ImportError).
 google-auth==2.36.0
+requests==2.34.2
 
 # Tâches de fond (Celery & Redis)
 celery==5.4.0
