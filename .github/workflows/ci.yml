@@ -65,3 +65,22 @@ jobs:
 
       - name: Build de production (inclut la vérification des types)
         run: npm run build
+
+  deploy:
+    name: Déploiement (VPS)
+    # Seulement sur un vrai push sur main (jamais sur une pull request, même
+    # si elle cible main) et seulement si backend ET frontend sont au vert —
+    # jamais de déploiement d'un code qui n'a pas passé les tests.
+    needs: [backend, frontend]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Se connecter en SSH et lancer le script de déploiement
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 169.58.18.34
+          username: legrand
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # deploy.sh (sur le serveur) : git pull, dépendances, migrations,
+          # redémarrage des services, rebuild du frontend. Voir /opt/my-nkap/deploy.sh.
+          script: /opt/my-nkap/deploy.sh
