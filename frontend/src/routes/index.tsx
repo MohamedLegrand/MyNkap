@@ -1560,7 +1560,10 @@ const RegisterPage = () => {
           <div className="flex-1 h-px bg-border" />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* Nom/prénom empilés (pas côte à côte) : un champ sur deux colonnes
+            laisse trop peu de place pour un nom ou prénom long, courant
+            dans la zone CEMAC — la saisie devient inconfortable/tronquée. */}
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="first_name" className="text-sm font-medium">{t('auth.first_name')}</label>
             <IconInput
