@@ -54,6 +54,12 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onCreden
           client_id: GOOGLE_CLIENT_ID,
           callback: (response) => onCredential(response.credential),
         });
+        // renderButton AJOUTE un bouton dans le conteneur à chaque appel, il
+        // ne remplace pas le précédent : sans ce nettoyage, changer de
+        // langue (effet ré-exécuté via la dépendance i18n.language)
+        // empilait un second bouton (nouvelle langue) sous l'ancien —
+        // visuellement, la langue affichée ne semblait jamais changer.
+        conteneurRef.current.innerHTML = '';
         window.google.accounts.id.renderButton(conteneurRef.current, {
           type: 'standard',
           theme: 'outline',
