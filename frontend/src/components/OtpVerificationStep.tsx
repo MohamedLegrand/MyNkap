@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, Mail, ArrowLeft, RefreshCw, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+// Délai avant de pouvoir redemander un envoi de code — volontairement long
+// (pas juste UX) : limite le nombre d'e-mails OTP envoyés par Brevo par
+// inscription/connexion (coût + anti-abus), au-delà du simple confort.
+const DUREE_COOLDOWN_RENVOI_SECONDES = 45 * 60;
+
 interface OtpVerificationStepProps {
   email: string;
   // Renvoie un message d'erreur si le code est invalide, ou null en cas de succès
@@ -20,7 +25,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
 }) => {
   const { t } = useTranslation();
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
-  const [timer, setTimer] = useState<number>(60);
+  const [timer, setTimer] = useState<number>(DUREE_COOLDOWN_RENVOI_SECONDES);
   // Dérivé de timer plutôt qu'un état séparé synchronisé par effet : évite
   // un aller-retour de rendu inutile (et le state à maintenir en double).
   const canResend = timer <= 0;
@@ -31,7 +36,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
 
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  // Décompte du timer 60s
+  // Décompte du timer de renvoi (45 min)
   useEffect(() => {
     if (timer <= 0) return;
     const interval = setInterval(() => {
@@ -105,7 +110,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
       return;
     }
 
-    setTimer(60);
+    setTimer(DUREE_COOLDOWN_RENVOI_SECONDES);
     setResendSuccessMsg(t('otp.resent_success'));
     setDigits(['', '', '', '', '', '']);
     inputRefs.current[0]?.focus();
@@ -218,7 +223,10 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
           </button>
         ) : (
           <span className="text-xs font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-full border border-border">
-            {t('otp.resend_in')} <strong className="text-foreground tabular-nums">00:{timer < 10 ? `0${timer}` : timer}</strong>
+            {t('otp.resend_in')}{' '}
+            <strong className="text-foreground tabular-nums">
+              {String(Math.floor(timer / 60)).padStart(2, '0')}:{String(timer % 60).padStart(2, '0')}
+            </strong>
           </span>
         )}
 

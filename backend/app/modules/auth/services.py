@@ -226,14 +226,18 @@ def emettre_session(db: Session, utilisateur: Utilisateur) -> dict:
 
 def generer_et_envoyer_otp(db: Session, utilisateur: Utilisateur) -> None:
     """
-    Génère un code à 6 chiffres valable 5 minutes et l'envoie par e-mail
+    Génère un code à 6 chiffres valable 45 minutes et l'envoie par e-mail
     (Brevo). Appelé uniquement à l'inscription (voir router.register), pour
     confirmer que l'adresse fournie est bien joignable — voir verifier_otp()
-    pour la seconde étape.
+    pour la seconde étape. Durée alignée sur le délai de renvoi côté
+    frontend (OtpVerificationStep.DUREE_COOLDOWN_RENVOI_SECONDES) : le code
+    reste valide pendant toute la fenêtre où le bouton "renvoyer" est
+    désactivé, sinon un client lent à consulter ses e-mails se retrouverait
+    bloqué sans code utilisable ni possibilité d'en redemander un.
     """
     code = f"{secrets.randbelow(1_000_000):06d}"
     utilisateur.otp_code = code
-    utilisateur.otp_expiration = datetime.utcnow() + timedelta(minutes=5)
+    utilisateur.otp_expiration = datetime.utcnow() + timedelta(minutes=45)
     db.commit()
 
     contenu_html = (
