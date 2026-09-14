@@ -23,7 +23,7 @@ export const StructuredData: React.FC = () => {
         url: SITE_URL,
         logo: LOGO_URL,
         description,
-        email: 'support@mynkap.com',
+        email: 'support@my-nkap.com',
         areaServed: 'Afrique Centrale (zone CEMAC)',
       },
       {

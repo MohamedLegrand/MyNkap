@@ -442,7 +442,12 @@ const LandingPage = () => {
   const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200 font-sans selection:bg-primary/20 scroll-smooth">
-      <Seo title={t('seo.landing_title')} description={t('seo.landing_description')} path="/" />
+      <Seo
+        title={t('seo.landing_title')}
+        description={t('seo.landing_description')}
+        keywords={t('seo.landing_keywords')}
+        path="/"
+      />
       <StructuredData />
       {/* 1. Header (Navigation) */}
       <SiteHeader />

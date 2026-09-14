@@ -8,6 +8,12 @@ interface SeoProps {
   // Chemin de la route (ex: '/', '/a-propos') — sert à construire l'URL
   // absolue exigée par og:url et le lien canonique.
   path: string;
+  // Optionnel : Google ignore meta[name=keywords] pour le classement depuis
+  // 2009 (les mots-clés visés doivent surtout apparaître dans le contenu
+  // visible — titres, texte de la page), mais quelques moteurs/annuaires
+  // en tiennent encore compte. Sans coût, réservé aux pages où avoir une
+  // liste de termes a du sens (la landing, pas les pages de connexion...).
+  keywords?: string;
 }
 
 const SITE_URL = 'https://my-nkap.com';
@@ -18,7 +24,7 @@ const OG_IMAGE = `${SITE_URL}/logo.jpg`;
 // Titre + description + Open Graph/Twitter Card par page (SEO) — remplace le
 // <title>/<meta description> statiques et identiques sur toutes les routes
 // qui vivaient dans index.html.
-export const Seo: React.FC<SeoProps> = ({ title, description, path }) => {
+export const Seo: React.FC<SeoProps> = ({ title, description, path, keywords }) => {
   const { i18n } = useTranslation();
   const url = `${SITE_URL}${path}`;
   const locale = i18n.language === 'en' ? 'en_US' : 'fr_FR';
@@ -28,6 +34,7 @@ export const Seo: React.FC<SeoProps> = ({ title, description, path }) => {
     <Helmet>
       <title>{title}</title>
       <meta name="description" content={description} />
+      {keywords && <meta name="keywords" content={keywords} />}
       <link rel="canonical" href={url} />
 
       <meta property="og:type" content="website" />
