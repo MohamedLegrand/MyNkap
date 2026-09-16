@@ -74,7 +74,7 @@
     "close_menu": "Fermer le menu"
   },
   "nav": {
-    "ai": "Intelligence Artificielle",
+    "ai": "Intelligence artificielle",
     "features": "Fonctionnalités",
     "tontines": "Tontines",
     "pricing": "Tarifs",
@@ -88,9 +88,9 @@
     "product_title": "Produit",
     "updates": "Mises à jour",
     "resources_title": "Ressources",
-    "accounting_principles": "Principes Comptables",
+    "accounting_principles": "Principes comptables",
     "help_center": "Centre d'aide",
-    "support_title": "Support & Contact",
+    "support_title": "Support & contact",
     "location": "Yaoundé, Cameroun",
     "legal_disclaimer_label": "Avertissement légal :",
     "legal_disclaimer": "MyNkap est un outil d'analyse et de planification financière personnelle. L'application ne gère aucun dépôt de fonds réels, n'effectue aucun transfert monétaire réel et ne détient pas de licence d'établissement bancaire. Les transactions doivent être renseignées par l'utilisateur.",
@@ -164,17 +164,17 @@
     "avis_prompt": "Votre avis compte : dites-nous ce que vous pensez de MyNkap.",
     "avis_cta": "Laisser un avis",
     "total_balance": "Solde total agrégé",
-    "income_history": "Revenus (Historique)",
+    "income_history": "Revenus (historique)",
     "expenses_history": "Dépenses (Historique)",
     "savings_reserves": "Réserves Épargne",
     "goals_count_one": "{{count}} objectif",
     "goals_count_other": "{{count}} objectifs",
-    "debts_ongoing": "Dettes en Cours",
+    "debts_ongoing": "Dettes en cours",
     "active_debts_count_one": "{{count}} dette active",
     "active_debts_count_other": "{{count}} dettes actives",
-    "my_accounts": "Mes Comptes Financiers",
+    "my_accounts": "Mes comptes financiers",
     "no_accounts_yet": "Vous n'avez encore aucun compte financier.",
-    "recent_transactions": "Dernières Transactions",
+    "recent_transactions": "Dernières transactions",
     "recent_transactions_desc": "Historique récent des mouvements sur tous vos comptes"
   },
   "accounts": {
@@ -211,13 +211,13 @@
     "cancel_this": "Annuler cette transaction"
   },
   "budgets": {
-    "caps_title": "Plafonds Budgétaires",
+    "caps_title": "Plafonds budgétaires",
     "none_yet": "Aucun budget défini pour le moment.",
     "exceeded": "Budget dépassé ({{percent}}%) !",
     "threshold_warning": "Attention : seuil de 80% dépassé !",
     "create_account_first": "Créez d'abord un compte financier",
     "create_account_first_desc": "Les catégories et les budgets s'appliquent à des comptes financiers. Créez votre premier compte pour débloquer ces fonctionnalités.",
-    "go_to_accounts": "Aller à Mes Comptes",
+    "go_to_accounts": "Aller à mes comptes",
     "define": "Définir budget",
     "edit_cap": "Modifier le plafond",
     "actions_aria": "Actions budget {{nom}}"
@@ -295,9 +295,9 @@
     "my_claims": "Mes créances (on me doit)"
   },
   "dashboard": {
-    "tagline": "Finances Personnelles",
+    "tagline": "Finances personnelles",
     "trial_label": "Essai gratuit",
-    "current_plan_label": "Formule Actuelle",
+    "current_plan_label": "Formule actuelle",
     "trial_prefix": "Accès complet, JARVIS inclus, encore",
     "days_count_one": "{{count}} jour",
     "days_count_other": "{{count}} jours",
@@ -314,12 +314,12 @@
       "overview": "Vue d'ensemble",
       "accounts": "Mes Comptes",
       "transactions": "Transactions",
-      "budgets": "Budgets & Alertes",
+      "budgets": "Budgets & alertes",
       "savings": "Épargne & Projets",
-      "debts": "Dettes & Créances",
+      "debts": "Dettes & créances",
       "tontines": "Tontines",
       "jarvis": "Assistant JARVIS IA",
-      "analyse": "Analyse & Prédictions",
+      "analyse": "Analyse & prédictions",
       "automations": "Récurrences & Modèles",
       "reports": "Rapports PDF",
       "settings": "Paramètres"
@@ -532,9 +532,9 @@
       "title_budget": "budget",
       "title_part2": "et vos",
       "title_finances": "finances",
-      "title_part3": "Facilement",
+      "title_part3": "facilement",
       "subtitle": "MyNkap est une plateforme SaaS de gestion de finances personnelles : grâce à l'intelligence artificielle, elle analyse vos dépenses pour vous proposer des stratégies concrètes de meilleure gestion. Réunissez aussi Mobile Money, comptes bancaires et espèces au même endroit.",
-      "cta_primary": "Essayer Gratuitement",
+      "cta_primary": "Essayer gratuitement",
       "cta_secondary": "Découvrir l'IA"
     },
     "ia": {
@@ -547,7 +547,7 @@
       "point4": "Détection automatique de doublons ou transactions suspectes",
       "demo_question": "Puis-je me permettre d'acheter un téléphone à 250 000 XAF ce mois-ci ?",
       "demo_answer": "En analysant vos revenus (800 000 XAF) et vos dépenses fixes actuelles (300 000 XAF), oui vous le pouvez. Cependant, cela réduira votre objectif d'épargne 'Terrain Douala' de 12% ce mois-ci. Je vous recommande d'attendre le 5 du mois prochain.",
-      "demo_title": "Assistant Financier IA",
+      "demo_title": "Assistant financier IA",
       "demo_online": "En ligne",
       "demo_you": "Vous, 14:58",
       "demo_assistant": "Assistant IA, 14:59",
@@ -585,7 +585,7 @@
       "immutability_desc": "Une transaction enregistrée ne peut jamais être supprimée directement. Toutes les corrections s'effectuent par transaction d'annulation inverse, assurant un historique d'audit inaltérable.",
       "networth_title": "Patrimoine net réel",
       "networth_desc": "Le patrimoine net est calculé dynamiquement : Somme des soldes actifs moins la somme de vos dettes plus la somme de vos créances accordées.",
-      "atomic_title": "Opérations Atomiques",
+      "atomic_title": "Opérations atomiques",
       "atomic_desc": "Aucun écart de solde n'est toléré. Chaque opération financière (transfert, virement, achat) est exécutée de manière atomique sous forme de transaction SQL."
     },
     "avis": {
@@ -601,11 +601,11 @@
         "price": "0 XAF",
         "desc": "Toute la gestion financière de base, sans limite.",
         "feature1": "Comptes financiers",
-        "feature2": "Transactions & Transferts",
+        "feature2": "Transactions & transferts",
         "feature3": "Budgets",
         "feature4": "Catégories",
         "feature5": "Dettes & créances, épargne indisponibles",
-        "feature6": "Analyse, Prédictions et JARVIS indisponibles",
+        "feature6": "Analyse, prédictions et JARVIS indisponibles",
         "cta": "Commencer"
       },
       "essential": {
@@ -613,7 +613,7 @@
         "price": "2 500 XAF",
         "price_suffix": "/ mois",
         "desc": "25 000 XAF / an. Tout le Gratuit, plus :",
-        "feature1": "Dettes & Créances",
+        "feature1": "Dettes & créances",
         "feature2": "Objectifs d'épargne",
         "feature3": "Transactions récurrentes automatiques",
         "feature4": "Templates de transaction",
@@ -624,7 +624,7 @@
         "price": "5 000 XAF",
         "price_suffix": "/ mois",
         "desc": "50 000 XAF / an. Recommandé pour une utilisation optimale de l'application avec l'IA. Tout l'Essentiel, plus :",
-        "feature1": "Analyse & Prédictions financières",
+        "feature1": "Analyse & prédictions financières",
         "feature2": "Score financier personnalisé",
         "feature3": "JARVIS : chat texte et vocal",
         "feature4": "Conseils financiers personnalisés",
@@ -903,7 +903,7 @@
       "amount_label": "Montant (FCFA / XAF)",
       "date_label": "Date de l'opération",
       "backdated_hint": "Transaction antidatée : elle sera comptée dans le budget du mois correspondant.",
-      "account_label": "Compte Financier",
+      "account_label": "Compte financier",
       "category_label": "Catégorie",
       "no_expense_category": "Aucune catégorie de type dépense disponible.",
       "no_income_category": "Aucune catégorie de type revenu disponible.",
@@ -1069,38 +1069,38 @@
   },
   "admin": {
     "layout": {
-      "brand_subtitle": "Console de Contrôle",
-      "superadmin_access": "Accès Superadmin",
+      "brand_subtitle": "Console de contrôle",
+      "superadmin_access": "Accès superadmin",
       "level_3": "Niveau 3",
       "privileges_desc": "Privilèges élevés : Gestion système, audit complet et contrôle anti-fraude.",
       "nav": {
-        "kpis": "KPIs Globaux 360°",
-        "clients": "Gestion des Clients",
+        "kpis": "KPIs globaux 360°",
+        "clients": "Gestion des clients",
         "admins": "Équipe Administrateur",
         "audit": "Journaux d'Audit",
-        "config": "Configuration Système",
-        "subscriptions": "Abonnements & Paiements",
+        "config": "Configuration système",
+        "subscriptions": "Abonnements & paiements",
         "fraud": "Surveillance anti-fraude",
-        "avis": "Avis Clients"
+        "avis": "Avis clients"
       },
-      "dark_mode": "Mode Sombre",
-      "light_mode": "Mode Clair",
+      "dark_mode": "Mode sombre",
+      "light_mode": "Mode clair",
       "logout_console": "Quitter la console admin",
-      "console_admin": "Console Admin",
+      "console_admin": "Console admin",
       "secure_env": "Environnement Sécurisé SSL",
-      "main_admin": "Administrateur Principal",
-      "superadmin_level": "Superadmin (Niveau 3)"
+      "main_admin": "Administrateur principal",
+      "superadmin_level": "Superadmin (niveau 3)"
     },
     "modals": {
       "create_admin": {
-        "title": "Créer un Administrateur",
+        "title": "Créer un administrateur",
         "username_label": "Nom d'utilisateur (Username)",
         "username_placeholder": "Ex: admin_support",
         "email_placeholder": "admin@my-nkap.com",
         "password_label": "Mot de passe temporaire",
         "generate_password": "Générer",
         "access_level_label": "Niveau d'Accès",
-        "access_level_1": "Support & Consultation",
+        "access_level_1": "Support & consultation",
         "access_level_2": "Modérateur (config & fraude)",
         "access_level_3": "Superadmin (gestion équipe & droits)",
         "submit": "Créer l'Admin"
@@ -1115,8 +1115,8 @@
       },
       "edit_config": {
         "title": "Modifier la configuration système",
-        "system_key_label": "Clé Système",
-        "new_value_label": "Nouvelle Valeur à chaud",
+        "system_key_label": "Clé système",
+        "new_value_label": "Nouvelle valeur à chaud",
         "submit": "Appliquer à chaud"
       },
       "audit_detail": {
@@ -1125,8 +1125,8 @@
         "action_label": "Action :",
         "resource_label": "Ressource :",
         "timestamp_label": "Horodatage :",
-        "data_before": "Données Avant (JSON)",
-        "data_after": "Données Après (JSON)"
+        "data_before": "Données avant (JSON)",
+        "data_after": "Données après (JSON)"
       },
       "client_detail": {
         "title": "Fiche client détaillée",
@@ -1199,18 +1199,18 @@
         "modify_config_failed": "Modification impossible."
       },
       "kpis": {
-        "title": "Tableau de bord KPI globaux (Supervision 360°)",
+        "title": "Tableau de bord KPI globaux (supervision 360°)",
         "subtitle": "Vue synthétique consolidée de l'ensemble des modules MyNkap",
         "refresh": "Actualiser les métriques",
-        "client_base": "Base Clients",
+        "client_base": "Base clients",
         "active_label": "Actifs :",
         "new_30d_label": "Nouveaux +30j :",
         "revenue": "Chiffre d'Affaires",
         "total_volume_label": "Volume total :",
-        "payer_conversion": "Conversion Payant",
+        "payer_conversion": "Conversion payant",
         "payers_label": "Payants :",
         "subscribers_suffix": "abonnés",
-        "fraud_alerts": "Alertes Fraude",
+        "fraud_alerts": "Alertes fraude",
         "amount_at_risk": "Montant à risque :"
       },
       "clients": {
@@ -1219,13 +1219,13 @@
         "search_placeholder": "Rechercher par nom, email, téléphone...",
         "th_main_balance": "Solde principal",
         "details": "Détails",
-        "reset_password_btn": "Reset Password",
+        "reset_password_btn": "Réinitialiser le mot de passe",
         "none": "Aucun client."
       },
       "admins": {
         "title": "Équipe administrateur (Module 2)",
         "subtitle": "Gestion des accès d'administration et attribution des rôles",
-        "create_btn": "Créer un Admin",
+        "create_btn": "Créer un admin",
         "th_admin": "Admin",
         "th_access_level": "Niveau d'Accès",
         "th_created_on": "Créé le",
@@ -1264,7 +1264,7 @@
         "by_plan": "Par plan",
         "tab_subscriptions": "Abonnements",
         "tab_payments": "Paiements",
-        "tab_plans": "Plans Tarifaires",
+        "tab_plans": "Plans tarifaires",
         "new_plan": "Nouveau plan",
         "th_monthly_price": "Prix mensuel",
         "th_yearly_price": "Prix annuel",
@@ -1272,7 +1272,7 @@
         "edit_plan_title": "Modifier ce plan",
         "delete_plan_title": "Supprimer ce plan",
         "none_plans": "Aucun plan tarifaire.",
-        "th_pricing_plan": "Plan Tarifaire",
+        "th_pricing_plan": "Plan tarifaire",
         "th_cycle": "Cycle",
         "th_period": "Période",
         "none_subscriptions": "Aucun abonnement.",
@@ -1297,11 +1297,11 @@
         "clients_concerned": "Clients concernés",
         "amount_at_risk": "Montant à risque",
         "th_tx": "# Tx",
-        "th_impacted_client": "Client Impacté",
+        "th_impacted_client": "Client impacté",
         "th_description_alert": "Description / Alerte",
-        "th_suspicion_action": "Action Suspicion",
+        "th_suspicion_action": "Action suspicion",
         "lift_suspicion": "Lever la suspicion",
-        "mark_suspicious": "Marquer Suspecte",
+        "mark_suspicious": "Marquer suspecte",
         "none": "Aucune transaction suspecte."
       },
       "avis": {
