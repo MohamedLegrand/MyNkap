@@ -145,9 +145,14 @@ const SiteHeader = () => {
   );
 };
 
-// Numéro de contact WhatsApp (Cameroun, +237)
+// Numéros de contact WhatsApp (Cameroun, +237) — le premier reste celui
+// utilisé pour les liens fonctionnels (bouton "Nous contacter", formulaire
+// de contact) ; le second n'est affiché que comme contact supplémentaire
+// dans le pied de page.
 const WHATSAPP_NUMERO = '237677246900';
 const WHATSAPP_LIEN = `https://wa.me/${WHATSAPP_NUMERO}`;
+const WHATSAPP_NUMERO_2 = '237641212750';
+const WHATSAPP_LIEN_2 = `https://wa.me/${WHATSAPP_NUMERO_2}`;
 
 // Pied de page partagé par la landing page et la page À propos
 const SiteFooter = () => {
@@ -168,28 +173,32 @@ const SiteFooter = () => {
             {t('footer.description')}
           </p>
 
-          {/* Réseaux sociaux */}
+          {/* Réseaux sociaux — seul WhatsApp redirige réellement (canal de
+              contact actif) ; les autres icônes sont volontairement
+              statiques (pas de href, pas de survol) tant qu'aucun profil
+              MyNkap réel n'existe derrière : mieux vaut aucune interaction
+              qu'un lien mort ou "#". */}
           <div className="flex gap-4 pt-2 text-muted-foreground">
-            <a href="#" className="hover:text-primary transition-colors" title="WhatsApp">
+            <a href={WHATSAPP_LIEN} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors" title="WhatsApp">
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                 <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.79.47 3.45 1.29 4.9L2 22l5.31-1.4c1.4.76 3.02 1.19 4.73 1.19h.01c5.46 0 9.9-4.45 9.9-9.9 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 1.67c2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.82c0 4.54-3.7 8.23-8.24 8.23-1.48 0-2.93-.39-4.19-1.15l-.3-.18-3.15.83.84-3.07-.2-.32a8.18 8.18 0 0 1-1.25-4.36c0-4.54 3.7-8.22 8.25-8.22zm-4.65 4.66c-.15 0-.4.06-.6.29-.21.24-.8.78-.8 1.9s.82 2.2.93 2.36c.11.15 1.62 2.55 3.98 3.47 1.97.77 2.37.62 2.8.58.43-.04 1.38-.56 1.58-1.11.19-.55.19-1.02.13-1.11-.05-.1-.2-.16-.42-.27-.22-.11-1.31-.65-1.51-.72-.2-.07-.35-.11-.5.11-.15.22-.57.72-.7.87-.13.15-.26.16-.48.05-.22-.11-.94-.35-1.79-1.11-.66-.59-1.11-1.32-1.24-1.54-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.21-.7-1.66-.18-.44-.37-.38-.5-.39-.13-.01-.28-.01-.43-.01z" />
               </svg>
             </a>
-            <a href="#" className="hover:text-primary transition-colors" title="Facebook">
+            <span title="Facebook" aria-hidden="true">
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                 <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z" />
               </svg>
-            </a>
-            <a href="#" className="hover:text-primary transition-colors" title="GitHub">
+            </span>
+            <span title="GitHub" aria-hidden="true">
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                 <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z" />
               </svg>
-            </a>
-            <a href="#" className="hover:text-primary transition-colors" title="LinkedIn">
+            </span>
+            <span title="LinkedIn" aria-hidden="true">
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
                 <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
               </svg>
-            </a>
+            </span>
           </div>
         </div>
 
@@ -234,6 +243,19 @@ const SiteFooter = () => {
                 className="hover:text-foreground transition-colors"
               >
                 +237 677 246 900 (WhatsApp)
+              </a>
+            </li>
+            <li className="flex items-center gap-2">
+              <svg className="h-4 w-4 text-forest-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884M20.52 3.449C18.24 1.245 15.24 0 12.05 0 5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.304-1.654a11.888 11.888 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.463-8.452" />
+              </svg>
+              <a
+                href={WHATSAPP_LIEN_2}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                +237 641 212 750 (WhatsApp)
               </a>
             </li>
             <li className="flex items-center gap-2">
