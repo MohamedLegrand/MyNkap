@@ -230,7 +230,7 @@ const SiteFooter = () => {
           <ul className="space-y-2.5 text-xs">
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-primary" />
-              <a href="mailto:support@mynkap.com" className="hover:text-foreground transition-colors">support@mynkap.com</a>
+              <a href="mailto:legrandmohamed67@gmail.com" className="hover:text-foreground transition-colors">legrandmohamed67@gmail.com</a>
             </li>
             <li className="flex items-center gap-2">
               <svg className="h-4 w-4 text-forest-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
