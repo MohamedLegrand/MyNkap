@@ -499,6 +499,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                 <tr>
@@ -562,6 +563,7 @@ export const AdminDashboard: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            </div>
             {clients.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.clients.none')}</p>}
           </div>
         </div>
@@ -585,6 +587,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                 <tr>
@@ -644,6 +647,7 @@ export const AdminDashboard: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            </div>
             {admins.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.admins.none')}</p>}
           </div>
         </div>
@@ -679,6 +683,7 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                 <tr>
@@ -715,6 +720,7 @@ export const AdminDashboard: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            </div>
             {auditLogs.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.audit.none')}</p>}
           </div>
         </div>
@@ -828,6 +834,7 @@ export const AdminDashboard: React.FC = () => {
 
           {modeSubscriptions === 'plans' ? (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                   <tr>
@@ -887,10 +894,12 @@ export const AdminDashboard: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
               {plans.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_plans')}</p>}
             </div>
           ) : modeSubscriptions === 'abonnements' ? (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                   <tr>
@@ -919,10 +928,12 @@ export const AdminDashboard: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
               {subscriptions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_subscriptions')}</p>}
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                   <tr>
@@ -963,6 +974,7 @@ export const AdminDashboard: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
               {paiements.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_payments')}</p>}
             </div>
           )}
@@ -1000,6 +1012,7 @@ export const AdminDashboard: React.FC = () => {
           )}
 
           <div className="bg-card rounded-2xl border border-destructive/30 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-destructive/10 border-b border-destructive/20 text-destructive uppercase font-bold text-[10px]">
                 <tr>
@@ -1033,6 +1046,7 @@ export const AdminDashboard: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            </div>
             {fraudTransactions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.fraud.none')}</p>}
           </div>
         </div>
@@ -1049,6 +1063,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
                 <tr>
@@ -1107,6 +1122,7 @@ export const AdminDashboard: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            </div>
             {avisList.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.avis.none')}</p>}
           </div>
         </div>
