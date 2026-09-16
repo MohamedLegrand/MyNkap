@@ -485,12 +485,12 @@ const LandingPage = () => {
               {t('landing.hero.subtitle')}
             </p>
             <div className="flex flex-wrap justify-center gap-4 pt-2">
-              <a
-                href="/register"
+              <Link
+                to="/register"
                 className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold py-3.5 px-8 rounded-xl transition-all shadow-md"
               >
                 {t('landing.hero.cta_primary')}
-              </a>
+              </Link>
               <a
                 href="#ia"
                 className="bg-card hover:bg-muted text-foreground border border-border font-bold py-3.5 px-8 rounded-xl transition-all shadow-sm"
