@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
   Sun, Moon, Check,
-  MessageSquare, TrendingUp, Shield, Sparkles, Database, Lock, Menu, X, Users, Globe,
+  MessageSquare, TrendingUp, Shield, Database, Lock, Menu, X, Users, Globe,
   HelpCircle, Mail, Loader2, User, Phone, Wallet, RefreshCw, Star,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -799,8 +799,7 @@ const AboutPage = () => {
       {/* Hero */}
       <section className="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
-            <Sparkles className="h-4 w-4" />
+          <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
             <span>{t('about_page.badge')}</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight">
@@ -836,7 +835,7 @@ const AboutPage = () => {
               <p className="text-xs text-muted-foreground">{t('about_page.card2_desc')}</p>
             </div>
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
-              <Sparkles className="h-6 w-6 text-primary" />
+              <img src="/ia.jpg" alt="" className="h-8 w-8 rounded-full object-cover" />
               <h3 className="text-sm font-bold">{t('about_page.card3_title')}</h3>
               <p className="text-xs text-muted-foreground">{t('about_page.card3_desc')}</p>
             </div>
