@@ -31,12 +31,21 @@ requests==2.34.2
 celery==5.4.0
 redis==5.2.1
 
-# Paiement Mobile Money (module Plans/Abonnement)
-hrpay==0.1.0
+# Paiement Mobile Money (module Plans/Abonnement). 1.0.0 (rupture de compat
+# avec 0.1.x) : authentification renforcée côté serveur HR-Skills Pay —
+# 0.1.0 échouait systématiquement l'échange de jeton (401 "invalid api
+# secret") quelles que soient les clés fournies, corrigé par cette mise à
+# jour. Signatures utilisées ici (HRPayClient, cash_in.mobile_money,
+# transactions.status, .reference/.status, Status.SUCCESS/FAILED/...)
+# inchangées, vérifié avant migration. Le SDK expose désormais aussi un
+# module carte bancaire natif (sdk.cards / E-NKAP) — non adopté ici,
+# app/core/hrpay_card.py (client HTTP maison) reste utilisé tel quel pour
+# l'instant, la carte étant déjà en pause (clés test manquantes).
+hrpay==1.0.0
 
-# Client HTTP pour l'API "Encaissement par carte bancaire" d'E-NKAP : le SDK
-# hrpay ne couvre que le Mobile Money (voir app/core/hrpay_card.py). Sert
-# aussi aux tests (TestClient s'appuie sur httpx).
+# Client HTTP pour l'API "Encaissement par carte bancaire" d'E-NKAP :
+# app/core/hrpay_card.py. Sert aussi aux tests (TestClient s'appuie sur
+# httpx).
 httpx==0.28.1
 
 # Génération de rapports PDF (module Rapports)
