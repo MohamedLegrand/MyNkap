@@ -20,7 +20,25 @@ const OPERATEUR_LABELS: Record<string, string> = {
   ORANGE: 'Orange Money', MTN: 'MTN MoMo', MOOV: 'Moov Money', AIRTEL: 'Airtel Money',
   MPESA: 'M-Pesa', WAVE: 'Wave', FREE: 'Free Money', TMONEY: 'TMoney', AFRIMONEY: 'AfriMoney',
   CAMTEL: 'Camtel Money', NEXTTEL: 'Nexttel', CORIS: 'Coris Money', EXPRESSO: 'Expresso',
-  FLOOZ: 'Flooz', QMONEY: 'QMoney',
+  FLOOZ: 'Flooz', QMONEY: 'QMoney', WLIGDICASH: 'Wligdi Cash', CELTIIS: 'Celtiis Cash',
+};
+
+// Logos réels (public/mobile-money/) — seulement les opérateurs pour
+// lesquels un logo existe ; les autres retombent sur le libellé texte seul
+// (voir OPERATEUR_LABELS ci-dessus).
+const OPERATEUR_LOGOS: Record<string, string> = {
+  ORANGE: '/mobile-money/orange-money.jpg',
+  MTN: '/mobile-money/mtn.jpg',
+  MOOV: '/mobile-money/movv-money.png',
+  AIRTEL: '/mobile-money/airtel-money.jpg',
+  MPESA: '/mobile-money/m-pesa.jpg',
+  WAVE: '/mobile-money/wave.jpg',
+  AFRIMONEY: '/mobile-money/afrimoney.png',
+  CORIS: '/mobile-money/coris-money.avif',
+  EXPRESSO: '/mobile-money/expresso.jpg',
+  FLOOZ: '/mobile-money/flooz.jpg',
+  QMONEY: '/mobile-money/q-money.jpg',
+  TMONEY: '/mobile-money/t-money.webp',
 };
 
 export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen, compte, onClose, onSuccess }) => {
@@ -248,11 +266,14 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                       key={op}
                       type="button"
                       onClick={() => setOperator(op)}
-                      className={`py-2.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                         operator === op ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      {OPERATEUR_LABELS[op] ?? op}
+                      {OPERATEUR_LOGOS[op] && (
+                        <img src={OPERATEUR_LOGOS[op]} alt="" className="h-4 w-4 rounded-full object-cover shrink-0" />
+                      )}
+                      <span>{OPERATEUR_LABELS[op] ?? op}</span>
                     </button>
                   ))}
                 </div>

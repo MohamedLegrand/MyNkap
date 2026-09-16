@@ -52,6 +52,27 @@ const OPERATEUR_LABELS: Record<string, string> = {
   EXPRESSO: 'Expresso',
   FLOOZ: 'Flooz',
   QMONEY: 'QMoney',
+  WLIGDICASH: 'Wligdi Cash',
+  CELTIIS: 'Celtiis Cash',
+};
+
+// Logos réels (public/mobile-money/) — même table que RechargeCompteModal,
+// dupliquée volontairement (chaque modale reste autonome). Seulement les
+// opérateurs pour lesquels un logo existe ; les autres retombent sur le
+// libellé texte seul (OPERATEUR_LABELS ci-dessus).
+const OPERATEUR_LOGOS: Record<string, string> = {
+  ORANGE: '/mobile-money/orange-money.jpg',
+  MTN: '/mobile-money/mtn.jpg',
+  MOOV: '/mobile-money/movv-money.png',
+  AIRTEL: '/mobile-money/airtel-money.jpg',
+  MPESA: '/mobile-money/m-pesa.jpg',
+  WAVE: '/mobile-money/wave.jpg',
+  AFRIMONEY: '/mobile-money/afrimoney.png',
+  CORIS: '/mobile-money/coris-money.avif',
+  EXPRESSO: '/mobile-money/expresso.jpg',
+  FLOOZ: '/mobile-money/flooz.jpg',
+  QMONEY: '/mobile-money/q-money.jpg',
+  TMONEY: '/mobile-money/t-money.webp',
 };
 
 export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onClose, onSuccess, planActuel, abonnement }) => {
@@ -437,11 +458,14 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
                       key={op}
                       type="button"
                       onClick={() => setOperator(op)}
-                      className={`py-2.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                         operator === op ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      {OPERATEUR_LABELS[op] ?? op}
+                      {OPERATEUR_LOGOS[op] && (
+                        <img src={OPERATEUR_LOGOS[op]} alt="" className="h-4 w-4 rounded-full object-cover shrink-0" />
+                      )}
+                      <span>{OPERATEUR_LABELS[op] ?? op}</span>
                     </button>
                   ))}
                 </div>
