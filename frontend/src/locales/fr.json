@@ -163,7 +163,7 @@
     "access_confirmed": "Accès confirmé, notification envoyée",
     "avis_prompt": "Votre avis compte : dites-nous ce que vous pensez de MyNkap.",
     "avis_cta": "Laisser un avis",
-    "total_balance": "Solde Total Agrégé",
+    "total_balance": "Solde total agrégé",
     "income_history": "Revenus (Historique)",
     "expenses_history": "Dépenses (Historique)",
     "savings_reserves": "Réserves Épargne",
@@ -528,10 +528,10 @@
       "realtime_wealth_desc": "Calculé à chaque opération"
     },
     "hero": {
-      "title_part1": "Contrôlez Votre",
-      "title_budget": "Budget",
-      "title_part2": "Et Vos",
-      "title_finances": "Finances",
+      "title_part1": "Contrôlez votre",
+      "title_budget": "budget",
+      "title_part2": "et vos",
+      "title_finances": "finances",
       "title_part3": "Facilement",
       "subtitle": "MyNkap est une plateforme SaaS de gestion de finances personnelles : grâce à l'intelligence artificielle, elle analyse vos dépenses pour vous proposer des stratégies concrètes de meilleure gestion. Réunissez aussi Mobile Money, comptes bancaires et espèces au même endroit.",
       "cta_primary": "Essayer Gratuitement",
@@ -539,7 +539,7 @@
     },
     "ia": {
       "title_part1": "Prenez des décisions éclairées grâce à l'",
-      "title_highlight": "Intelligence Artificielle",
+      "title_highlight": "intelligence artificielle",
       "description": "Notre assistant IA n'est pas un simple chatbot. Il est directement connecté à vos flux financiers enregistrés. Il apprend de vos habitudes de consommation pour vous proposer des conseils d'épargne personnalisés, anticiper vos découverts et automatiser la saisie par commande vocale.",
       "point1": "Saisie vocale en langage naturel via dictée",
       "point2": "Prédiction des risques de dépassement budgétaire",
@@ -555,9 +555,9 @@
       "demo_send": "Envoyer"
     },
     "features": {
-      "title_part1": "Simplifiez Votre Portefeuille, Suivez Vos",
-      "title_highlight": "Comptes",
-      "title_part2": "Sans Effort",
+      "title_part1": "Simplifiez votre portefeuille, suivez vos",
+      "title_highlight": "comptes",
+      "title_part2": "sans effort",
       "description": "Fini le désordre des relevés sur plusieurs téléphones ou banques. Avec MyNkap, vous disposez d'un compte principal agrégateur qui additionne automatiquement l'ensemble de votre patrimoine brut en temps réel.",
       "mobile_money_title": "Mobile Money",
       "mobile_money_desc": "MTN MoMo et Orange Money intégrés pour suivre vos transferts et recharges instantanément.",
@@ -579,11 +579,11 @@
       "member_pending": "En attente"
     },
     "rigor": {
-      "title": "Rigueur Comptable & Financière Stricte",
+      "title": "Rigueur comptable & financière stricte",
       "subtitle": "MyNkap repose sur les principes de la comptabilité moderne pour vous garantir une traçabilité sans faille et une image fidèle de votre situation patrimoniale brute et nette.",
       "immutability_title": "Immuabilité des flux",
       "immutability_desc": "Une transaction enregistrée ne peut jamais être supprimée directement. Toutes les corrections s'effectuent par transaction d'annulation inverse, assurant un historique d'audit inaltérable.",
-      "networth_title": "Patrimoine Net Réel",
+      "networth_title": "Patrimoine net réel",
       "networth_desc": "Le patrimoine net est calculé dynamiquement : Somme des soldes actifs moins la somme de vos dettes plus la somme de vos créances accordées.",
       "atomic_title": "Opérations Atomiques",
       "atomic_desc": "Aucun écart de solde n'est toléré. Chaque opération financière (transfert, virement, achat) est exécutée de manière atomique sous forme de transaction SQL."
@@ -593,7 +593,7 @@
       "subtitle": "Des avis authentiques, laissés par de vrais utilisateurs de MyNkap."
     },
     "pricing": {
-      "title": "Des Plans Adaptés À Vos Besoins",
+      "title": "Des plans adaptés à vos besoins",
       "subtitle": "Choisissez l'offre qui correspond le mieux à votre rythme de gestion financière.",
       "recommended": "Recommandé",
       "free": {
@@ -604,7 +604,7 @@
         "feature2": "Transactions & Transferts",
         "feature3": "Budgets",
         "feature4": "Catégories",
-        "feature5": "Dettes & Créances, Épargne indisponibles",
+        "feature5": "Dettes & créances, épargne indisponibles",
         "feature6": "Analyse, Prédictions et JARVIS indisponibles",
         "cta": "Commencer"
       },
@@ -895,7 +895,7 @@
     "transaction": {
       "error_load": "Impossible de charger les comptes/catégories.",
       "error_generic": "Une erreur est survenue.",
-      "title": "Nouvelle Opération Financière",
+      "title": "Nouvelle opération financière",
       "quick_templates": "Vos modèles (1 tap)",
       "no_account": "Aucun compte financier",
       "no_account_desc": "Créez d'abord un compte financier (Mobile Money, banque, espèces...) avant d'enregistrer une transaction.",
@@ -1080,12 +1080,12 @@
         "audit": "Journaux d'Audit",
         "config": "Configuration Système",
         "subscriptions": "Abonnements & Paiements",
-        "fraud": "Surveillance Anti-Fraude",
+        "fraud": "Surveillance anti-fraude",
         "avis": "Avis Clients"
       },
       "dark_mode": "Mode Sombre",
       "light_mode": "Mode Clair",
-      "logout_console": "Quitter la Console Admin",
+      "logout_console": "Quitter la console admin",
       "console_admin": "Console Admin",
       "secure_env": "Environnement Sécurisé SSL",
       "main_admin": "Administrateur Principal",
@@ -1101,12 +1101,12 @@
         "generate_password": "Générer",
         "access_level_label": "Niveau d'Accès",
         "access_level_1": "Support & Consultation",
-        "access_level_2": "Modérateur (Config & Fraude)",
-        "access_level_3": "Superadmin (Gestion Équipe & Droits)",
+        "access_level_2": "Modérateur (config & fraude)",
+        "access_level_3": "Superadmin (gestion équipe & droits)",
         "submit": "Créer l'Admin"
       },
       "reset_password": {
-        "title": "Réinitialisation de Mot de Passe",
+        "title": "Réinitialisation de mot de passe",
         "confirm_part1": "Êtes-vous sûr de vouloir réinitialiser le mot de passe du client",
         "confirm_part2": "? Ses sessions actives seront révoquées.",
         "generate": "Générer mot de passe",
@@ -1114,7 +1114,7 @@
         "transmit_hint": "Transmettez ce mot de passe temporaire au client. Il sera invité à le modifier lors de sa prochaine connexion."
       },
       "edit_config": {
-        "title": "Modifier la Configuration Système",
+        "title": "Modifier la configuration système",
         "system_key_label": "Clé Système",
         "new_value_label": "Nouvelle Valeur à chaud",
         "submit": "Appliquer à chaud"
@@ -1155,7 +1155,7 @@
         "yearly_price_label": "Prix annuel",
         "currency_label": "Devise",
         "features_label": "Accès fonctionnels inclus",
-        "feature_tontines": "Tontines & Épargne Collective",
+        "feature_tontines": "Tontines & épargne collective",
         "submit_create": "Créer le plan"
       },
       "transaction_suspecte": {
@@ -1199,7 +1199,7 @@
         "modify_config_failed": "Modification impossible."
       },
       "kpis": {
-        "title": "Tableau de Bord KPI Globaux (Supervision 360°)",
+        "title": "Tableau de bord KPI globaux (Supervision 360°)",
         "subtitle": "Vue synthétique consolidée de l'ensemble des modules MyNkap",
         "refresh": "Actualiser les métriques",
         "client_base": "Base Clients",
@@ -1214,7 +1214,7 @@
         "amount_at_risk": "Montant à risque :"
       },
       "clients": {
-        "title": "Gestion des Clients (Module 1)",
+        "title": "Gestion des clients (Module 1)",
         "subtitle": "Consulter, suspendre et réinitialiser les comptes clients",
         "search_placeholder": "Rechercher par nom, email, téléphone...",
         "th_main_balance": "Solde principal",
@@ -1223,7 +1223,7 @@
         "none": "Aucun client."
       },
       "admins": {
-        "title": "Équipe Administrateur (Module 2)",
+        "title": "Équipe administrateur (Module 2)",
         "subtitle": "Gestion des accès d'administration et attribution des rôles",
         "create_btn": "Créer un Admin",
         "th_admin": "Admin",
@@ -1237,7 +1237,7 @@
         "none": "Aucun administrateur."
       },
       "audit": {
-        "title": "Journaux d'Audit & Traçabilité (Module 3)",
+        "title": "Journaux d'audit & traçabilité (Module 3)",
         "subtitle": "Historique inaltérable de toutes les actions sur la plateforme",
         "total_events": "Total d'événements tracés",
         "top_actions": "Actions les plus fréquentes",
@@ -1251,13 +1251,13 @@
         "none": "Aucune entrée d'audit."
       },
       "config": {
-        "title": "Configuration Système à Chaud (Module 4)",
+        "title": "Configuration système à chaud (Module 4)",
         "subtitle": "Modifier la configuration applicative sans aucun redéploiement",
         "edit_hot": "Modifier à chaud",
         "none": "Aucun paramètre de configuration."
       },
       "subscriptions": {
-        "title": "Abonnements & Paiements Mobile Money (Module 5)",
+        "title": "Abonnements & paiements Mobile Money (Module 5)",
         "subtitle": "Gestion des abonnements payants et validation des litiges HR-Skills Pay",
         "total_subscribers": "Total abonnés",
         "revenue": "Chiffre d'affaires",
@@ -1292,7 +1292,7 @@
         }
       },
       "fraud": {
-        "title": "Surveillance Anti-Fraude (Module 6)",
+        "title": "Surveillance anti-fraude (Module 6)",
         "subtitle": "Transactions suspectes signalées et gestion du risque financier",
         "clients_concerned": "Clients concernés",
         "amount_at_risk": "Montant à risque",
@@ -1305,7 +1305,7 @@
         "none": "Aucune transaction suspecte."
       },
       "avis": {
-        "title": "Avis Clients (Module 8)",
+        "title": "Avis clients (Module 8)",
         "subtitle": "Modération des avis avant publication sur la landing page",
         "th_note": "Note",
         "th_comment": "Commentaire",
