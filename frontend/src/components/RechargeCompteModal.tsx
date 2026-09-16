@@ -147,7 +147,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
@@ -158,7 +158,11 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        {/* max-h-[90vh]+overflow-y-auto sur le conteneur : le formulaire
+            Mobile Money (repères pays/opérateur/téléphone) dépasse la
+            hauteur d'écran sur de petits viewports, ce qui rendait le
+            bouton "Recharger" inaccessible (voir historique). */}
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
           {error && (
             <p className="text-sm text-destructive text-center flex items-center justify-center gap-1.5">
               <AlertTriangle className="h-4 w-4" />
