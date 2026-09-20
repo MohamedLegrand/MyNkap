@@ -1,9 +1,12 @@
+import os
+import uuid
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.modules.comptes.models import CompteFinancier, ComptePrincipal
 from app.modules.comptes.schemas import CompteFinancierCreate, CompteFinancierUpdate
 from app.modules.dettes.models import Dette
@@ -94,6 +97,7 @@ def creer_compte(db: Session, id_client: int, payload: CompteFinancierCreate) ->
         nom=payload.nom,
         type=payload.type,
         devise=payload.devise,
+        logo=payload.logo,
         solde=0,
         est_actif=True,
     )
@@ -174,11 +178,61 @@ def modifier_compte(db: Session, compte: CompteFinancier, payload: CompteFinanci
     """Modifie le nom et/ou le type d'un compte. Le solde n'est jamais
     modifiable via cette fonction (voir CompteFinancierUpdate)."""
     donnees = payload.model_dump(exclude_unset=True)
+    ancien_logo = compte.logo
     for champ, valeur in donnees.items():
         setattr(compte, champ, valeur)
 
     db.commit()
     db.refresh(compte)
+
+    # Un logo importé remplacé par un prédéfini (ou retiré) ne sert plus à
+    # personne : on supprime le fichier pour ne pas accumuler d'orphelins.
+    if "logo" in donnees and compte.logo != ancien_logo:
+        _supprimer_fichier_logo(ancien_logo)
+    return compte
+
+
+# --- Logo importé par le client (POST/DELETE /comptes/{id}/logo) ---
+# Hébergé dans le même dossier que les photos de profil (AVATARS_DOSSIER),
+# déjà servi par /avatars — aucune route ni règle Nginx supplémentaire.
+
+def _supprimer_fichier_logo(logo_url: Optional[str]) -> None:
+    """Supprime le fichier local d'un logo importé, seulement s'il est bien
+    hébergé par MyNkap (jamais un chemin prédéfini du frontend)."""
+    prefixe = f"{settings.BACKEND_URL}/avatars/"
+    if not logo_url or not logo_url.startswith(prefixe):
+        return
+    chemin = os.path.join(settings.AVATARS_DOSSIER, logo_url[len(prefixe):])
+    if os.path.isfile(chemin):
+        try:
+            os.remove(chemin)
+        except OSError:
+            pass
+
+
+def enregistrer_logo_importe(db: Session, compte: CompteFinancier, contenu: bytes, extension: str) -> CompteFinancier:
+    """Écrit le fichier sur disque puis met à jour le compte ; l'ancien
+    logo importé (le cas échéant) est supprimé après succès."""
+    ancien_logo = compte.logo
+    os.makedirs(settings.AVATARS_DOSSIER, exist_ok=True)
+    nom_fichier = f"compte_{compte.id_compte}_{uuid.uuid4().hex}{extension}"
+    with open(os.path.join(settings.AVATARS_DOSSIER, nom_fichier), "wb") as fichier:
+        fichier.write(contenu)
+
+    compte.logo = f"{settings.BACKEND_URL}/avatars/{nom_fichier}"
+    db.commit()
+    db.refresh(compte)
+
+    _supprimer_fichier_logo(ancien_logo)
+    return compte
+
+
+def retirer_logo(db: Session, compte: CompteFinancier) -> CompteFinancier:
+    ancien_logo = compte.logo
+    compte.logo = None
+    db.commit()
+    db.refresh(compte)
+    _supprimer_fichier_logo(ancien_logo)
     return compte
 
 

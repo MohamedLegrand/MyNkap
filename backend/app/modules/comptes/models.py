@@ -48,6 +48,13 @@ class CompteFinancier(Base):
     type = Column(String, nullable=False)
     solde = Column(Numeric(14, 2), default=0, nullable=False)
     devise = Column(String, default="XAF", nullable=False)
+    # Logo choisi par le client : soit un chemin de logo prédéfini du
+    # frontend (ex. "/mobile-money/wave.jpg", voir schemas.LOGO_PREDEFINI),
+    # soit l'URL d'un logo importé et hébergé par MyNkap
+    # ({BACKEND_URL}/avatars/compte_...). NULL = aucun choix : le frontend
+    # applique alors le logo par défaut du type (mobile money, espèces) ou
+    # laisse le logo vide.
+    logo = Column(String, nullable=True)
     est_actif = Column(Boolean, default=True)
     date_creation = Column(DateTime, default=datetime.utcnow)
     date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

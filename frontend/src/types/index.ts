@@ -23,6 +23,9 @@ export interface CompteFinancier {
   type: 'MOBILE_MONEY' | 'BANCAIRE' | 'ESPECES' | 'EPARGNE' | 'ABONNEMENT';
   solde: number;
   devise: string;
+  // Logo choisi par le client : chemin prédéfini ou URL d'un logo importé ;
+  // null = aucun choix (logo par défaut du type, ou vide).
+  logo: string | null;
   est_actif: boolean;
 }
 

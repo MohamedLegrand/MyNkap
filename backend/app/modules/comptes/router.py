@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -15,6 +15,24 @@ from app.modules.comptes.schemas import (
 )
 
 router = APIRouter(prefix="/comptes", tags=["Comptes financiers"])
+
+EXTENSIONS_PAR_TYPE_LOGO = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+TAILLE_MAX_LOGO = 3 * 1024 * 1024  # 3 Mo
+
+
+def _contenu_correspond_au_type_declare(contenu: bytes, content_type: str) -> bool:
+    """Vérifie la signature binaire réelle : le Content-Type envoyé par le
+    navigateur n'est qu'une déclaration, jamais une garantie (même contrôle
+    que la photo de profil, voir auth.router — dupliqué volontairement,
+    chaque module reste autonome). SVG volontairement exclu : il peut
+    embarquer du script."""
+    if content_type == "image/png":
+        return contenu.startswith(b"\x89PNG\r\n\x1a\n")
+    if content_type == "image/jpeg":
+        return contenu.startswith(b"\xff\xd8\xff")
+    if content_type == "image/webp":
+        return contenu[:4] == b"RIFF" and contenu[8:12] == b"WEBP"
+    return False
 
 
 def _get_compte_ou_404(db: Session, id_compte: int, id_client: int) -> CompteFinancier:
@@ -86,6 +104,47 @@ def modifier_compte(
     modifiable via cet endpoint (voir CompteFinancierUpdate)."""
     compte = _get_compte_ou_404(db, id_compte, client.id_client)
     return service.modifier_compte(db, compte, payload)
+
+
+@router.post("/{id_compte}/logo", response_model=CompteFinancierOut)
+async def importer_logo(
+    id_compte: int,
+    logo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Importe le logo personnalisé d'un compte (JPEG, PNG ou WebP, 3 Mo max)."""
+    compte = _get_compte_ou_404(db, id_compte, client.id_client)
+
+    extension = EXTENSIONS_PAR_TYPE_LOGO.get(logo.content_type)
+    if extension is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Format d'image non supporté (JPEG, PNG ou WebP uniquement).",
+        )
+    contenu = await logo.read()
+    if len(contenu) > TAILLE_MAX_LOGO:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le logo dépasse la taille maximale autorisée (3 Mo).",
+        )
+    if not _contenu_correspond_au_type_declare(contenu, logo.content_type):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le fichier envoyé n'est pas une image valide du format annoncé.",
+        )
+    return service.enregistrer_logo_importe(db, compte, contenu, extension)
+
+
+@router.delete("/{id_compte}/logo", response_model=CompteFinancierOut)
+def retirer_logo(
+    id_compte: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_active_client),
+):
+    """Retire le logo du compte (retour au logo par défaut du type, ou vide)."""
+    compte = _get_compte_ou_404(db, id_compte, client.id_client)
+    return service.retirer_logo(db, compte)
 
 
 @router.delete("/{id_compte}", status_code=status.HTTP_204_NO_CONTENT)

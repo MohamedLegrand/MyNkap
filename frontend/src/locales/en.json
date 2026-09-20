@@ -786,7 +786,15 @@
       "type_mobile_money": "Mobile Money (Orange, MTN...)",
       "type_bank": "Bank account",
       "type_cash": "Cash",
-      "initial_balance_label": "Starting balance (optional)"
+      "initial_balance_label": "Starting balance (optional)",
+      "logo_label": "Logo (optional)",
+      "logo_import": "Upload my logo",
+      "logo_none": "No logo",
+      "logo_hint": "Pick a logo from the list or upload your own (JPEG, PNG or WebP, 3 MB max). If you don't, the type's default logo applies (Mobile Money, cash), otherwise it stays empty.",
+      "logo_preview_alt": "Account logo preview",
+      "logo_error_type": "Unsupported format: please use a JPEG, PNG or WebP image.",
+      "logo_error_size": "The image exceeds the maximum allowed size (3 MB).",
+      "logo_upload_failed": "The account was created, but the logo upload failed. Please try again."
     },
     "categorie": {
       "error_edit": "Could not update the category.",

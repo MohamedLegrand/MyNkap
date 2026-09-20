@@ -785,7 +785,15 @@
       "type_mobile_money": "Mobile Money (Orange, MTN...)",
       "type_bank": "Compte bancaire",
       "type_cash": "Espèces / Cash",
-      "initial_balance_label": "Solde de départ (facultatif)"
+      "initial_balance_label": "Solde de départ (facultatif)",
+      "logo_label": "Logo (facultatif)",
+      "logo_import": "Importer mon logo",
+      "logo_none": "Aucun logo",
+      "logo_hint": "Choisissez un logo dans la liste ou importez le vôtre (JPEG, PNG ou WebP, 3 Mo max). Sans choix, le logo par défaut du type s'applique (Mobile Money, espèces), sinon il reste vide.",
+      "logo_preview_alt": "Aperçu du logo du compte",
+      "logo_error_type": "Format non supporté : utilisez une image JPEG, PNG ou WebP.",
+      "logo_error_size": "L'image dépasse la taille maximale autorisée (3 Mo).",
+      "logo_upload_failed": "Le compte est créé, mais l'import du logo a échoué. Réessayez."
     },
     "categorie": {
       "error_edit": "Modification de la catégorie impossible.",

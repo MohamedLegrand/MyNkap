@@ -40,6 +40,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout';
 import { TransactionModal } from '../components/TransactionModal';
 import { PlanUpgradeModal } from '../components/PlanUpgradeModal';
 import { PaiementCarteRetourModal } from '../components/PaiementCarteRetourModal';
+import { obtenirLogoCompte } from '../utils/logosComptes';
 import { CompteModal } from '../components/CompteModal';
 import { RechargeCompteModal } from '../components/RechargeCompteModal';
 import { TransfertModal } from '../components/TransfertModal';
@@ -85,24 +86,10 @@ const ICONS_PAR_TYPE_COMPTE: Record<string, React.ReactNode> = {
   ABONNEMENT: <Crown className="h-4 w-4" />,
 };
 
-// Logo réel à afficher pour un compte : espèces et carte bancaire ont un
-// logo fixe par type, mobile money dépend de l'opérateur reconnu dans le nom
-// que le client a donné à son compte (le type MOBILE_MONEY ne distingue pas
-// les opérateurs côté backend). Épargne et abonnement restent sur l'icône.
-const obtenirLogoCompte = (acc: CompteFinancier): string | null => {
-  if (acc.type === 'ESPECES') return '/cash.jpg';
-  if (acc.type === 'BANCAIRE') return '/carte.svg';
-  if (acc.type === 'MOBILE_MONEY') {
-    const nom = acc.nom.toLowerCase();
-    return nom.includes('orange') ? '/orange.jpg' : '/momo.jpg';
-  }
-  return null;
-};
-
 const IconeCompte = ({ acc }: { acc: CompteFinancier }) => {
   const logo = obtenirLogoCompte(acc);
   if (logo) {
-    return <img src={logo} alt={acc.type} className="h-9 w-9 rounded-lg object-cover shrink-0" />;
+    return <img src={logo} alt={acc.nom} className="h-9 w-9 rounded-lg object-cover shrink-0" />;
   }
   return (
     <div className="p-2 rounded-xl text-xs font-bold bg-primary/10 text-primary shrink-0">
