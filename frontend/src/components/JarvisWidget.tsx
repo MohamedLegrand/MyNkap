@@ -5,6 +5,8 @@ import { api } from '../services/api';
 import { formatDateRelative } from '../utils/formatters';
 import type { ActionIA, JarvisConversation, JarvisConversationDetail, JarvisMessage, JarvisMessageVocal } from '../types';
 
+const CLE_DERNIERE_CONVERSATION = 'mynkap_jarvis_derniere_conversation';
+
 export const JarvisWidget: React.FC = () => {
   const { t } = useTranslation();
   const [conversations, setConversations] = useState<JarvisConversation[]>([]);
@@ -44,9 +46,52 @@ export const JarvisWidget: React.FC = () => {
       .catch(() => {});
   };
 
+  // Les conversations sont bien enregistrées côté serveur, mais l'état React
+  // (conversation ouverte) est perdu à chaque rechargement de page : sans
+  // restauration, le client retrouvait un écran vide et croyait ses échanges
+  // perdus. On rouvre donc la dernière conversation active (mémorisée dans
+  // le navigateur), à défaut la plus récente.
   useEffect(() => {
-    chargerConversations();
+    let annule = false;
+    api.request<JarvisConversation[]>('/jarvis/conversations')
+      .then(async (liste) => {
+        if (annule) return;
+        setConversations(liste);
+        let idARestaurer: string | null = null;
+        try {
+          idARestaurer = localStorage.getItem(CLE_DERNIERE_CONVERSATION);
+        } catch {
+          // Stockage indisponible (navigation privée...) : on retombe sur la plus récente.
+        }
+        const existe = idARestaurer && liste.some((c) => c.id_conversation === idARestaurer);
+        const cible = existe ? idARestaurer : liste[0]?.id_conversation ?? null;
+        if (!cible) return;
+        try {
+          const detail = await api.request<JarvisConversationDetail>(`/jarvis/conversations/${cible}`);
+          if (annule) return;
+          setConversationActuelle(detail.id_conversation);
+          setMessages(detail.messages);
+        } catch {
+          // Conversation introuvable : on garde l'écran d'accueil.
+        }
+      })
+      .catch(() => {});
+    return () => {
+      annule = true;
+    };
   }, []);
+
+  // Mémorise la conversation ouverte pour la restaurer au prochain chargement.
+  // (Jamais de suppression ici : conversationActuelle vaut null au premier
+  // rendu, ce qui effacerait la valeur avant qu'elle ne soit relue plus haut.)
+  useEffect(() => {
+    if (!conversationActuelle) return;
+    try {
+      localStorage.setItem(CLE_DERNIERE_CONVERSATION, conversationActuelle);
+    } catch {
+      // Stockage indisponible : la restauration automatique est simplement désactivée.
+    }
+  }, [conversationActuelle]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -74,6 +119,11 @@ export const JarvisWidget: React.FC = () => {
   };
 
   const demarrerNouvelleConversation = () => {
+    try {
+      localStorage.removeItem(CLE_DERNIERE_CONVERSATION);
+    } catch {
+      // Stockage indisponible : sans effet.
+    }
     setAfficherHistorique(false);
     setConversationActuelle(null);
     setMessages([]);
