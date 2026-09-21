@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, ArrowDownCircle, ArrowUpCircle, Wallet, Tag, FileText, Calendar, Loader2, AlertTriangle, Zap } from 'lucide-react';
+import { X, ArrowDownCircle, ArrowUpCircle, Wallet, Tag, FileText, Calendar, Loader2, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { ICONES_CATEGORIE, ICONE_CATEGORIE_PAR_DEFAUT } from '../utils/categorieIcons';
-import type { CompteFinancier, Categorie, TemplateTransaction, Transaction } from '../types';
+import type { CompteFinancier, Categorie, Transaction } from '../types';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -13,9 +13,6 @@ interface TransactionModalProps {
   // (les plus utilisées en premier) — optionnel, dégrade simplement vers
   // l'ordre par défaut si non fourni.
   transactions?: Transaction[];
-  // Les modèles sont un palier payant (voir plans.acces_templates) : évite
-  // un appel /templates garanti 403 pour un client non éligible.
-  accesTemplates?: boolean;
 }
 
 // Format YYYY-MM-DD en heure locale (pas toISOString(), qui bascule sur UTC
@@ -54,7 +51,7 @@ const MOTS_CLES_PAR_CATEGORIE: Record<string, string[]> = {
   'Achats personnels': ['vêtement', 'vetement', 'chaussure', 'habit', 'shopping', 'coiffure'],
 };
 
-export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSuccess, transactions, accesTemplates }) => {
+export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, onSuccess, transactions }) => {
   const { t } = useTranslation();
   const [type, setType] = useState<'DEPENSE' | 'REVENU'>('DEPENSE');
   const [montant, setMontant] = useState('');
@@ -68,8 +65,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
 
   const [comptes, setComptes] = useState<CompteFinancier[]>([]);
   const [categories, setCategories] = useState<Categorie[]>([]);
-  const [templates, setTemplates] = useState<TemplateTransaction[]>([]);
-  const [idTemplateEnCours, setIdTemplateEnCours] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Création du tout premier compte financier (aucune transaction n'est
@@ -83,16 +78,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
   const chargerComptesEtCategories = () => {
     setError(null);
     setIsLoading(true);
-    const requetes: [Promise<CompteFinancier[]>, Promise<Categorie[]>, Promise<TemplateTransaction[]>] = [
-      api.request<CompteFinancier[]>('/comptes'),
-      api.request<Categorie[]>('/categories'),
-      accesTemplates ? api.request<TemplateTransaction[]>('/templates') : Promise.resolve([]),
-    ];
-    return Promise.all(requetes)
-      .then(([comptesData, categoriesData, templatesData]) => {
+    return Promise.all([api.request<CompteFinancier[]>('/comptes'), api.request<Categorie[]>('/categories')])
+      .then(([comptesData, categoriesData]) => {
         setComptes(comptesData);
         setCategories(categoriesData);
-        setTemplates(templatesData);
         if (comptesData.length > 0) {
           let dernierCompte: string | null = null;
           try {
@@ -117,7 +106,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     setDate(AUJOURDHUI);
     setCategorieChoisieManuellement(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, accesTemplates]);
+  }, [isOpen]);
 
   const handleCreerCompte = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,12 +147,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
   const categoriesTriees = useMemo(
     () => [...categoriesFiltrees].sort((a, b) => (frequenceParCategorie[b.id_categorie] ?? 0) - (frequenceParCategorie[a.id_categorie] ?? 0)),
     [categoriesFiltrees, frequenceParCategorie]
-  );
-
-  // Les modèles les plus rejoués en premier (voir TemplateTransaction.nombre_utilisations).
-  const templatesTries = useMemo(
-    () => [...templates].filter((tpl) => tpl.est_actif).sort((a, b) => b.nombre_utilisations - a.nombre_utilisations),
-    [templates]
   );
 
   useEffect(() => {
@@ -208,21 +191,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
       localStorage.setItem(CLE_DERNIER_COMPTE, id);
     } catch {
       // Stockage indisponible : purement un confort, jamais bloquant.
-    }
-  };
-
-  const handleRejouerTemplate = async (tpl: TemplateTransaction) => {
-    setError(null);
-    setIdTemplateEnCours(tpl.id_template);
-    try {
-      await api.request(`/templates/${tpl.id_template}/rejouer`, { method: 'POST' });
-      memoriserDernierCompte(String(tpl.id_compte));
-      onSuccess?.();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('modals.transaction.error_generic'));
-    } finally {
-      setIdTemplateEnCours(null);
     }
   };
 
@@ -340,33 +308,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
           </form>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
-            {/* Modèles en un tap — le plus rapide possible, saute tout le reste du formulaire. */}
-            {templatesTries.length > 0 && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                  <Zap className="h-3.5 w-3.5" />
-                  <span>{t('modals.transaction.quick_templates')}</span>
-                </label>
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                  {templatesTries.slice(0, 6).map((tpl) => (
-                    <button
-                      key={tpl.id_template}
-                      type="button"
-                      onClick={() => handleRejouerTemplate(tpl)}
-                      disabled={idTemplateEnCours !== null}
-                      className="shrink-0 flex flex-col items-start gap-0.5 px-3 py-2 rounded-xl border border-border bg-muted/40 hover:border-primary/50 hover:bg-primary/5 transition-colors text-left disabled:opacity-50"
-                    >
-                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        {idTemplateEnCours === tpl.id_template && <Loader2 className="h-3 w-3 animate-spin" />}
-                        <span>{tpl.nom}</span>
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">{tpl.montant.toLocaleString('fr-FR')} XAF</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Selector Type (DEPENSE / REVENU) */}
             <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
               <button

@@ -32,7 +32,6 @@ import {
   PowerOff,
   X,
   Trash2,
-  Users,
   MessageSquareHeart,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -55,8 +54,6 @@ import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { AutomatisationsSection } from '../components/AutomatisationsSection';
 import { AnalyseSection } from '../components/AnalyseSection';
 import { CategorieBadge } from '../components/CategorieBadge';
-import { TontineModal } from '../components/TontineModal';
-import { TontineDetailModal } from '../components/TontineDetailModal';
 import { AvisModal } from '../components/AvisModal';
 import { SettingsSection } from '../components/SettingsSection';
 import { api } from '../services/api';
@@ -73,7 +70,6 @@ import type {
   Dette,
   Rapport,
   Transfert,
-  Tontine,
   DonneesVerrouillees,
   Avis,
 } from '../types';
@@ -137,8 +133,6 @@ export const ClientDashboard: React.FC = () => {
   const [transactionDetailId, setTransactionDetailId] = useState<number | null>(null);
   const [isDetteModalOpen, setIsDetteModalOpen] = useState(false);
   const [isObjectifModalOpen, setIsObjectifModalOpen] = useState(false);
-  const [isTontineModalOpen, setIsTontineModalOpen] = useState(false);
-  const [idTontineDetail, setIdTontineDetail] = useState<number | null>(null);
   const [detteOperation, setDetteOperation] = useState<Dette | null>(null);
   const [objectifOperation, setObjectifOperation] = useState<{ objectif: ObjectifEpargne; operation: 'alimenter' | 'retirer' | 'abandonner' } | null>(null);
   const client = useAuthStore((state) => state.client);
@@ -154,7 +148,6 @@ export const ClientDashboard: React.FC = () => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [objectifsEpargne, setObjectifsEpargne] = useState<ObjectifEpargne[]>([]);
   const [dettes, setDettes] = useState<Dette[]>([]);
-  const [tontines, setTontines] = useState<Tontine[]>([]);
   const [rapports, setRapports] = useState<Rapport[]>([]);
   const [transferts, setTransferts] = useState<Transfert[]>([]);
   const [transfertDetailId, setTransfertDetailId] = useState<number | null>(null);
@@ -286,21 +279,6 @@ export const ClientDashboard: React.FC = () => {
       .then(setDettes)
       .catch(() => setDettes([]));
   }, [abonnement]);
-
-  const fetchTontines = useCallback(() => {
-    api
-      .request<Tontine[]>('/tontines')
-      .then(setTontines)
-      .catch(() => setTontines([]));
-  }, []);
-
-  useEffect(() => {
-    // Chargé seulement en visitant l'onglet Tontines (pas nécessaire ailleurs
-    // dans le dashboard, contrairement aux dettes) — même garde-fou de plan
-    // que les effets ci-dessus.
-    if (activeTab !== 'tontines' || !abonnement?.plan.acces_tontine) return;
-    fetchTontines();
-  }, [activeTab, abonnement, fetchTontines]);
 
   useEffect(() => {
     // Chargé seulement en visitant "Mes Comptes" — pas de gating de plan
@@ -736,20 +714,6 @@ export const ClientDashboard: React.FC = () => {
                 onSupprimer={supprimerDette}
               />
             )
-          ) : activeTab === 'tontines' ? (
-            !abonnement?.plan.acces_tontine ? (
-              <LockedFeatureBanner
-                titre={t('dashboard.nav.tontines')}
-                count={donneesVerrouillees?.tontines}
-                onUpgrade={() => setIsUpgradeModalOpen(true)}
-              />
-            ) : (
-              <TontinesSection
-                tontines={tontines}
-                onOpenTontineModal={() => setIsTontineModalOpen(true)}
-                onOpenDetail={(id) => setIdTontineDetail(id)}
-              />
-            )
           ) : activeTab === 'jarvis' ? (
             !abonnement?.plan.acces_jarvis ? (
               <LockedFeatureBanner
@@ -774,13 +738,10 @@ export const ClientDashboard: React.FC = () => {
               comptesActifs={comptesActifs}
               categories={categories}
               accesRecurrentes={abonnement?.plan.acces_recurrentes ?? false}
-              accesTemplates={abonnement?.plan.acces_templates ?? false}
               nombreRecurrentesVerrouillees={donneesVerrouillees?.transactions_recurrentes}
-              nombreTemplatesVerrouilles={donneesVerrouillees?.templates}
               onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
               nomCompte={nomCompte}
               nomCategorie={nomCategorie}
-              onDataChange={chargerDonnees}
             />
           ) : activeTab === 'reports' ? (
             <RapportsSection
@@ -997,7 +958,6 @@ export const ClientDashboard: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         onSuccess={chargerDonnees}
         transactions={transactions}
-        accesTemplates={abonnement?.plan.acces_templates ?? false}
       />
 
       {/* Modal de changement de formule (Standard / Premium) */}
@@ -1082,21 +1042,6 @@ export const ClientDashboard: React.FC = () => {
         onSuccess={() => { api.request<Dette[]>('/dettes').then(setDettes).catch(() => {}); chargerDonnees(); }}
         dette={detteOperation}
         comptes={comptesActifs}
-      />
-
-      {/* Modal de création d'une tontine */}
-      <TontineModal
-        isOpen={isTontineModalOpen}
-        onClose={() => setIsTontineModalOpen(false)}
-        onSuccess={fetchTontines}
-      />
-
-      {/* Modal de détail/gestion d'une tontine (tours, cotisations) */}
-      <TontineDetailModal
-        isOpen={idTontineDetail !== null}
-        idTontine={idTontineDetail}
-        onClose={() => setIdTontineDetail(null)}
-        onChange={fetchTontines}
       />
 
       {/* Modal de création d'un objectif d'épargne */}
@@ -1193,7 +1138,7 @@ interface ActionMenuItem {
 }
 
 // Menu d'actions générique (kebab) réutilisé pour les comptes, catégories,
-// budgets, transactions récurrentes et templates — évite de dupliquer le
+// budgets et transactions récurrentes — évite de dupliquer le
 // pattern d'ouverture/fermeture au clic extérieur à chaque section.
 const MenuActions: React.FC<{ items: ActionMenuItem[]; ariaLabel?: string }> = ({ items, ariaLabel = 'Actions' }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -1832,75 +1777,6 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
           {renderListe(creances, false)}
         </div>
       </div>
-    </div>
-  );
-};
-
-interface TontinesSectionProps {
-  tontines: Tontine[];
-  onOpenTontineModal: () => void;
-  onOpenDetail: (idTontine: number) => void;
-}
-
-const STATUT_TONTINE_BADGE: Record<string, string> = {
-  ACTIVE: 'bg-primary/10 text-primary border-primary/20',
-  TERMINEE: 'bg-forest-500/10 text-forest-600 dark:text-forest-400 border-forest-500/20',
-  ANNULEE: 'bg-muted text-muted-foreground border-border',
-};
-
-const TontinesSection: React.FC<TontinesSectionProps> = ({ tontines, onOpenTontineModal, onOpenDetail }) => {
-  const { t } = useTranslation();
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          <span>{t('dashboard.nav.tontines')}</span>
-        </h3>
-        <button
-          onClick={onOpenTontineModal}
-          className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>{t('tontines.create')}</span>
-        </button>
-      </div>
-
-      {tontines.length === 0 ? (
-        <div className="bg-card rounded-2xl border border-dashed border-border p-10 text-center space-y-2">
-          <Users className="h-8 w-8 text-muted-foreground mx-auto" />
-          <p className="text-sm text-muted-foreground">{t('tontines.none_yet')}</p>
-          <p className="text-xs text-muted-foreground">{t('tontines.explainer')}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tontines.map((tontine) => (
-            <button
-              key={tontine.id_tontine}
-              onClick={() => onOpenDetail(tontine.id_tontine)}
-              className="text-left bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all space-y-3"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <h4 className="text-sm font-bold text-foreground truncate">{tontine.nom}</h4>
-                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border shrink-0 ${STATUT_TONTINE_BADGE[tontine.statut]}`}>
-                  {tontine.statut}
-                </span>
-              </div>
-              <div className="space-y-1 text-xs">
-                <p className="text-muted-foreground">
-                  <strong className="text-foreground">{tontine.nombre_membres}</strong> {t('tontines.members')} • {tontine.frequence === 'HEBDOMADAIRE' ? t('tontines.weekly') : t('tontines.monthly')}
-                </p>
-                <p className="text-muted-foreground">
-                  {t('tontines.pot')} : <strong className="text-primary">{Number(tontine.montant_total_par_tour).toLocaleString('fr-FR')} XAF</strong>
-                </p>
-                {tontine.numero_tour_actuel !== null && (
-                  <p className="text-muted-foreground">{t('tontines.current_round')} : <strong className="text-foreground">{tontine.numero_tour_actuel}/{tontine.nombre_membres}</strong></p>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

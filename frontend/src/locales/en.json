@@ -1,8 +1,8 @@
 {
   "seo": {
     "landing_title": "MyNkap | Smart Financial Management, Budget & Mobile Money in Central Africa",
-    "landing_description": "MyNkap is your smart financial management app: track your budget, Orange Money and MTN MoMo accounts, and tontines in one place, with an AI assistant that analyzes your spending. Built for Cameroon and Central Africa.",
-    "landing_keywords": "personal finance management, smart financial management, budget management, financial management app, expense tracking, Mobile Money, Orange Money, MTN MoMo, online tontine, savings, AI finance assistant, budget Cameroon, Central Africa",
+    "landing_description": "MyNkap is your smart financial management app: track your budget, Orange Money and MTN MoMo accounts, and savings goals in one place, with an AI assistant that analyzes your spending. Built for Cameroon and Central Africa.",
+    "landing_keywords": "personal finance management, smart financial management, budget management, financial management app, expense tracking, Mobile Money, Orange Money, MTN MoMo, savings goals, savings, AI finance assistant, budget Cameroon, Central Africa",
     "about_title": "About MyNkap | Personal Finance App for Central Africa",
     "about_description": "Discover MyNkap, the app that brings Mobile Money, bank accounts and cash together for a clear view of your personal finances in the CEMAC zone (XAF).",
     "contact_title": "Contact | MyNkap",
@@ -10,7 +10,7 @@
     "login_title": "Log In | MyNkap",
     "login_description": "Log in to your MyNkap account to track your budget, Mobile Money accounts and personal finances.",
     "register_title": "Create an Account | MyNkap",
-    "register_description": "Create your free MyNkap account and start managing your budget, Mobile Money accounts and tontines today.",
+    "register_description": "Create your free MyNkap account and start managing your budget, Mobile Money accounts and savings today.",
     "forgot_password_title": "Forgot Password | MyNkap",
     "forgot_password_description": "Reset your MyNkap account password in a few seconds.",
     "reset_password_title": "Reset Password | MyNkap",
@@ -77,7 +77,7 @@
   "nav": {
     "ai": "Artificial Intelligence",
     "features": "Features",
-    "tontines": "Tontines",
+    "budgets": "Budgets",
     "pricing": "Pricing",
     "about": "About",
     "contact": "Contact",
@@ -243,19 +243,6 @@
     "abandon_title": "Abandon this goal",
     "abandon": "Abandon"
   },
-  "tontines": {
-    "create": "Create a tontine",
-    "none_yet": "No tontine yet.",
-    "explainer": "MyNkap only keeps track of contributions and rounds: the money moves between you, outside the app.",
-    "members": "members",
-    "weekly": "weekly",
-    "monthly": "monthly",
-    "pot": "Pot",
-    "current_round": "Current round",
-    "weekly_label": "Weekly",
-    "monthly_label": "Monthly",
-    "frequency": "Frequency"
-  },
   "reports": {
     "type_statement": "Transaction statement",
     "type_budget_summary": "Budget summary",
@@ -318,10 +305,9 @@
       "budgets": "Budgets & Alerts",
       "savings": "Savings & Goals",
       "debts": "Debts & Claims",
-      "tontines": "Tontines",
       "jarvis": "JARVIS AI Assistant",
       "analyse": "Analysis & Predictions",
-      "automations": "Recurrences & Templates",
+      "automations": "Recurrences",
       "reports": "PDF Reports",
       "settings": "Settings"
     },
@@ -332,10 +318,9 @@
       "budgets": "Set a spending cap per category and get an alert before you go over it.",
       "savings": "Track your savings goals (target amount, deadline) in dedicated accounts, kept separate from your everyday money.",
       "debts": "Track what you owe and what's owed to you, with the remaining amount and due dates.",
-      "tontines": "Organize your tontines: turn rotation, contribution tracking — MyNkap never touches the money itself.",
       "jarvis": "Ask the JARVIS AI assistant your financial questions, by text or voice, connected to your real data.",
       "analyse": "Analyze your spending habits and look ahead with predictions based on your history.",
-      "automatisations": "Automate recurring monthly transactions and create templates for faster entry.",
+      "automatisations": "Automate the transactions that come back every month: rent, subscriptions, salary.",
       "reports": "Generate a PDF statement of your transactions, budget summary, or full financial position.",
       "settings": "Manage your profile photo, personal information, preferences, password and subscription."
     },
@@ -422,7 +407,7 @@
     "s1_title": "1. Who we are",
     "s1_body": "MyNkap is a personal finance tracking and planning application for the Central African market (CEMAC zone), published under the trade name \"MyNkap\" (see our Legal Notice for the publisher's full identity). For any question about your personal data, contact us at support@mynkap.com.",
     "s2_title": "2. Data we collect",
-    "s2_body": "When you create an account, we collect your first and last name, email address, phone number and a password, stored hashed and never in plain text. If you sign in with Google, we receive your email, first name and last name from your Google account. The financial data you enter yourself in the app (accounts, transactions, budgets, debts, savings goals, tontines) is self-declared: MyNkap does not access any real bank or Mobile Money account and cannot view or modify your actual balances. We also keep limited technical data (IP address, login logs) for security purposes.",
+    "s2_body": "When you create an account, we collect your first and last name, email address, phone number and a password, stored hashed and never in plain text. If you sign in with Google, we receive your email, first name and last name from your Google account. The financial data you enter yourself in the app (accounts, transactions, budgets, debts, savings goals) is self-declared: MyNkap does not access any real bank or Mobile Money account and cannot view or modify your actual balances. We also keep limited technical data (IP address, login logs) for security purposes.",
     "s3_title": "3. Why we use your data",
     "s3_body": "Your data is used to create and secure your account, let you use budget-tracking features and the JARVIS assistant, send you the emails required for the service to work (email verification at sign-up, password reset, security notifications), process your paid subscriptions, and keep the app secure and reliable.",
     "s4_title": "4. Who we share your data with",
@@ -450,7 +435,7 @@
     "s1_title": "1. Purpose",
     "s1_body": "These Terms of Service define the rules for accessing and using MyNkap, a personal finance tracking and planning application.",
     "s2_title": "2. Description of the service",
-    "s2_body": "MyNkap is a tracking, categorization and financial planning tool: you enter your own accounts, transactions, budgets, debts, savings goals and tontines. MyNkap is not a bank, an electronic money institution, or a payment service provider: the app does not hold, transfer or move any real funds. All financial data displayed is self-declared and reflects the information entered by the user; MyNkap has no access to your real bank or Mobile Money accounts and cannot guarantee the accuracy of displayed balances if entries are not kept up to date.",
+    "s2_body": "MyNkap is a tracking, categorization and financial planning tool: you enter your own accounts, transactions, budgets, debts and savings goals. MyNkap is not a bank, an electronic money institution, or a payment service provider: the app does not hold, transfer or move any real funds. All financial data displayed is self-declared and reflects the information entered by the user; MyNkap has no access to your real bank or Mobile Money accounts and cannot guarantee the accuracy of displayed balances if entries are not kept up to date.",
     "s3_title": "3. Account creation",
     "s3_body": "To use MyNkap, you must create an account with a valid email address and confirm it via the verification code sent by email. You agree to provide accurate information and to keep your password confidential. You are responsible for all activity carried out from your account.",
     "s4_title": "4. Permitted use",
@@ -492,7 +477,7 @@
     "s1_title": "1. Purpose",
     "s1_body": "These Terms of Sale govern the subscription and payment of MyNkap paid plans (ESSENTIEL and PREMIUM).",
     "s2_title": "2. Plans and pricing",
-    "s2_body": "MyNkap offers a FREE plan as well as two paid plans, ESSENTIEL and PREMIUM, unlocking additional features (debt tracking, savings, recurring transactions, tontines, advanced financial analysis, JARVIS assistant depending on the plan). Prices, shown in CFA Francs (XAF), are displayed in the app before any subscription and can be billed monthly or annually.",
+    "s2_body": "MyNkap offers a FREE plan as well as two paid plans, ESSENTIEL and PREMIUM, unlocking additional features (debt tracking, savings, recurring transactions, advanced financial analysis, JARVIS assistant depending on the plan). Prices, shown in CFA Francs (XAF), are displayed in the app before any subscription and can be billed monthly or annually.",
     "s3_title": "3. Free trial",
     "s3_body": "Every new account gets a 7-day free trial giving access to all features. At the end of this period, the account automatically reverts to the FREE plan unless a paid plan is subscribed.",
     "s4_title": "4. Payment terms",
@@ -565,19 +550,21 @@
       "savings_title": "Savings Accounts",
       "savings_desc": "Every savings goal gets its own dedicated savings account, created automatically."
     },
-    "tontines": {
-      "title_part1": "Your",
-      "title_highlight": "tontines",
-      "title_part2": "finally organized, without ever touching your money",
-      "description": "MyNkap never holds the money for your tontine or njangi: the money keeps moving between you, just like always. The app simply takes care of what's tedious to track by hand: who has paid in, whose turn it is, and when.",
-      "point1": "Round rotation generated automatically based on member order",
-      "point2": "Tracking of contributions paid, round by round",
-      "point3": "Weekly or monthly due-date calendar",
-      "point4": "Full history kept, even after a round is closed",
-      "card_name": "Neighborhood tontine",
-      "card_turn": "Round 2/5: Awa",
-      "member_paid": "Paid",
-      "member_pending": "Pending"
+    "budgets": {
+      "title_part1": "Budgets",
+      "title_highlight": "and savings goals",
+      "title_part2": "that keep you on track",
+      "description": "Set a limit per category, follow your savings goals and let MyNkap warn you before you overspend: your money stays under control, month after month.",
+      "point1": "Spending limit per category, with alerts at 80% and 100%",
+      "point2": "Savings goals with real-time progress",
+      "point3": "Recurring transactions to automate rent, subscriptions and salaries",
+      "point4": "Monthly PDF reports of your income, expenses and debts",
+      "card_name": "This Month's Budgets",
+      "card_badge": "Active",
+      "card_goal": "Savings Goal",
+      "cat_food": "Food",
+      "cat_transport": "Transport",
+      "cat_leisure": "Leisure"
     },
     "rigor": {
       "title": "Strict Accounting & Financial Rigor",
@@ -634,7 +621,7 @@
     },
     "final_cta": {
       "title": "Ready to take control of your finances?",
-      "subtitle": "Join the users already managing their budget, Mobile Money accounts and tontines from a single app.",
+      "subtitle": "Join the users already managing their budget, Mobile Money accounts and savings from a single app.",
       "button": "Create my free account"
     }
   },
@@ -692,15 +679,12 @@
     "claims_lost": "Claims lost",
     "debts_overdue": "Overdue debts/claims",
     "savings_abandoned": "Abandoned goals",
-    "tontine_unpaid": "Unpaid tontine dues",
     "claims_lost_count_one": "{{count}} claim never repaid, lost for {{montant}} — be more careful before lending money in the future (cap the amount, ask for collateral, or a repayment schedule)",
     "claims_lost_count_other": "{{count}} claims never repaid, lost for {{montant}} in total — be more careful before lending money in the future (cap the amount, ask for collateral, or a repayment schedule)",
     "debts_overdue_count_one": "{{count}} debt or claim overdue",
     "debts_overdue_count_other": "{{count}} debts or claims overdue",
     "savings_abandoned_count_one": "{{count}} savings goal abandoned",
     "savings_abandoned_count_other": "{{count}} savings goals abandoned",
-    "tontine_unpaid_count_one": "{{count}} unpaid tontine due from a member",
-    "tontine_unpaid_count_other": "{{count}} unpaid tontine dues from members",
     "score_evolution": "Financial score over time",
     "this_month": "This month",
     "monthly_evolution": "Monthly evolution",
@@ -748,21 +732,12 @@
   },
   "automations": {
     "error_load": "Could not load.",
-    "replayed": "\"{{nom}}\" was recorded as a new transaction.",
-    "error_replay": "Could not replay this template.",
     "recurring_tab": "Recurring",
-    "templates_tab": "Templates",
     "recurring_title": "Recurring transactions",
     "none_recurring": "No recurring transaction scheduled.",
     "next_on": "next on {{date}}",
     "recurring_actions_aria": "Recurrence actions",
-    "templates_title": "Transaction templates",
-    "create_template": "Create a template",
-    "none_templates": "No transaction template yet.",
-    "template_actions_aria": "Template actions {{nom}}",
-    "usage_count_one": "{{count}} use",
-    "usage_count_other": "{{count}} uses",
-    "replay_now": "Replay now"
+    "templates_title": "Transaction templates"
   },
   "notifications": {
     "title": "Notifications",
@@ -864,36 +839,6 @@
       "destination_account": "Destination account",
       "confirm_abandon": "Confirm abandon"
     },
-    "tontine": {
-      "min_members_error": "At least 2 members are required to form a tontine.",
-      "error_create": "Could not create the tontine.",
-      "name_label": "Tontine name",
-      "name_placeholder": "E.g. Neighborhood tontine",
-      "contribution_label": "Contribution per member (XAF)",
-      "first_round_date_label": "First round date",
-      "frequency_label": "Round frequency",
-      "members_label": "Members (order in which they receive the pot)",
-      "add_member": "Add",
-      "member_name_placeholder": "Member name",
-      "member_phone_placeholder": "Phone (optional)",
-      "remove_member": "Remove this member"
-    },
-    "tontine_detail": {
-      "error_load": "Unable to load this tontine.",
-      "error_close": "Could not close the round.",
-      "error_cancel": "Could not cancel.",
-      "confirm_cancel": "Permanently cancel this tontine? Rounds and contributions already recorded will remain viewable.",
-      "contribution_per_member": "Contribution / member",
-      "pot_per_round": "Pot / round",
-      "weekly_short": "Weekly",
-      "members_count_one": "Member ({{count}})",
-      "members_count_other": "Members ({{count}})",
-      "rounds_title": "Rotation rounds",
-      "round_label": "Round {{numero}}: {{beneficiaire}}",
-      "contributions_paid": "{{versees}}/{{total}} paid",
-      "close_round": "Close and hand out the pot",
-      "cancel_tontine": "Cancel the tontine"
-    },
     "transfert": {
       "error": "Transfer failed.",
       "available_balance": "Available balance",
@@ -905,7 +850,6 @@
       "error_load": "Unable to load accounts/categories.",
       "error_generic": "An error occurred.",
       "title": "New Financial Transaction",
-      "quick_templates": "Your templates (1 tap)",
       "no_account": "No financial account",
       "no_account_desc": "First create a financial account (Mobile Money, bank, cash...) before recording a transaction.",
       "income_deposit": "Income / Deposit",
@@ -945,16 +889,6 @@
       "photo_error_size": "The photo exceeds 3 MB.",
       "updated": "Profile updated."
     },
-    "template_transaction": {
-      "error_load": "Unable to load this template.",
-      "error_edit": "Could not update the template.",
-      "error_create": "Could not create the template.",
-      "title_edit": "Edit template",
-      "title_create": "Create a transaction template",
-      "name_label": "Template name",
-      "name_placeholder": "E.g. Saturday market shopping",
-      "description_label": "Description (optional)"
-    },
     "transaction_recurrente": {
       "error_load": "Unable to load this recurrence.",
       "error_edit": "Could not update the recurrence.",
@@ -968,7 +902,9 @@
       "description_placeholder": "E.g. Netflix subscription",
       "next_execution": "Next run",
       "end_date": "End (optional)",
-      "submit": "Schedule"
+      "submit": "Schedule",
+      "description_label": "Description (optional)",
+      "frequency_label": "Frequency"
     },
     "plan_upgrade": {
       "plan_essentiel": "Standard",
@@ -979,7 +915,7 @@
       "feature_premium_1": "All Standard features",
       "feature_premium_2": "JARVIS AI financial assistant",
       "feature_premium_3": "Advanced spending analysis",
-      "feature_premium_4": "Transaction templates",
+      "feature_premium_4": "Advanced PDF reports",
       "error_load_plans": "Unable to load plans.",
       "error_start_payment": "Could not start the payment.",
       "confirm_downgrade": "Switch back to the Free plan right now? You will immediately lose access to paid features.",

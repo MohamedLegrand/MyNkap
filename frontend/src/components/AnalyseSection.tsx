@@ -399,7 +399,7 @@ const StatComportement: React.FC<{ label: string; valeur: number; alerte?: boole
 
 // Le comportement du client ne se limite pas aux dépenses/budgets du mois :
 // une créance jamais remboursée, une dette en retard, un objectif d'épargne
-// abandonné ou une tontine mal suivie disent tout autant sur sa gestion —
+// abandonné disent tout autant sur sa gestion —
 // ces signaux viennent de calculer_comportement côté backend, cumulatifs
 // sur tout l'historique actif (pas bornés à la période affichée).
 const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ resultats }) => {
@@ -411,7 +411,6 @@ const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ r
   const montantCreancesPerdues = Number(resultats.montant_creances_perdues ?? 0);
   const enRetard = Number(resultats.dettes_creances_en_retard ?? 0);
   const objectifsAbandonnes = Number(resultats.objectifs_epargne_abandonnes ?? 0);
-  const cotisationsImpayees = Number(resultats.cotisations_tontine_impayees ?? 0);
 
   const labelSuspectes = t('analyse.suspicious_transactions');
   const labelDepasses = t('analyse.exceeded_budgets');
@@ -419,7 +418,6 @@ const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ r
   const labelCreancesPerdues = t('analyse.claims_lost');
   const labelEnRetard = t('analyse.debts_overdue');
   const labelObjectifsAbandonnes = t('analyse.savings_abandoned');
-  const labelCotisationsImpayees = t('analyse.tontine_unpaid');
   const donneesGraphique = [
     { label: labelSuspectes, valeur: suspectes },
     { label: labelDepasses, valeur: depasses },
@@ -427,12 +425,11 @@ const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ r
     { label: labelCreancesPerdues, valeur: creancesPerdues },
     { label: labelEnRetard, valeur: enRetard },
     { label: labelObjectifsAbandonnes, valeur: objectifsAbandonnes },
-    { label: labelCotisationsImpayees, valeur: cotisationsImpayees },
   ];
 
   const rienASignaler =
     suspectes === 0 && depasses === 0 && creancesPerdues === 0 && enRetard === 0
-    && objectifsAbandonnes === 0 && cotisationsImpayees === 0;
+    && objectifsAbandonnes === 0;
   let messageComportement: string;
   if (rienASignaler) {
     messageComportement = t('analyse.nothing_to_report');
@@ -445,7 +442,6 @@ const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ r
     }
     if (enRetard > 0) points.push(t('analyse.debts_overdue_count', { count: enRetard }));
     if (objectifsAbandonnes > 0) points.push(t('analyse.savings_abandoned_count', { count: objectifsAbandonnes }));
-    if (cotisationsImpayees > 0) points.push(t('analyse.tontine_unpaid_count', { count: cotisationsImpayees }));
     messageComportement = t('analyse.points_to_watch', { points: points.join(` ${t('common.and')} `) });
   }
 
@@ -463,7 +459,6 @@ const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ r
         />
         <StatComportement label={labelEnRetard} valeur={enRetard} alerte />
         <StatComportement label={labelObjectifsAbandonnes} valeur={objectifsAbandonnes} alerte />
-        <StatComportement label={labelCotisationsImpayees} valeur={cotisationsImpayees} alerte />
       </div>
 
       <CarteGraphique titre={t('analyse.overview_title')}>

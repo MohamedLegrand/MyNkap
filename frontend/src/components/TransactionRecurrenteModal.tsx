@@ -175,12 +175,12 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">{t('modals.template_transaction.description_label')}</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_recurrente.description_label')}</label>
               <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('modals.transaction_recurrente.description_placeholder')} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">{t('tontines.frequency')}</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_recurrente.frequency_label')}</label>
               <select value={frequence} onChange={(e) => setFrequence(e.target.value as TransactionRecurrente['frequence'])} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
                 {FREQUENCE_KEYS.map((f) => <option key={f.valeur} value={f.valeur}>{t(f.labelKey)}</option>)}
               </select>

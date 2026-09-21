@@ -111,20 +111,6 @@ export interface TransactionRecurrente {
   date_creation: string;
 }
 
-export interface TemplateTransaction {
-  id_template: number;
-  id_compte: number;
-  id_categorie: number;
-  nom: string;
-  montant: number;
-  type: 'DEPENSE' | 'REVENU';
-  description: string | null;
-  nombre_utilisations: number;
-  est_actif: boolean;
-  date_creation: string;
-  date_modification: string;
-}
-
 export interface Dette {
   id_dette: number;
   id_compte: number;
@@ -141,53 +127,6 @@ export interface Dette {
   est_actif: boolean;
   date_creation: string;
   date_modification: string;
-}
-
-export interface MembreTontine {
-  id_membre: number;
-  nom: string;
-  telephone: string | null;
-  ordre: number;
-}
-
-export interface CotisationTour {
-  id_cotisation: number;
-  id_membre: number;
-  nom_membre: string;
-  est_versee: boolean;
-  date_versement: string | null;
-}
-
-export interface TourTontine {
-  id_tour: number;
-  numero: number;
-  id_membre_beneficiaire: number;
-  nom_beneficiaire: string;
-  date_prevue: string;
-  statut: 'A_VENIR' | 'EN_COURS' | 'TERMINE';
-  montant_total_attendu: number;
-  nombre_cotisations_versees: number;
-  nombre_cotisations_total: number;
-  cotisations: CotisationTour[];
-}
-
-export interface Tontine {
-  id_tontine: number;
-  nom: string;
-  montant_cotisation: number;
-  devise: string;
-  frequence: 'HEBDOMADAIRE' | 'MENSUELLE';
-  date_debut: string;
-  statut: 'ACTIVE' | 'TERMINEE' | 'ANNULEE';
-  nombre_membres: number;
-  montant_total_par_tour: number;
-  numero_tour_actuel: number | null;
-  date_creation: string;
-}
-
-export interface TontineDetail extends Tontine {
-  membres: MembreTontine[];
-  tours: TourTontine[];
 }
 
 export interface Rapport {

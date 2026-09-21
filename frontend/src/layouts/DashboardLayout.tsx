@@ -20,7 +20,6 @@ import {
   Crown,
   Sparkles,
   CheckCircle2,
-  Users,
   Lock,
   Settings,
 } from 'lucide-react';
@@ -99,7 +98,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'budgets', label: t('dashboard.nav.budgets'), icon: PieChart },
     { id: 'savings', label: t('dashboard.nav.savings'), icon: PiggyBank, gate: 'acces_epargne' as const },
     { id: 'debts', label: t('dashboard.nav.debts'), icon: HandCoins, gate: 'acces_dettes' as const },
-    { id: 'tontines', label: t('dashboard.nav.tontines'), icon: Users, isNew: true, gate: 'acces_tontine' as const },
     { id: 'jarvis', label: t('dashboard.nav.jarvis'), icon: Bot, isNew: true, gate: 'acces_jarvis' as const },
     { id: 'analyse', label: t('dashboard.nav.analyse'), icon: LineChart, gate: 'acces_analyse' as const },
     { id: 'automatisations', label: t('dashboard.nav.automations'), icon: Repeat, gate: 'acces_recurrentes' as const },

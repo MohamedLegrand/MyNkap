@@ -16,7 +16,7 @@ interface LockedFeatureBannerProps {
 // Bannière partagée affichée à la place d'un module dont le forfait actuel
 // ne couvre plus l'accès — remplace l'ancien composant local `Verrouille`
 // de AutomatisationsSection.tsx, désormais réutilisé pour tous les modules
-// à palier (dettes, épargne, tontines, JARVIS, analyse, automatisations).
+// à palier (dettes, épargne, JARVIS, analyse, automatisations).
 export const LockedFeatureBanner: React.FC<LockedFeatureBannerProps> = ({ titre, count, onUpgrade }) => {
   const { t } = useTranslation();
   return (

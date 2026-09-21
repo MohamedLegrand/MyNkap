@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, u
 import {
   Sun, Moon, Check,
   MessageSquare, TrendingUp, Shield, Database, Lock, Menu, X, Users, Globe,
-  HelpCircle, Mail, Loader2, User, Phone, Wallet, RefreshCw, Star,
+  HelpCircle, Mail, Loader2, User, Phone, Wallet, Star,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -86,7 +86,7 @@ const SiteHeader = () => {
         <nav className="hidden lg:flex items-center gap-8">
           <a href="/#ia" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.ai')}</a>
           <a href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.features')}</a>
-          <a href="/#tontines" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.tontines')}</a>
+          <a href="/#budgets" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.budgets')}</a>
           <a href="/#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</a>
           <Link to="/a-propos" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.about')}</Link>
           <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t('nav.contact')}</Link>
@@ -127,7 +127,7 @@ const SiteHeader = () => {
         <div className="lg:hidden border-t border-border bg-background px-4 pt-4 pb-6 space-y-3 transition-colors duration-200">
           <a href="/#ia" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.ai')}</a>
           <a href="/#features" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.features')}</a>
-          <a href="/#tontines" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.tontines')}</a>
+          <a href="/#budgets" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.budgets')}</a>
           <a href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.pricing')}</a>
           <Link to="/a-propos" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.about')}</Link>
           <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-muted-foreground hover:text-foreground">{t('nav.contact')}</Link>
@@ -589,26 +589,26 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* 5bis. Feature Section: Tontines & Épargne Collective */}
-      <section id="tontines" className="py-20 md:py-28 bg-background transition-colors duration-200 border-t border-border scroll-mt-16">
+      {/* 5bis. Feature Section: Budgets & objectifs d'épargne */}
+      <section id="budgets" className="py-20 md:py-28 bg-background transition-colors duration-200 border-t border-border scroll-mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
             {/* Left Column (Content) */}
             <div className="lg:col-span-7 space-y-6 text-left order-last lg:order-first">
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                {t('landing.tontines.title_part1')} {t('landing.tontines.title_highlight')} {t('landing.tontines.title_part2')}
+                {t('landing.budgets.title_part1')} {t('landing.budgets.title_highlight')} {t('landing.budgets.title_part2')}
               </h2>
               <p className="text-base text-muted-foreground leading-relaxed">
-                {t('landing.tontines.description')}
+                {t('landing.budgets.description')}
               </p>
 
               <ul className="space-y-3.5">
                 {[
-                  t('landing.tontines.point1'),
-                  t('landing.tontines.point2'),
-                  t('landing.tontines.point3'),
-                  t('landing.tontines.point4'),
+                  t('landing.budgets.point1'),
+                  t('landing.budgets.point2'),
+                  t('landing.budgets.point3'),
+                  t('landing.budgets.point4'),
                 ].map((item, idx) => (
                   <li key={idx} className="flex items-start gap-3 text-sm">
                     <span className="mt-2 h-1.5 w-1.5 rounded-sm bg-secondary shrink-0" />
@@ -618,36 +618,39 @@ const LandingPage = () => {
               </ul>
             </div>
 
-            {/* Right Column (Visuel statique de la rotation) */}
+            {/* Right Column (Visuel statique des budgets) */}
             <div className="lg:col-span-5 flex justify-center">
               <div className="w-full max-w-sm bg-card rounded-2xl border border-border shadow-xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-secondary" />
-                    <span className="font-bold text-sm">{t('landing.tontines.card_name')}</span>
+                    <Wallet className="h-5 w-5 text-secondary" />
+                    <span className="font-bold text-sm">{t('landing.budgets.card_name')}</span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary">ACTIVE</span>
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary">{t('landing.budgets.card_badge')}</span>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { cle: 'food', pct: 62, couleur: 'bg-forest-500' },
+                    { cle: 'transport', pct: 88, couleur: 'bg-secondary' },
+                    { cle: 'leisure', pct: 100, couleur: 'bg-destructive' },
+                  ].map((b) => (
+                    <div key={b.cle} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-foreground">{t(`landing.budgets.cat_${b.cle}`)}</span>
+                        <span className="text-muted-foreground">{b.pct} %</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${b.couleur}`} style={{ width: `${b.pct}%` }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 <div className="p-3 rounded-xl bg-secondary/5 border border-secondary/20 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <RefreshCw className="h-4 w-4 text-secondary" />
-                    <span className="text-xs font-semibold">{t('landing.tontines.card_turn')}</span>
+                    <TrendingUp className="h-4 w-4 text-secondary" />
+                    <span className="text-xs font-semibold">{t('landing.budgets.card_goal')}</span>
                   </div>
-                  <span className="text-xs font-black text-secondary">25 000 XAF</span>
-                </div>
-                <div className="space-y-2">
-                  {[
-                    { nom: 'Biyick', ok: true },
-                    { nom: 'Chantal', ok: true },
-                    { nom: 'Awa', ok: false },
-                    { nom: 'Junior', ok: false },
-                  ].map((m) => (
-                    <div key={m.nom} className="flex items-center gap-2 text-xs">
-                      <div className={`h-2 w-2 rounded-full ${m.ok ? 'bg-forest-500' : 'bg-muted-foreground/30'}`} />
-                      <span className={m.ok ? 'text-foreground font-semibold' : 'text-muted-foreground'}>{m.nom}</span>
-                      <span className="ml-auto text-muted-foreground">{m.ok ? t('landing.tontines.member_paid') : t('landing.tontines.member_pending')}</span>
-                    </div>
-                  ))}
+                  <span className="text-xs font-black text-secondary">65 %</span>
                 </div>
               </div>
             </div>
