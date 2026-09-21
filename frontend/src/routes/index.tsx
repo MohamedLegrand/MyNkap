@@ -862,6 +862,7 @@ const AboutPage = () => {
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('about_page.founder_title')}</h2>
             <p className="text-base text-muted-foreground leading-relaxed">{t('about_page.founder_p1')}</p>
             <p className="text-base text-muted-foreground leading-relaxed">{t('about_page.founder_p2')}</p>
+            <p className="text-base text-muted-foreground leading-relaxed">{t('about_page.founder_p3')}</p>
             <ul className="space-y-3 pt-1">
               {[1, 2, 3].map((n) => (
                 <li key={n} className="flex items-start gap-3 text-sm">
