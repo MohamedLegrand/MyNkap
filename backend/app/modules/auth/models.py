@@ -15,6 +15,10 @@ class Utilisateur(Base):
     date_creation = Column(DateTime, default=datetime.utcnow)
     date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     est_actif = Column(Boolean, default=True)
+    # ACTIF | SUSPENDU (blocage temporaire) | DESACTIVE (compte fermé). Seul
+    # `est_actif` conditionne l'accès ; `statut_compte` en précise le motif
+    # pour l'administration (les deux sont toujours tenus synchronisés).
+    statut_compte = Column(String(20), default="ACTIF", server_default="ACTIF", nullable=False)
     type = Column(String(50), nullable=False)
 
     # Double authentification par code à 6 chiffres envoyé par e-mail

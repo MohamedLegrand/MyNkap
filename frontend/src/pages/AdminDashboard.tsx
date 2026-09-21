@@ -286,13 +286,14 @@ export const AdminDashboard: React.FC = () => {
   }, [activeTab, fetchAdminKPIs, fetchClients, fetchAdmins, fetchAuditLogs, fetchConfigs, fetchSubscriptions, fetchFraudTransactions, fetchAvis]);
 
   // Actions Clients (Module 1)
-  const handleToggleClientStatus = async (id: number, currentlyActive: boolean) => {
+  const handleChangeClientStatus = async (id: number, statut: 'ACTIF' | 'SUSPENDU' | 'DESACTIVE') => {
+    if (statut === 'DESACTIVE' && !window.confirm(t('admin.dashboard.clients.confirm_deactivate'))) return;
     try {
       await api.request(`/admin/clients/${id}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ est_actif: !currentlyActive }),
+        body: JSON.stringify({ statut }),
       });
-      setClients((prev) => prev.map((c) => (c.id_client === id ? { ...c, est_actif: !currentlyActive } : c)));
+      setClients((prev) => prev.map((c) => (c.id_client === id ? { ...c, statut_compte: statut, est_actif: statut === 'ACTIF' } : c)));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error_action'));
     }
@@ -530,6 +531,10 @@ export const AdminDashboard: React.FC = () => {
                         <span className="inline-flex items-center gap-1 bg-forest-500/10 text-forest-600 dark:text-forest-400 px-2 py-0.5 rounded-full font-bold text-[10px]">
                           <CheckCircle2 className="h-3 w-3" /> {t('admin.dashboard.common.active')}
                         </span>
+                      ) : c.statut_compte === 'DESACTIVE' ? (
+                        <span className="inline-flex items-center gap-1 bg-muted text-muted-foreground border border-border px-2 py-0.5 rounded-full font-bold text-[10px]">
+                          <XCircle className="h-3 w-3" /> {t('admin.dashboard.common.deactivated')}
+                        </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold text-[10px]">
                           <XCircle className="h-3 w-3" /> {t('admin.dashboard.common.suspended')}
@@ -544,14 +549,39 @@ export const AdminDashboard: React.FC = () => {
                         <UserCog className="h-3 w-3" />
                         <span>{t('admin.dashboard.clients.details')}</span>
                       </button>
-                      <button
-                        onClick={() => handleToggleClientStatus(c.id_client, c.est_actif)}
-                        className={`p-1.5 rounded-lg border text-[11px] font-bold ${
-                          c.est_actif ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-forest-500/10 text-forest-600 border-forest-500/20'
-                        }`}
-                      >
-                        {c.est_actif ? t('admin.dashboard.common.suspend') : t('common.reactivate')}
-                      </button>
+                      {c.est_actif ? (
+                        <>
+                          <button
+                            onClick={() => handleChangeClientStatus(c.id_client, 'SUSPENDU')}
+                            className="p-1.5 rounded-lg border text-[11px] font-bold bg-secondary/10 text-secondary border-secondary/30"
+                          >
+                            {t('admin.dashboard.common.suspend')}
+                          </button>
+                          <button
+                            onClick={() => handleChangeClientStatus(c.id_client, 'DESACTIVE')}
+                            className="p-1.5 rounded-lg border text-[11px] font-bold bg-destructive/10 text-destructive border-destructive/20"
+                          >
+                            {t('admin.dashboard.common.deactivate')}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {c.statut_compte !== 'DESACTIVE' && (
+                            <button
+                              onClick={() => handleChangeClientStatus(c.id_client, 'DESACTIVE')}
+                              className="p-1.5 rounded-lg border text-[11px] font-bold bg-destructive/10 text-destructive border-destructive/20"
+                            >
+                              {t('admin.dashboard.common.deactivate')}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleChangeClientStatus(c.id_client, 'ACTIF')}
+                            className="p-1.5 rounded-lg border text-[11px] font-bold bg-forest-500/10 text-forest-600 border-forest-500/20"
+                          >
+                            {t('common.reactivate')}
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => handleTriggerResetPassword(c.id_client, `${c.first_name} ${c.last_name}`)}
                         className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[11px] font-bold"

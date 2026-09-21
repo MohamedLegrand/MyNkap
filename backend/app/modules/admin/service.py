@@ -115,6 +115,7 @@ def lister_clients_admin(
                 last_name=client.last_name,
                 phone=client.phone,
                 est_actif=client.est_actif,
+                statut_compte=client.statut_compte or "ACTIF",
                 date_creation=client.date_creation,
                 solde_compte_principal=solde,
                 plan_abonnement=plan,
@@ -167,6 +168,7 @@ def obtenir_detail_client_admin(db: Session, id_client: int) -> AdminClientDetai
         last_name=client.last_name,
         phone=client.phone,
         est_actif=client.est_actif,
+        statut_compte=client.statut_compte or "ACTIF",
         date_creation=client.date_creation,
         date_modification=client.date_modification,
         solde_compte_principal=solde,
@@ -195,11 +197,22 @@ def changer_statut_client(
             detail="Client introuvable."
         )
 
-    donnees_avant = {"est_actif": client.est_actif}
-    client.est_actif = payload.est_actif
+    if payload.statut is not None:
+        nouveau_statut = payload.statut
+    elif payload.est_actif is not None:
+        nouveau_statut = "ACTIF" if payload.est_actif else "SUSPENDU"
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Précisez le statut du compte (ACTIF, SUSPENDU ou DESACTIVE).",
+        )
 
-    # Si désactivation : révocation immédiate de tous ses tokens de rafraîchissement
-    if not payload.est_actif:
+    donnees_avant = {"est_actif": client.est_actif, "statut_compte": client.statut_compte}
+    client.statut_compte = nouveau_statut
+    client.est_actif = nouveau_statut == "ACTIF"
+
+    # Si suspension ou désactivation : révocation immédiate de tous ses tokens de rafraîchissement
+    if not client.est_actif:
         db.query(RefreshToken).filter(
             RefreshToken.id_client == id_client,
             RefreshToken.est_revoque == False
@@ -208,7 +221,11 @@ def changer_statut_client(
     db.commit()
     db.refresh(client)
 
-    action_name = "ADMIN_DESACTIVER_CLIENT" if not payload.est_actif else "ADMIN_ACTIVER_CLIENT"
+    action_name = {
+        "ACTIF": "ADMIN_ACTIVER_CLIENT",
+        "SUSPENDU": "ADMIN_SUSPENDRE_CLIENT",
+        "DESACTIVE": "ADMIN_DESACTIVER_CLIENT",
+    }[nouveau_statut]
     enregistrer_action(
         db,
         id_utilisateur=admin.id_administrateur,
@@ -216,7 +233,7 @@ def changer_statut_client(
         ressource="CLIENT",
         id_ressource=client.id_client,
         donnees_avant=donnees_avant,
-        donnees_apres={"est_actif": client.est_actif, "raison": payload.raison},
+        donnees_apres={"est_actif": client.est_actif, "statut_compte": client.statut_compte, "raison": payload.raison},
         request=request,
     )
 
@@ -1510,7 +1527,10 @@ def obtenir_kpis_globaux_admin(db: Session) -> AdminGlobalKPIsResponse:
     # 1. KPIs Clients
     total_clients = db.query(func.count(Client.id_client)).scalar() or 0
     clients_actifs = db.query(func.count(Client.id_client)).filter(Client.est_actif == True).scalar() or 0
-    clients_suspendus = db.query(func.count(Client.id_client)).filter(Client.est_actif == False).scalar() or 0
+    clients_suspendus = db.query(func.count(Client.id_client)).filter(
+        Client.est_actif == False, Client.statut_compte != "DESACTIVE"
+    ).scalar() or 0
+    clients_desactives = db.query(func.count(Client.id_client)).filter(Client.statut_compte == "DESACTIVE").scalar() or 0
     
     il_y_a_30j = datetime.utcnow() - timedelta(days=30)
     nouveaux_30j = db.query(func.count(Client.id_client)).filter(Client.date_creation >= il_y_a_30j).scalar() or 0
@@ -1519,6 +1539,7 @@ def obtenir_kpis_globaux_admin(db: Session) -> AdminGlobalKPIsResponse:
         total_clients=total_clients,
         clients_actifs=clients_actifs,
         clients_suspendus=clients_suspendus,
+        clients_desactives=clients_desactives,
         nouveaux_clients_30j=nouveaux_30j,
     )
 

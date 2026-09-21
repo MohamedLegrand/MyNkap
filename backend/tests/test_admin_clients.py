@@ -119,7 +119,7 @@ def test_admin_desactiver_et_reactiver_client_avec_audit(client, db_session):
 
     # Vérification de l'AuditLog
     log_deact = db_session.query(AuditLog).filter(
-        AuditLog.action == "ADMIN_DESACTIVER_CLIENT",
+        AuditLog.action == "ADMIN_SUSPENDRE_CLIENT",
         AuditLog.id_ressource == id_client
     ).first()
     assert log_deact is not None
@@ -183,3 +183,42 @@ def test_admin_reinitialiser_mot_de_passe_client(client, db_session):
         AuditLog.id_ressource == id_client
     ).first()
     assert log_reset is not None
+
+
+def test_admin_desactiver_distinct_de_suspendre(client, db_session):
+    admin, admin_headers = _create_admin(db_session, username="admin_desact")
+    infos = _register_client(client, "desact@example.com", db_session=db_session)
+    id_client = infos["id_client"]
+    url = f"/api/v1/admin/clients/{id_client}/status"
+
+    res = client.patch(url, json={"statut": "SUSPENDU", "raison": "Litige"}, headers=admin_headers)
+    assert res.status_code == 200
+    assert res.json()["est_actif"] is False
+
+    res = client.patch(url, json={"statut": "DESACTIVE", "raison": "Fermeture demandée"}, headers=admin_headers)
+    assert res.status_code == 200
+    assert res.json()["est_actif"] is False
+    detail = client.get(f"/api/v1/admin/clients/{id_client}", headers=admin_headers).json()
+    assert detail["statut_compte"] == "DESACTIVE"
+
+    kpis = client.get("/api/v1/admin/kpis", headers=admin_headers).json()["clients"]
+    assert kpis["clients_desactives"] == 1
+    assert kpis["clients_suspendus"] == 0
+
+    action = db_session.query(AuditLog).filter(AuditLog.action == "ADMIN_DESACTIVER_CLIENT").first()
+    assert action is not None
+
+    # Connexion refusée tant que le compte n'est pas réactivé.
+    assert se_connecter(client, "desact@example.com", "clientpassword123").status_code in (400, 401)
+
+    res = client.patch(url, json={"statut": "ACTIF"}, headers=admin_headers)
+    assert res.status_code == 200
+    assert res.json()["est_actif"] is True
+    assert client.get(f"/api/v1/admin/clients/{id_client}", headers=admin_headers).json()["statut_compte"] == "ACTIF"
+
+
+def test_admin_statut_client_sans_donnee_rejete(client, db_session):
+    admin, admin_headers = _create_admin(db_session, username="admin_vide")
+    infos = _register_client(client, "vide@example.com", db_session=db_session)
+    res = client.patch(f"/api/v1/admin/clients/{infos['id_client']}/status", json={}, headers=admin_headers)
+    assert res.status_code == 422

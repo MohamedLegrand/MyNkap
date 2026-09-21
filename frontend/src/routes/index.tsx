@@ -836,6 +836,47 @@ const AboutPage = () => {
         </div>
       </section>
 
+      {/* Le fondateur */}
+      <section className="py-16 md:py-20 border-t border-border">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-14 items-center">
+          <div className="md:col-span-5 flex justify-center">
+            <figure className="w-full max-w-xs space-y-3">
+              <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-border shadow-xl bg-muted">
+                <img
+                  src="/fondateur.jpg"
+                  alt={t('about_page.founder_photo_alt')}
+                  loading="lazy"
+                  className="h-full w-full object-cover object-top"
+                />
+              </div>
+              <figcaption className="text-center leading-tight">
+                <span className="block text-base font-extrabold">{t('about_page.founder_name')}</span>
+                <span className="block text-xs font-semibold text-primary mt-1">{t('about_page.founder_role')}</span>
+              </figcaption>
+            </figure>
+          </div>
+          <div className="md:col-span-7 space-y-5 text-left">
+            <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
+              <span>{t('about_page.founder_badge')}</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t('about_page.founder_title')}</h2>
+            <p className="text-base text-muted-foreground leading-relaxed">{t('about_page.founder_p1')}</p>
+            <p className="text-base text-muted-foreground leading-relaxed">{t('about_page.founder_p2')}</p>
+            <ul className="space-y-3 pt-1">
+              {[1, 2, 3].map((n) => (
+                <li key={n} className="flex items-start gap-3 text-sm">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-sm bg-primary shrink-0" />
+                  <span>
+                    <strong className="text-foreground">{t(`about_page.founder_step${n}_title`)}</strong>
+                    <span className="text-muted-foreground"> : {t(`about_page.founder_step${n}_desc`)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* Notre objectif */}
       <section className="py-16 md:py-20 bg-muted border-t border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">

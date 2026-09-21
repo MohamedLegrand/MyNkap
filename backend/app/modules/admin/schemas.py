@@ -18,6 +18,7 @@ class AdminClientListItem(BaseModel):
     last_name: str
     phone: str
     est_actif: bool
+    statut_compte: str = "ACTIF"
     date_creation: datetime
     solde_compte_principal: Decimal = Decimal("0.00")
     plan_abonnement: str = "GRATUIT"
@@ -38,6 +39,7 @@ class AdminClientDetail(BaseModel):
     last_name: str
     phone: str
     est_actif: bool
+    statut_compte: str = "ACTIF"
     date_creation: datetime
     date_modification: datetime
     
@@ -53,7 +55,10 @@ class AdminClientDetail(BaseModel):
 
 # --- Demande de changement de statut d'un client ---
 class AdminClientStatusUpdate(BaseModel):
-    est_actif: bool
+    # Soit `statut` (ACTIF / SUSPENDU / DESACTIVE), soit l'ancien booléen
+    # `est_actif` (False = SUSPENDU) conservé pour compatibilité.
+    est_actif: Optional[bool] = None
+    statut: Optional[Literal["ACTIF", "SUSPENDU", "DESACTIVE"]] = None
     raison: Optional[str] = Field(None, description="Raison du changement de statut (tracée dans l'AuditLog)")
 
 # --- Réponse de réinitialisation de mot de passe client ---
@@ -316,6 +321,7 @@ class AdminClientsKPIs(BaseModel):
     total_clients: int
     clients_actifs: int
     clients_suspendus: int
+    clients_desactives: int = 0
     nouveaux_clients_30j: int
 
 class AdminFinancesKPIs(BaseModel):

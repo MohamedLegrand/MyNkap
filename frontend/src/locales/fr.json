@@ -6,7 +6,7 @@
     "about_title": "À propos de MyNkap | L'app de finances personnelles pour l'Afrique Centrale",
     "about_description": "Découvrez MyNkap, l'application qui réunit Mobile Money, comptes bancaires et espèces pour une vision claire de vos finances personnelles en zone CEMAC (FCFA).",
     "contact_title": "Contact | MyNkap",
-    "contact_description": "Une question sur MyNkap, l'application de gestion budget et Mobile Money en Afrique Centrale ? Contactez notre équipe directement via WhatsApp.",
+    "contact_description": "Une question sur MyNkap, l'application de gestion budget et Mobile Money en Afrique Centrale ? Contactez directement son développeur via WhatsApp.",
     "login_title": "Connexion | MyNkap",
     "login_description": "Connectez-vous à votre espace MyNkap pour suivre votre budget, vos comptes Mobile Money et vos finances personnelles.",
     "register_title": "Créer un compte | MyNkap",
@@ -377,13 +377,26 @@
     "profile3": "Étudiants",
     "profile4": "Familles",
     "question_title": "Une question ?",
-    "question_subtitle": "Notre équipe basée à Yaoundé vous répond directement sur WhatsApp.",
-    "whatsapp_cta": "Discuter sur WhatsApp : +237 677 246 900"
+    "question_subtitle": "Le développeur de MyNkap, basé à Yaoundé, vous répond directement sur WhatsApp.",
+    "whatsapp_cta": "Discuter sur WhatsApp : +237 677 246 900",
+    "founder_badge": "Le fondateur",
+    "founder_title": "Un produit conçu et réalisé par une seule personne, de l'idée au déploiement",
+    "founder_p1": "MyNkap a été mis sur pied par TAKADJIO Mohamed, jeune développeur fullstack web et mobile. Il n'est le produit ni d'une agence ni d'une équipe : c'est le travail d'un seul développeur, qui l'a porté de la première idée jusqu'à sa mise en ligne.",
+    "founder_p2": "Cette approche garantit une vision cohérente du produit et une grande attention aux détails : chaque écran, chaque règle de calcul et chaque mécanisme de sécurité ont été pensés et réalisés par la même personne, avec une exigence constante de fiabilité.",
+    "founder_step1_title": "Conception",
+    "founder_step1_desc": "analyse du besoin, parcours utilisateur, règles de gestion financière",
+    "founder_step2_title": "Développement",
+    "founder_step2_desc": "API, base de données, interface web, assistant IA et paiements",
+    "founder_step3_title": "Mise en production",
+    "founder_step3_desc": "hébergement, sécurité, déploiement continu et maintenance",
+    "founder_name": "TAKADJIO Mohamed",
+    "founder_role": "Développeur fullstack web et mobile",
+    "founder_photo_alt": "TAKADJIO Mohamed, fondateur et développeur de MyNkap"
   },
   "contact_page": {
     "title_part1": "Une question ?",
     "title_highlight": "Écrivez-nous",
-    "subtitle": "Remplissez le formulaire ci-dessous : votre message s'ouvre directement dans WhatsApp, prêt à être envoyé à notre équipe.",
+    "subtitle": "Remplissez le formulaire ci-dessous : votre message s'ouvre directement dans WhatsApp, prêt à être envoyé au développeur de MyNkap.",
     "opening_title": "WhatsApp est en train de s'ouvrir",
     "opening_desc": "Un nouvel onglet WhatsApp s'est ouvert avec votre message pré-rempli. Il ne reste plus qu'à appuyer sur envoyer.",
     "send_another": "Envoyer un autre message",
@@ -1087,7 +1100,8 @@
         "duration_placeholder": "Durée (jours)",
         "assign_plan": "Attribuer ce plan",
         "plan_assigned_success": "Plan attribué avec succès.",
-        "error_assign": "Attribution du plan impossible."
+        "error_assign": "Attribution du plan impossible.",
+        "status_deactivated": "Compte désactivé"
       },
       "plan": {
         "title_edit": "Modifier le plan",
@@ -1118,7 +1132,9 @@
         "th_actions": "Actions",
         "active": "Actif",
         "suspended": "Suspendu",
-        "suspend": "Suspendre"
+        "suspend": "Suspendre",
+        "deactivated": "Désactivé",
+        "deactivate": "Désactiver"
       },
       "errors": {
         "kpis": "Impossible de charger les KPIs.",
@@ -1164,7 +1180,8 @@
         "th_main_balance": "Solde principal",
         "details": "Détails",
         "reset_password_btn": "Réinitialiser le mot de passe",
-        "none": "Aucun client."
+        "none": "Aucun client.",
+        "confirm_deactivate": "Désactiver ce compte ? Le client ne pourra plus se connecter (ses données sont conservées) et vous pourrez le réactiver à tout moment."
       },
       "admins": {
         "title": "Équipe administrateur (Module 2)",

@@ -425,19 +425,20 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
     }
   };
 
-  const handleToggleStatut = async () => {
+  const handleChangeStatut = async (statut: 'ACTIF' | 'SUSPENDU' | 'DESACTIVE') => {
     if (!detail) return;
+    if (statut === 'DESACTIVE' && !window.confirm(t('admin.dashboard.clients.confirm_deactivate'))) return;
     setIsTogglingStatut(true);
     setError(null);
     try {
-      const misAJour = await api.request<{ est_actif: boolean }>(`/admin/clients/${idClient}/status`, {
+      const misAJour = await api.request<{ est_actif: boolean; statut_compte: 'ACTIF' | 'SUSPENDU' | 'DESACTIVE' }>(`/admin/clients/${idClient}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ est_actif: !detail.est_actif }),
+        body: JSON.stringify({ statut }),
       });
       // Désactivation logique uniquement — jamais de suppression réelle
       // (principe d'immuabilité du cahier des charges) : le compte et
       // toutes ses données restent intactes, seul l'accès est coupé.
-      setDetail((prev) => (prev ? { ...prev, est_actif: misAJour.est_actif } : prev));
+      setDetail((prev) => (prev ? { ...prev, est_actif: misAJour.est_actif, statut_compte: misAJour.statut_compte } : prev));
       onForced();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error_action'));
@@ -480,22 +481,47 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
                     <ShieldOff className="h-4 w-4 text-destructive" />
                   )}
                   <span className={`text-xs font-bold ${detail.est_actif ? 'text-forest-600 dark:text-forest-400' : 'text-destructive'}`}>
-                    {detail.est_actif ? t('admin.modals.client_detail.status_active') : t('admin.modals.client_detail.status_suspended')}
+                    {detail.est_actif
+                      ? t('admin.modals.client_detail.status_active')
+                      : detail.statut_compte === 'DESACTIVE'
+                        ? t('admin.modals.client_detail.status_deactivated')
+                        : t('admin.modals.client_detail.status_suspended')}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleToggleStatut}
-                  disabled={isTogglingStatut}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
-                    detail.est_actif
-                      ? 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20'
-                      : 'bg-forest-500/10 text-forest-600 dark:text-forest-400 border-forest-500/20 hover:bg-forest-500/20'
-                  }`}
-                >
-                  {isTogglingStatut && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  <span>{detail.est_actif ? t('admin.dashboard.common.suspend') : t('common.reactivate')}</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2 justify-end">
+                  {detail.est_actif && (
+                    <button
+                      type="button"
+                      onClick={() => handleChangeStatut('SUSPENDU')}
+                      disabled={isTogglingStatut}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 disabled:opacity-50 bg-secondary/10 text-secondary border-secondary/30 hover:bg-secondary/20"
+                    >
+                      {isTogglingStatut && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      <span>{t('admin.dashboard.common.suspend')}</span>
+                    </button>
+                  )}
+                  {detail.statut_compte !== 'DESACTIVE' && (
+                    <button
+                      type="button"
+                      onClick={() => handleChangeStatut('DESACTIVE')}
+                      disabled={isTogglingStatut}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors disabled:opacity-50 bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20"
+                    >
+                      {t('admin.dashboard.common.deactivate')}
+                    </button>
+                  )}
+                  {!detail.est_actif && (
+                    <button
+                      type="button"
+                      onClick={() => handleChangeStatut('ACTIF')}
+                      disabled={isTogglingStatut}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 disabled:opacity-50 bg-forest-500/10 text-forest-600 dark:text-forest-400 border-forest-500/20 hover:bg-forest-500/20"
+                    >
+                      {isTogglingStatut && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      <span>{t('common.reactivate')}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">

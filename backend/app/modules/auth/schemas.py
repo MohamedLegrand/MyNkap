@@ -105,6 +105,7 @@ class ClientOut(BaseModel):
     last_name: str
     phone: str
     est_actif: bool
+    statut_compte: str = "ACTIF"
     date_creation: datetime
     profile: Optional[ProfileOut] = None
 

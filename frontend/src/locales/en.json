@@ -6,7 +6,7 @@
     "about_title": "About MyNkap | Personal Finance App for Central Africa",
     "about_description": "Discover MyNkap, the app that brings Mobile Money, bank accounts and cash together for a clear view of your personal finances in the CEMAC zone (XAF).",
     "contact_title": "Contact | MyNkap",
-    "contact_description": "Have a question about MyNkap, the budget and Mobile Money management app for Central Africa? Reach our team directly via WhatsApp.",
+    "contact_description": "Have a question about MyNkap, the budget and Mobile Money management app for Central Africa? Reach its developer directly via WhatsApp.",
     "login_title": "Log In | MyNkap",
     "login_description": "Log in to your MyNkap account to track your budget, Mobile Money accounts and personal finances.",
     "register_title": "Create an Account | MyNkap",
@@ -378,13 +378,26 @@
     "profile3": "Students",
     "profile4": "Families",
     "question_title": "Got a question?",
-    "question_subtitle": "Our team, based in Yaoundé, replies directly on WhatsApp.",
-    "whatsapp_cta": "Chat on WhatsApp: +237 677 246 900"
+    "question_subtitle": "MyNkap's developer, based in Yaoundé, replies directly on WhatsApp.",
+    "whatsapp_cta": "Chat on WhatsApp: +237 677 246 900",
+    "founder_badge": "The Founder",
+    "founder_title": "A product designed and built by one person, from idea to deployment",
+    "founder_p1": "MyNkap was created by TAKADJIO Mohamed, a young full-stack web and mobile developer. It is not the product of an agency or a team: it is the work of a single developer, who carried it from the first idea all the way to going live.",
+    "founder_p2": "This approach guarantees a consistent product vision and close attention to detail: every screen, every calculation rule and every security mechanism was designed and built by the same person, with a constant focus on reliability.",
+    "founder_step1_title": "Design",
+    "founder_step1_desc": "needs analysis, user journeys, financial management rules",
+    "founder_step2_title": "Development",
+    "founder_step2_desc": "API, database, web interface, AI assistant and payments",
+    "founder_step3_title": "Going live",
+    "founder_step3_desc": "hosting, security, continuous deployment and maintenance",
+    "founder_name": "TAKADJIO Mohamed",
+    "founder_role": "Full-stack web and mobile developer",
+    "founder_photo_alt": "TAKADJIO Mohamed, founder and developer of MyNkap"
   },
   "contact_page": {
     "title_part1": "Got a question?",
     "title_highlight": "Write to us",
-    "subtitle": "Fill out the form below: your message opens directly in WhatsApp, ready to send to our team.",
+    "subtitle": "Fill out the form below: your message opens directly in WhatsApp, ready to send to MyNkap's developer.",
     "opening_title": "WhatsApp is opening",
     "opening_desc": "A new WhatsApp tab has opened with your message pre-filled. All that's left is to hit send.",
     "send_another": "Send another message",
@@ -1088,7 +1101,8 @@
         "duration_placeholder": "Duration (days)",
         "assign_plan": "Assign this plan",
         "plan_assigned_success": "Plan assigned successfully.",
-        "error_assign": "Could not assign the plan."
+        "error_assign": "Could not assign the plan.",
+        "status_deactivated": "Account Deactivated"
       },
       "plan": {
         "title_edit": "Edit plan",
@@ -1119,7 +1133,9 @@
         "th_actions": "Actions",
         "active": "Active",
         "suspended": "Suspended",
-        "suspend": "Suspend"
+        "suspend": "Suspend",
+        "deactivated": "Deactivated",
+        "deactivate": "Deactivate"
       },
       "errors": {
         "kpis": "Unable to load KPIs.",
@@ -1165,7 +1181,8 @@
         "th_main_balance": "Main balance",
         "details": "Details",
         "reset_password_btn": "Reset Password",
-        "none": "No clients."
+        "none": "No clients.",
+        "confirm_deactivate": "Deactivate this account? The client will no longer be able to sign in (their data is kept) and you can reactivate it at any time."
       },
       "admins": {
         "title": "Admin Team (Module 2)",

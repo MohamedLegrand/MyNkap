@@ -306,6 +306,7 @@ export interface AdminClientListItem {
   last_name: string;
   phone: string;
   est_actif: boolean;
+  statut_compte: 'ACTIF' | 'SUSPENDU' | 'DESACTIVE';
   date_creation: string;
   solde_compte_principal: number;
   plan_abonnement: string;
@@ -379,6 +380,7 @@ export interface AdminGlobalKPIs {
     total_clients: number;
     clients_actifs: number;
     clients_suspendus: number;
+    clients_desactives: number;
     nouveaux_clients_30j: number;
   };
   finances: {
@@ -407,6 +409,7 @@ export interface AdminClientDetail {
   last_name: string;
   phone: string;
   est_actif: boolean;
+  statut_compte: 'ACTIF' | 'SUSPENDU' | 'DESACTIVE';
   date_creation: string;
   date_modification: string;
   solde_compte_principal: number;
