@@ -960,7 +960,8 @@
       "finish": "Terminer",
       "payment_rejected": "Paiement refusé ou expiré",
       "no_amount_charged": "Aucun montant n'a été débité. Vous pouvez réessayer.",
-      "retry": "Réessayer"
+      "retry": "Réessayer",
+      "phone_hint": "L'indicatif est ajouté automatiquement : saisissez seulement votre numéro local."
     },
     "recharge": {
       "title": "Recharger un compte",

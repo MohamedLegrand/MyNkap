@@ -4,6 +4,7 @@ import { X, Wallet, Loader2, Smartphone, CreditCard, AlertTriangle, CheckCircle2
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type { CompteFinancier, PaysOperateur, RechargeCompte } from '../types';
+import { INDICATIFS_PAYS, extraireNumeroLocal } from '../utils/indicatifsPays';
 
 interface RechargeCompteModalProps {
   isOpen: boolean;
@@ -76,7 +77,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
     setMontant('');
     setMethode('MOBILE_MONEY');
     setRecharge(null);
-    setPhone(client?.phone ?? '');
+    setPhone(client?.phone ? extraireNumeroLocal(client.phone, 'CM') : '');
     setPays('CM');
     setOperator('ORANGE');
     api.request<PaysOperateur[]>('/abonnement/pays-disponibles').then(setPaysDisponibles).catch(() => {});
@@ -90,6 +91,8 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
   const paysActuel = paysDisponibles.find((p) => p.pays === pays);
   const operateursDuPays = paysActuel?.operateurs ?? ['ORANGE', 'MTN'];
   const deviseLocale = paysActuel?.devise ?? 'XAF';
+  const indicatif = INDICATIFS_PAYS[pays] ?? '';
+  const numeroComplet = `${indicatif}${extraireNumeroLocal(phone, pays)}`;
 
   const handleChangerPays = (nouveauPays: string) => {
     setPays(nouveauPays);
@@ -127,7 +130,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
     try {
       const corps = methode === 'CARTE'
         ? { id_compte: compte.id_compte, montant: montantNombre, methode }
-        : { id_compte: compte.id_compte, montant: montantNombre, methode, phone_number: phone.trim(), operator, pays };
+        : { id_compte: compte.id_compte, montant: montantNombre, methode, phone_number: numeroComplet, operator, pays };
       const resultat = await api.request<RechargeCompte>('/recharges', {
         method: 'POST',
         body: JSON.stringify(corps),
@@ -284,14 +287,20 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                   <Smartphone className="h-3.5 w-3.5" />
                   <span>{t('modals.plan_upgrade.phone_label')}</span>
                 </label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="ex: 237655500393"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <div className="flex items-stretch gap-2">
+                  <span className="shrink-0 inline-flex items-center px-3 rounded-xl border border-border bg-muted text-sm font-bold text-muted-foreground">
+                    +{indicatif || '...'}
+                  </span>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="ex: 655500393"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ''))}
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t('modals.plan_upgrade.phone_hint')}</p>
               </div>
               </>)}
 
@@ -319,7 +328,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                 {t('modals.recharge.waiting_desc', {
                   montant: (recharge?.montant ?? Number(montant)).toLocaleString('fr-FR'),
                   devise: recharge?.devise ?? deviseLocale,
-                  phone,
+                  phone: `+${numeroComplet}`,
                   operateur: OPERATEUR_LABELS[operator] ?? operator,
                 })}
               </p>

@@ -4,6 +4,7 @@ import { X, Crown, Check, Loader2, Smartphone, CreditCard, AlertTriangle, CheckC
 import { api } from '../services/api';
 import { useAuthStore } from '../store';
 import type { Plan, PaiementAbonnement, Abonnement, PaysOperateur } from '../types';
+import { INDICATIFS_PAYS, extraireNumeroLocal } from '../utils/indicatifsPays';
 
 interface PlanUpgradeModalProps {
   isOpen: boolean;
@@ -115,7 +116,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
     setPaiement(null);
     setGestionMessage(null);
     setMethode('MOBILE_MONEY');
-    setPhone(client?.phone ?? '');
+    setPhone(client?.phone ? extraireNumeroLocal(client.phone, 'CM') : '');
     setPays('CM');
     setOperator('ORANGE');
     setIsLoadingPlans(true);
@@ -149,6 +150,8 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
   const paysActuel = paysDisponibles.find((p) => p.pays === pays);
   const operateursDuPays = paysActuel?.operateurs ?? ['ORANGE', 'MTN'];
   const deviseLocale = paysActuel?.devise ?? 'XAF';
+  const indicatif = INDICATIFS_PAYS[pays] ?? '';
+  const numeroComplet = `${indicatif}${extraireNumeroLocal(phone, pays)}`;
   // Montant réellement facturé dans la devise du pays choisi (étape
   // "paiement"/"attente") — repli sur le prix de référence si le pays n'a
   // pas encore chargé.
@@ -198,7 +201,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
     try {
       const corps = methode === 'CARTE'
         ? { nom_plan: planChoisi, cycle_facturation: cycle, methode }
-        : { nom_plan: planChoisi, cycle_facturation: cycle, methode, phone_number: phone.trim(), operator, pays };
+        : { nom_plan: planChoisi, cycle_facturation: cycle, methode, phone_number: numeroComplet, operator, pays };
       const resultat = await api.request<PaiementAbonnement>('/abonnement/paiements', {
         method: 'POST',
         body: JSON.stringify(corps),
@@ -476,14 +479,20 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
                   <Smartphone className="h-3.5 w-3.5" />
                   <span>{t('modals.plan_upgrade.phone_label')}</span>
                 </label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="ex: 237655500393"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <div className="flex items-stretch gap-2">
+                  <span className="shrink-0 inline-flex items-center px-3 rounded-xl border border-border bg-muted text-sm font-bold text-muted-foreground">
+                    +{indicatif || '...'}
+                  </span>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="ex: 655500393"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ''))}
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t('modals.plan_upgrade.phone_hint')}</p>
               </div>
               </>)}
 
@@ -515,7 +524,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({ isOpen, onCl
                 {t('modals.plan_upgrade.waiting_desc', {
                   montant: (paiement?.montant ?? montantLocal).toLocaleString('fr-FR'),
                   devise: paiement?.devise ?? deviseLocale,
-                  phone,
+                  phone: `+${numeroComplet}`,
                   operateur: OPERATEUR_LABELS[operator] ?? operator,
                 })}
               </p>

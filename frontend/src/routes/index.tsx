@@ -18,6 +18,7 @@ import { StructuredData } from '../components/StructuredData';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { PasswordInput } from '../components/PasswordInput';
 import { Avatar } from '../components/Avatar';
+import { FlyerPage } from '../pages/FlyerPage';
 
 // Décode la charge utile d'un jeton d'identité Google (JWT) côté client,
 // uniquement pour connaître l'e-mail (et, à l'inscription, le prénom/nom) à
@@ -1470,6 +1471,8 @@ export const AppRoutes: React.FC = () => {
         <Route path="/conditions-utilisation" element={<TermsOfServicePage />} />
         <Route path="/mentions-legales" element={<LegalNoticePage />} />
         <Route path="/conditions-vente" element={<TermsOfSalePage />} />
+        <Route path="/flyer" element={<FlyerPage />} />
+        <Route path="/flyer-avant-apres" element={<FlyerPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

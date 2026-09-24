@@ -961,7 +961,8 @@
       "finish": "Finish",
       "payment_rejected": "Payment declined or expired",
       "no_amount_charged": "No amount was charged. You can try again.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "phone_hint": "The country code is added automatically: enter only your local number."
     },
     "recharge": {
       "title": "Top up an account",
