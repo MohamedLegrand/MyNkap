@@ -66,11 +66,42 @@ jobs:
       - name: Build de production (inclut la vérification des types)
         run: npm run build
 
+  mobile:
+    name: Mobile (analyze, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Configurer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Fournir un .env de CI (jamais commité, voir .env.example)
+        run: cp .env.example .env
+
+      - name: Installer les dépendances
+        run: flutter pub get
+
+      - name: Analyse statique
+        run: flutter analyze
+
+      - name: Lancer les tests
+        run: flutter test
+
   deploy:
     name: Déploiement (VPS)
     # Seulement sur un vrai push sur main (jamais sur une pull request, même
     # si elle cible main) et seulement si backend ET frontend sont au vert —
-    # jamais de déploiement d'un code qui n'a pas passé les tests.
+    # jamais de déploiement d'un code qui n'a pas passé les tests. `mobile`
+    # n'est volontairement pas dans cette liste : rien à déployer côté VPS
+    # pour l'app mobile (stores, pas ce pipeline) — son statut ne doit
+    # jamais bloquer la mise en ligne du web.
     needs: [backend, frontend]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
