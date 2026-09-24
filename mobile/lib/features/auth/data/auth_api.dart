@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/network/api_client.dart';
-import '../domain/auth_tokens.dart';
+import '../../../core/network/auth_tokens.dart';
+import '../../../core/network/token_refresher.dart';
 import '../domain/client.dart';
 
 /// Appels HTTP bruts du module auth — aucune logique métier ni stockage
@@ -58,6 +59,14 @@ class AuthApi {
   Future<void> logout(String refreshToken) async {
     await _dio.post(ApiEndpoints.logout, data: {'refresh_token': refreshToken});
   }
+
+  /// POST /auth/refresh — [AuthRepository.deverrouillerAvecBiometrie] ne
+  /// fait rien d'autre que rejouer ce même appel une fois la présence de
+  /// l'utilisateur confirmée localement (empreinte/Face ID) : aucune route
+  /// dédiée n'est nécessaire côté backend. Partage l'implémentation avec
+  /// [AuthInterceptor] (rafraîchissement silencieux sur 401) via
+  /// [rafraichirJetons] — jamais deux appels à /auth/refresh écrits à la main.
+  Future<AuthTokens> refresh(String refreshToken) => rafraichirJetons(_dio, refreshToken);
 
   Future<void> forgotPassword(String email) async {
     await _dio.post(ApiEndpoints.forgotPassword, data: {'email': email});

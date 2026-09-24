@@ -2,33 +2,38 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/controllers/app_lock_controller.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
+import '../../features/auth/presentation/screens/biometric_lock_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/otp_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/auth/presentation/screens/security_settings_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/dashboard/presentation/screens/home_screen.dart';
 import 'app_routes.dart';
 
-/// Relaie les changements de [authControllerProvider] à [GoRouter]
-/// (`refreshListenable` exige un `Listenable`, pas un `ProviderListenable`)
-/// pour que la redirection se réévalue dès que la session change — sans
-/// ça, se connecter resterait bloqué sur /login jusqu'à une navigation
-/// manuelle qui redéclenche `redirect`.
-class _EcouteurAuth extends ChangeNotifier {
-  _EcouteurAuth(Ref ref) {
+/// Relaie les changements de [authControllerProvider] et [appLockProvider]
+/// à [GoRouter] (`refreshListenable` exige un `Listenable`, pas un
+/// `ProviderListenable`) pour que la redirection se réévalue dès que la
+/// session ou le verrou biométrique changent — sans ça, se connecter ou se
+/// déverrouiller resterait bloqué jusqu'à une navigation manuelle qui
+/// redéclenche `redirect`.
+class _EcouteurNavigation extends ChangeNotifier {
+  _EcouteurNavigation(Ref ref) {
     ref.listen(authControllerProvider, (_, _) => notifyListeners());
+    ref.listen(appLockProvider, (_, _) => notifyListeners());
   }
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final ecouteurAuth = _EcouteurAuth(ref);
-  ref.onDispose(ecouteurAuth.dispose);
+  final ecouteurNavigation = _EcouteurNavigation(ref);
+  ref.onDispose(ecouteurNavigation.dispose);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    refreshListenable: ecouteurAuth,
+    refreshListenable: ecouteurNavigation,
     redirect: (context, state) {
       final authState = ref.read(authControllerProvider);
       final chemin = state.matchedLocation;
@@ -39,7 +44,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return chemin == AppRoutes.splash ? null : AppRoutes.splash;
       }
 
-      final estConnecte = authState.value != null;
       const cheminsPublics = {
         AppRoutes.login,
         AppRoutes.register,
@@ -47,20 +51,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         AppRoutes.forgotPassword,
       };
 
-      if (!estConnecte && !cheminsPublics.contains(chemin)) {
-        return AppRoutes.login;
+      final estConnecte = authState.value != null;
+      if (!estConnecte) {
+        return cheminsPublics.contains(chemin) ? null : AppRoutes.login;
       }
-      if (estConnecte && (cheminsPublics.contains(chemin) || chemin == AppRoutes.splash)) {
-        return AppRoutes.home;
+
+      // Connecté à partir d'ici : le verrou biométrique est prioritaire sur
+      // tout le reste, y compris les chemins publics ou /splash — voir
+      // AppLockController (jamais posé si la biométrie est désactivée).
+      if (!ref.read(appLockProvider)) {
+        return chemin == AppRoutes.biometricLock ? null : AppRoutes.biometricLock;
       }
-      // Toujours quitter /splash une fois l'état de session connu, même
-      // déconnecté (sinon un utilisateur non connecté resterait bloqué
-      // dessus : /login est un chemin public, donc la règle précédente ne
-      // le redirige pas).
-      if (chemin == AppRoutes.splash) {
-        return AppRoutes.login;
-      }
-      return null;
+      final doitRejoindreAccueil = chemin == AppRoutes.splash ||
+          chemin == AppRoutes.biometricLock ||
+          cheminsPublics.contains(chemin);
+      return doitRejoindreAccueil ? AppRoutes.home : null;
     },
     routes: [
       GoRoute(
@@ -84,8 +89,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
+        path: AppRoutes.biometricLock,
+        builder: (context, state) => const BiometricLockScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.home,
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.security,
+        builder: (context, state) => const SecuritySettingsScreen(),
       ),
     ],
   );

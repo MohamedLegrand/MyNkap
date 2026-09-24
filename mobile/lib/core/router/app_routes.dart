@@ -9,5 +9,7 @@ class AppRoutes {
   static const register = '/register';
   static const verifyOtp = '/verify-otp';
   static const forgotPassword = '/forgot-password';
+  static const biometricLock = '/lock';
   static const home = '/home';
+  static const security = '/settings/security';
 }

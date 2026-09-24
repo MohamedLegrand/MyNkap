@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/app_routes.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
 /// Coquille du tableau de bord — un point d'arrivée réel et protégé après
@@ -33,6 +35,11 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(client == null ? 'MyNkap' : 'Bonjour, ${client.firstName}'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.fingerprint),
+            tooltip: 'Sécurité',
+            onPressed: () => context.push(AppRoutes.security),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Se déconnecter',

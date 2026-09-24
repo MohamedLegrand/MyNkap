@@ -17,6 +17,7 @@ class SecureStorage {
   static const _cleAccessToken = 'access_token';
   static const _cleRefreshToken = 'refresh_token';
   static const _cleTypeUtilisateur = 'user_type';
+  static const _cleBiometrieActive = 'biometric_enabled';
 
   static Future<void> enregistrerSession({
     required String accessToken,
@@ -51,5 +52,21 @@ class SecureStorage {
     ]);
   }
 
+  /// Efface toute la session, y compris la préférence de connexion
+  /// biométrique — sans jeton à déverrouiller, l'activer n'aurait plus de
+  /// sens : la prochaine connexion repart sur un choix explicite (voir
+  /// AuthRepository.activerBiometrie).
   static Future<void> effacerSession() => _storage.deleteAll();
+
+  /// Préférence client : déverrouiller l'app avec l'empreinte/Face ID au
+  /// lieu du mot de passe. Ne conditionne jamais l'accès à elle seule —
+  /// voir AuthRepository.deverrouillerAvecBiometrie, qui exige toujours une
+  /// vérification biométrique réussie avant de réutiliser le refresh token.
+  static Future<void> activerBiometrie() =>
+      _storage.write(key: _cleBiometrieActive, value: 'true');
+
+  static Future<void> desactiverBiometrie() => _storage.delete(key: _cleBiometrieActive);
+
+  static Future<bool> biometrieEstActive() async =>
+      (await _storage.read(key: _cleBiometrieActive)) == 'true';
 }

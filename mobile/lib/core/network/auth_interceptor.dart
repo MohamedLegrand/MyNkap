@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../constants/api_endpoints.dart';
 import '../storage/secure_storage.dart';
 import 'session_manager.dart';
+import 'token_refresher.dart';
 
 /// Endpoints d'authentification eux-mêmes : jamais de tentative de
 /// rafraîchissement automatique dessus (un 401 y a un sens propre — ex.
@@ -78,22 +79,16 @@ class AuthInterceptor extends QueuedInterceptor {
     if (refreshToken == null) return null;
 
     try {
-      final reponse = await _dioSansIntercepteur.post(
-        ApiEndpoints.refresh,
-        data: {'refresh_token': refreshToken},
-      );
-      final donnees = reponse.data as Map<String, dynamic>;
-      final nouvelAccessToken = donnees['access_token'] as String;
-      final nouveauRefreshToken = donnees['refresh_token'] as String;
+      final jetons = await rafraichirJetons(_dioSansIntercepteur, refreshToken);
 
       // Le refresh token tourne à chaque appel côté backend (l'ancien est
       // révoqué) : il faut impérativement stocker le nouveau, sous peine de
       // session bloquée au prochain rafraîchissement.
       await SecureStorage.mettreAJourJetons(
-        accessToken: nouvelAccessToken,
-        refreshToken: nouveauRefreshToken,
+        accessToken: jetons.accessToken,
+        refreshToken: jetons.refreshToken,
       );
-      return nouvelAccessToken;
+      return jetons.accessToken;
     } on DioException {
       return null;
     }

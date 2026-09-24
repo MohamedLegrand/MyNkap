@@ -24,7 +24,10 @@ android {
         applicationId = "com.mynkap.mynkap_mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // 23 (Android 6.0) requis par local_auth/androidx.biometric pour la
+        // connexion biométrique (voir features/auth) — flutter.minSdkVersion
+        // seul serait plus permissif mais insuffisant pour ce plugin.
+        minSdk = maxOf(23, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

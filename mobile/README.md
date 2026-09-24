@@ -57,8 +57,31 @@ features/<nom>/
 
 Seul `auth/` est entièrement construit pour l'instant (verticale de
 référence, de bout en bout : appel API → stockage sécurisé → état
-Riverpod → routage protégé). Les autres dossiers existent déjà mais sont
-vides — à remplir en suivant exactement le même schéma.
+Riverpod → routage protégé, connexion biométrique incluse). Les autres
+dossiers existent déjà mais sont vides — à remplir en suivant exactement
+le même schéma.
+
+#### Connexion biométrique
+
+Empreinte/Face ID (`local_auth`), avec repli automatique sur le code/schéma
+de l'appareil si le capteur échoue. Ne remplace pas la connexion par mot de
+passe : c'est un verrou d'écran par-dessus une session déjà valide.
+
+- Aucune route backend dédiée — le déverrouillage rejoue simplement
+  `POST /auth/refresh` (déjà utilisé par le rafraîchissement silencieux)
+  une fois la présence de l'utilisateur confirmée par le capteur. Le
+  backend n'a besoin de rien connaître de la biométrie : elle ne fait
+  qu'autoriser localement l'usage d'un jeton qui existait déjà.
+- Le client active/désactive la biométrie depuis Réglages > Sécurité
+  (`SecuritySettingsScreen`) — l'activation exige toujours une vérification
+  réussie au moment même du choix, jamais activée à l'aveugle.
+- L'état "session valide" (`AuthController`) et l'état "écran déverrouillé"
+  (`AppLockController`) sont volontairement séparés : au démarrage à froid,
+  une session peut se restaurer en silence (jeton toujours valide) sans
+  pour autant donner accès à l'écran — voir `AppRouter`, qui impose l'écran
+  de verrouillage tant que `AppLockController` est à `false`. Une connexion
+  interactive par mot de passe déverrouille directement (elle prouve déjà
+  la présence de l'utilisateur).
 
 ### Choix techniques
 
@@ -87,6 +110,9 @@ vides — à remplir en suivant exactement le même schéma.
 ### Ce qui reste à faire
 
 - Construire les autres features en suivant le modèle `auth/`.
+- Biométrie : proposer l'activation juste après la première connexion par
+  mot de passe (aujourd'hui, seulement accessible depuis Réglages >
+  Sécurité une fois connecté).
 - Internationalisation FR/EN (le web utilise `i18next` + `locales/fr.json`,
   `en.json` — l'équivalent Flutter est `flutter_localizations` + des
   fichiers `.arb`, pas encore mis en place ici : tous les textes sont pour

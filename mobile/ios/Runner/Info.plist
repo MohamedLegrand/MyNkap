@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>MyNkap utilise Face ID pour vous permettre de vous reconnecter rapidement et en toute sécurité.</string>
 </dict>
 </plist>
