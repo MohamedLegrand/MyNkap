@@ -32,10 +32,14 @@ def get_current_user(
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except JWTError:
+        id_utilisateur = int(user_id)
+    except (JWTError, ValueError, TypeError):
+        # ValueError/TypeError : jeton structurellement valide (signature
+        # correcte) mais avec un "sub" non numérique — ne doit jamais
+        # remonter en 500, seulement en 401 comme tout jeton invalide.
         raise credentials_exception
 
-    user = db.query(Utilisateur).filter(Utilisateur.id_utilisateur == int(user_id)).first()
+    user = db.query(Utilisateur).filter(Utilisateur.id_utilisateur == id_utilisateur).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.ip_client import obtenir_ip_reelle as _ip_client
 from app.modules.auth.dependencies import get_current_active_client
 from app.modules.auth.models import Client
 from app.modules.plans import service
@@ -17,15 +18,6 @@ from app.modules.plans.schemas import (
 )
 
 router = APIRouter(tags=["Plans & Abonnement"])
-
-
-def _ip_client(request: Request) -> Optional[str]:
-    """IP réelle du client final — alimente le contrôle anti-fraude carte
-    (derrière Nginx, X-Forwarded-For porte la vraie IP)."""
-    transmis = request.headers.get("x-forwarded-for")
-    if transmis:
-        return transmis.split(",")[0].strip()
-    return request.client.host if request.client else None
 
 
 @router.get("/plans", response_model=List[PlanOut])

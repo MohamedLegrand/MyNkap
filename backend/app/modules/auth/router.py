@@ -360,14 +360,21 @@ def supprimer_photo_profil(
     return profile
 
 @router.put("/change-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
 def changer_mon_mot_de_passe(
+    request: Request,
     payload: ChangePasswordRequest,
     current_client: Utilisateur = Depends(get_current_active_client),
     db: Session = Depends(get_db),
 ):
     """Change le mot de passe du client connecté (nécessite l'ancien mot de
     passe) — distinct de POST /auth/reset-password, réservé au client qui a
-    perdu l'accès à son compte."""
+    perdu l'accès à son compte. Limité en débit comme les autres routes
+    sensibles de ce module : contrairement à /auth/login, un échec ici
+    n'incrémente aucun compteur de verrouillage de compte (mot_de_passe_actuel
+    n'est vérifié que face à un jeton déjà valide) — sans ce limiteur, un
+    jeton de session volé permettrait de tester le mot de passe actuel sans
+    aucun frein."""
     try:
         services.changer_mot_de_passe(
             db, current_client, payload.mot_de_passe_actuel, payload.nouveau_mot_de_passe

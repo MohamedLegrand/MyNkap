@@ -2,6 +2,7 @@ from decimal import Decimal
 import pytest
 from app.core.security import create_access_token, get_password_hash
 from app.modules.audit.models import AuditLog
+from app.modules.notifications.models import Notification
 from app.modules.auth.models import Administrateur, Client, RefreshToken
 from tests.conftest import se_connecter, TestingSessionLocal
 
@@ -183,6 +184,15 @@ def test_admin_reinitialiser_mot_de_passe_client(client, db_session):
         AuditLog.id_ressource == id_client
     ).first()
     assert log_reset is not None
+
+    # Le client est alerté (voir admin.service.reinitialiser_mot_de_passe_client) :
+    # sans ce signal, il ne découvrirait la réinitialisation qu'en échouant
+    # à se connecter, sans savoir si c'est légitime ou un admin compromis.
+    notification = db_session.query(Notification).filter(
+        Notification.id_utilisateur == id_client,
+        Notification.type == "MDP_REINITIALISE_ADMIN",
+    ).first()
+    assert notification is not None
 
 
 def test_admin_desactiver_distinct_de_suspendre(client, db_session):

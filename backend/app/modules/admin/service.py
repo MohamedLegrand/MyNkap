@@ -59,6 +59,7 @@ from app.modules.budgets.models import Categorie
 from app.modules.comptes.models import CompteFinancier, ComptePrincipal
 from app.modules.dettes.models import Dette
 from app.modules.avis.models import Avis
+from app.modules.notifications import service as notifications_service
 from app.modules.plans import service as plans_service
 from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
 from app.modules.transactions.models import Transaction
@@ -279,6 +280,19 @@ def reinitialiser_mot_de_passe_client(
         donnees_avant=None,
         donnees_apres={"email": client.email},
         request=request,
+    )
+
+    # Alerte le client, comme pour toute autre prise de contrôle de son
+    # compte (voir auth.services._signaler_tentative_echouee) : sans ce
+    # signal, un client ne découvrirait cette réinitialisation qu'en
+    # échouant à se connecter avec son ancien mot de passe, sans savoir si
+    # c'est une action légitime du support ou un compte admin compromis.
+    notifications_service.creer_notification_client(
+        db, client.id_client, "MDP_REINITIALISE_ADMIN",
+        "Mot de passe réinitialisé par le support",
+        "Votre mot de passe a été réinitialisé par un administrateur MyNkap et toutes vos sessions "
+        "ont été déconnectées. Si vous n'êtes pas à l'origine de cette demande, contactez le support "
+        "immédiatement.",
     )
 
     return AdminResetPasswordResponse(

@@ -235,3 +235,27 @@ def test_generer_rapport_dettes_epargne_et_bilan_financier_et_predictions(client
         assert rapport.statut == "GENERE", type_rapport
         assert os.path.exists(rapport.chemin_fichier)
         os.remove(rapport.chemin_fichier)
+
+
+def test_environnement_jinja_echappe_le_html_des_champs_libres():
+    """
+    Sécurité : les gabarits de rapport interpolent des champs saisis
+    librement par le client (description de transaction, nom de dette...),
+    sans aucune limite de format. Sans échappement HTML, un client pourrait
+    injecter du balisage dans son propre rapport PDF — y compris une balise
+    <img src="http://..."> que xhtml2pdf irait chercher depuis le serveur
+    au moment du rendu (SSRF). Vérifie que l'environnement Jinja2 du module
+    échappe bien ce genre de contenu (voir rapports.service, autoescape).
+    """
+    gabarit = rapports_service._environnement_jinja.get_template("releve_transactions.html")
+    html = gabarit.render(
+        periode="mars 2026",
+        total_depenses=0, total_revenus=0, solde_net=0, solde_net_positif=True,
+        transactions=[{
+            "date": "01/03/2026", "categorie": "Alimentation", "type": "DEPENSE",
+            "description": '<img src="http://169.254.169.254/" onerror="alert(1)">',
+            "montant": 1000,
+        }],
+    )
+    assert '<img src="http://169.254.169.254/"' not in html
+    assert "&lt;img" in html

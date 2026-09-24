@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 from urllib.parse import urlparse
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy.orm import Session
 from xhtml2pdf import pisa
 
@@ -23,7 +23,16 @@ LOGO_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "static", "logo.jpg")
 ).replace("\\", "/")
 
-_environnement_jinja = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
+# autoescape : les gabarits reçoivent des champs saisis librement par le
+# client (description de transaction, nom de dette/objectif...), sans
+# limite de longueur ni de caractères — sans échappement HTML, un client
+# pourrait injecter du balisage dans son propre rapport PDF, y compris une
+# balise <img src="http://..."> que xhtml2pdf irait chercher depuis le
+# serveur au moment du rendu (SSRF). select_autoescape neutralise ça en
+# échappant `<`, `>`, `&`, etc. dans toute valeur interpolée.
+_environnement_jinja = Environment(
+    loader=FileSystemLoader(TEMPLATES_DIR), autoescape=select_autoescape(["html"])
+)
 
 
 class TypeRapportInvalideError(Exception):
