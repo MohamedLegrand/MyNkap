@@ -359,6 +359,11 @@ def creer_administrateur_admin(
         mot_de_passe=get_password_hash(schema.mot_de_passe),
         niveau_acces=schema.niveau_acces,
         est_actif=True,
+        # Un administrateur est créé par un superadmin déjà authentifié,
+        # jamais par auto-inscription : aucune étape OTP à lui faire passer
+        # (voir auth.services.authentifier_utilisateur, EmailNonVerifieError,
+        # qui bloquerait sinon sa toute première connexion).
+        email_verifie=True,
     )
     db.add(nouveau_admin)
     db.commit()

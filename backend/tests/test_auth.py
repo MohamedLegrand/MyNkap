@@ -72,19 +72,76 @@ def test_verifier_otp_apres_inscription_confirme_lemail_sans_ouvrir_de_session(c
     assert db_utilisateur.email_verifie is True
 
 
-def test_register_rejects_duplicate_email(client):
-    client.post("/api/v1/auth/register", json=_register_payload())
-    response = client.post("/api/v1/auth/register", json=_register_payload())
+def _verifier_email(client, db_session, email="jean.dupont@example.com"):
+    """Lit le code OTP directement en base et le vérifie via /auth/verify-otp
+    — même principe que _register_client dans test_admin_clients.py."""
+    db_utilisateur = db_session.query(Utilisateur).filter(Utilisateur.email == email).first()
+    reponse = client.post(
+        "/api/v1/auth/verify-otp", json={"email": email, "code": db_utilisateur.otp_code}
+    )
+    assert reponse.status_code == 200
+    db_session.refresh(db_utilisateur)
 
+
+def test_register_renvoie_un_nouveau_code_si_le_compte_nest_pas_encore_verifie(client, db_session):
+    """
+    Voir auth.router.register : ré-inscrire un e-mail déjà utilisé mais
+    jamais vérifié ne recrée pas de doublon, renvoie simplement un nouveau
+    code — c'est ce que rappelle le bouton "renvoyer le code" du frontend
+    (OtpVerificationStep.onResend), indispensable maintenant que la
+    connexion exige l'e-mail vérifié (voir EmailNonVerifieError).
+    """
+    client.post("/api/v1/auth/register", json=_register_payload())
+    db_utilisateur = db_session.query(Utilisateur).filter(
+        Utilisateur.email == "jean.dupont@example.com"
+    ).first()
+    premier_code = db_utilisateur.otp_code
+
+    response = client.post("/api/v1/auth/register", json=_register_payload())
+    assert response.status_code == 201
+    assert response.json()["otp_requis"] is True
+
+    # Un seul compte, avec un nouveau code — jamais un doublon.
+    assert db_session.query(Utilisateur).filter(
+        Utilisateur.email == "jean.dupont@example.com"
+    ).count() == 1
+    db_session.refresh(db_utilisateur)
+    assert db_utilisateur.otp_code != premier_code
+
+
+def test_register_rejects_duplicate_email_une_fois_verifie(client, db_session):
+    client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
+
+    response = client.post("/api/v1/auth/register", json=_register_payload())
     assert response.status_code == 400
 
 
-def test_login_avec_identifiants_corrects_renvoie_les_jetons(client):
+def test_login_avant_verification_de_lemail_est_refuse(client):
     """
-    La connexion n'a plus d'étape OTP : /auth/login émet directement les
-    jetons de session (l'e-mail est déjà vérifié à l'inscription).
+    Le cœur du correctif : des identifiants corrects ne suffisent pas tant
+    que l'e-mail n'a jamais été vérifié — sans ce contrôle, l'étape OTP de
+    l'inscription ne vérifiait rien en pratique (voir EmailNonVerifieError).
     """
     client.post("/api/v1/auth/register", json=_register_payload())
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
+    )
+
+    assert response.status_code == 403
+    assert "vérifi" in response.json()["detail"].lower()
+
+
+def test_login_avec_identifiants_corrects_renvoie_les_jetons(client, db_session):
+    """
+    Une fois l'e-mail vérifié (voir /auth/verify-otp), la connexion n'a
+    plus d'étape OTP supplémentaire : /auth/login émet directement les
+    jetons de session.
+    """
+    client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
 
     response = client.post(
         "/api/v1/auth/login",
@@ -251,6 +308,7 @@ def test_forgot_password_renvoie_200_meme_pour_un_email_inconnu(client):
 
 def test_reset_password_avec_jeton_valide_permet_de_se_reconnecter(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
     client.post("/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"})
 
     db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
@@ -324,6 +382,29 @@ def test_login_google_pour_un_compte_existant_renvoie_les_jetons(client, monkeyp
     body = response.json()
     assert body["access_token"]
     assert body["user_type"] == "client"
+
+
+def test_login_google_marque_lemail_verifie_meme_sans_otp(client, db_session, monkeypatch):
+    """
+    Google vient de vérifier cette adresse lui-même (email_verified) : ça
+    doit compter aussi pour /auth/login (mot de passe) sur la même
+    adresse, jamais bloqué après une connexion Google réussie (voir
+    EmailNonVerifieError).
+    """
+    client.post("/api/v1/auth/register", json=_register_payload())
+    _mocker_id_token_google(monkeypatch)
+    client.post("/api/v1/auth/google", json={"id_token": "faux-jeton-google"})
+
+    db_utilisateur = db_session.query(Utilisateur).filter(
+        Utilisateur.email == "jean.dupont@example.com"
+    ).first()
+    assert db_utilisateur.email_verifie is True
+
+    reponse = client.post(
+        "/api/v1/auth/login",
+        json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
+    )
+    assert reponse.status_code == 200
 
 
 def test_login_google_pour_un_compte_inexistant_est_rejete(client, monkeypatch):

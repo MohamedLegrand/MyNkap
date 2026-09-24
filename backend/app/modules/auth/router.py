@@ -65,14 +65,27 @@ def register(request: Request, client_in: UserRegister, db: Session = Depends(ge
     la double authentification à la connexion, voir services.generer_et_envoyer_otp)
     pour confirmer que l'adresse fournie est bien joignable avant tout accès
     réel — voir POST /auth/verify-otp pour la seconde étape.
+
+    Si l'e-mail correspond déjà à un compte jamais vérifié, aucun doublon
+    n'est créé : un nouveau code est simplement renvoyé (voir le bouton
+    "renvoyer le code" du frontend, OtpVerificationStep.onResend, qui
+    rappelle cette même route) — indispensable depuis que la connexion
+    exige l'e-mail vérifié (voir services.EmailNonVerifieError), sous
+    peine de bloquer définitivement un client qui a perdu son premier code.
     """
-    # Vérifier si l'email existe déjà
     utilisateur_existant = db.query(Utilisateur).filter(Utilisateur.email == client_in.email).first()
     if utilisateur_existant:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cette adresse e-mail est déjà enregistrée."
-        )
+        if utilisateur_existant.email_verifie:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cette adresse e-mail est déjà enregistrée."
+            )
+        services.generer_et_envoyer_otp(db, utilisateur_existant)
+        return {
+            "otp_requis": True,
+            "message": "Un nouveau code de vérification a été envoyé par e-mail.",
+            "expires_in": 300,
+        }
 
     # Créer le client
     nouveau_client = services.creer_client(db, client_in)
@@ -102,7 +115,9 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
     Connexion par e-mail et mot de passe : émet directement les jetons de
     session. La double authentification par OTP ne s'applique plus qu'à
     l'inscription, pour vérifier l'adresse e-mail une seule fois (voir
-    POST /auth/register puis POST /auth/verify-otp), pas à chaque connexion.
+    POST /auth/register puis POST /auth/verify-otp) — mais reste
+    obligatoire : identifiants corrects sans e-mail vérifié renvoie 403
+    (voir services.EmailNonVerifieError), jamais une session.
     """
     try:
         utilisateur = services.authentifier_utilisateur(db, login_in)
@@ -110,6 +125,12 @@ def login(request: Request, login_in: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Trop de tentatives échouées. Réessayez dans quelques minutes.",
+        )
+    except services.EmailNonVerifieError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Adresse e-mail non vérifiée. Vérifiez le code envoyé à l'inscription "
+            "(ou demandez-en un nouveau) avant de vous connecter.",
         )
     if not utilisateur:
         raise HTTPException(

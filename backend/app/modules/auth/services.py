@@ -48,6 +48,17 @@ class MotDePasseActuelIncorrectError(Exception):
 class CompteVerrouilleError(Exception):
     """Trop d'échecs de connexion consécutifs — compte verrouillé temporairement (voir SEUIL_VERROUILLAGE)."""
 
+
+class EmailNonVerifieError(Exception):
+    """
+    Identifiants corrects, mais l'adresse e-mail n'a jamais été confirmée
+    via le code envoyé à l'inscription (voir verifier_otp) — la connexion
+    est refusée tant que ce n'est pas fait. Sans ce contrôle, l'étape OTP
+    de l'inscription ne vérifiait rien en pratique : un compte créé avec
+    l'e-mail de quelqu'un d'autre (ou une adresse inexistante) restait
+    pleinement utilisable sans jamais prouver qu'on en a l'accès.
+    """
+
 # --- Services d'Inscription et Connexion ---
 
 def creer_client(db: Session, client_in: UserRegister) -> Client:
@@ -115,9 +126,14 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
 def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utilisateur]:
     """
     Valide les identifiants de l'utilisateur, ouvre directement la session
-    (plus de double authentification par OTP à la connexion, réservée à la
-    vérification de l'e-mail à l'inscription — voir verifier_otp) et
-    retourne son modèle s'il est valide.
+    (plus de double authentification par OTP à chaque connexion, une seule
+    fois à l'inscription — voir verifier_otp) et retourne son modèle s'il
+    est valide.
+
+    Lève EmailNonVerifieError si le mot de passe est correct mais que
+    l'e-mail n'a jamais été confirmé : c'est ce contrôle, et lui seul, qui
+    rend la vérification par OTP réellement obligatoire — un compte créé
+    avec un e-mail non maîtrisé ne doit jamais devenir utilisable.
     """
     utilisateur = db.query(Utilisateur).filter(Utilisateur.email == login_in.email).first()
     if not utilisateur or not utilisateur.est_actif:
@@ -127,6 +143,8 @@ def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utili
     if not verify_password(login_in.mot_de_passe, utilisateur.mot_de_passe):
         _signaler_tentative_echouee(db, utilisateur)
         return None
+    if not utilisateur.email_verifie:
+        raise EmailNonVerifieError()
 
     _reinitialiser_tentatives_echouees(utilisateur)
     db.commit()
@@ -321,6 +339,12 @@ def authentifier_avec_google(db: Session, id_token_str: str) -> Utilisateur:
     if not utilisateur or not utilisateur.est_actif:
         raise CompteInexistantPourGoogleError()
 
+    # Google vient de vérifier cette adresse (email_verified ci-dessus) :
+    # marque l'e-mail confirmé s'il ne l'était pas encore, pour que la
+    # connexion par mot de passe (voir authentifier_utilisateur,
+    # EmailNonVerifieError) ne reste pas bloquée après une connexion Google
+    # réussie sur la même adresse.
+    utilisateur.email_verifie = True
     _reinitialiser_tentatives_echouees(utilisateur)
     db.commit()
     _notifier_connexion_reussie(db, utilisateur)

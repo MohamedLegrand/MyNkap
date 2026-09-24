@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from app.core.security import create_access_token, get_password_hash
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import Administrateur, Client
+from tests.conftest import se_connecter
 
 
 def _register_and_login(client, email="avis.test@example.com", mot_de_passe="motdepasse123"):
@@ -16,9 +17,9 @@ def _register_and_login(client, email="avis.test@example.com", mot_de_passe="mot
             "phone": "+237600000000",
         },
     )
-    access_token = client.post(
-        "/api/v1/auth/login", json={"email": email, "mot_de_passe": mot_de_passe}
-    ).json()["access_token"]
+    # se_connecter marque l'e-mail vérifié en base avant de se connecter
+    # (voir tests/conftest.py) — désormais exigé par /auth/login.
+    access_token = se_connecter(client, email, mot_de_passe).json()["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
 
 

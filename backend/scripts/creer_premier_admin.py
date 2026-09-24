@@ -38,6 +38,10 @@ def creer_premier_admin(email: str, username: str, mot_de_passe: str, niveau_acc
             mot_de_passe=get_password_hash(mot_de_passe),
             niveau_acces=niveau_acces,
             est_actif=True,
+            # Créé hors ligne par un opérateur de confiance, jamais par
+            # auto-inscription : aucune étape OTP à lui faire passer (voir
+            # auth.services.authentifier_utilisateur, EmailNonVerifieError).
+            email_verifie=True,
         )
         db.add(admin)
         db.commit()

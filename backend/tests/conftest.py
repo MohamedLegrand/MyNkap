@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.core.database import Base, get_db
 from app.core import models_registry  # noqa: F401 (enregistre toutes les tables)
 from app.main import app, limiter
+from app.modules.auth.models import Utilisateur
 from app.modules.plans.models import Plan, PrixPlanDevise
 
 engine = create_engine(
@@ -102,10 +103,25 @@ def se_connecter(client, email: str, mot_de_passe: str):
     """
     Connecte un utilisateur via /auth/login (e-mail + mot de passe, plus de
     double authentification par OTP à cette étape — réservée à la
-    vérification de l'e-mail à l'inscription, voir auth.services.verifier_otp)
-    et renvoie directement la réponse (access_token, refresh_token,
-    user_type...).
+    vérification de l'e-mail à l'inscription, voir auth.services.verifier_otp).
+
+    La connexion exige désormais l'e-mail vérifié (voir
+    EmailNonVerifieError) : la plupart des appelants de ce helper ne
+    testent pas ce flux en particulier (voir test_auth.py pour les tests
+    qui, eux, passent explicitement par /auth/verify-otp), donc on marque
+    l'e-mail vérifié ici directement en base plutôt que d'exiger que
+    chaque appelant le fasse — même connexion partagée que le reste des
+    fixtures (StaticPool), voir tests/test_admin_clients.py.
     """
+    session = TestingSessionLocal()
+    try:
+        utilisateur = session.query(Utilisateur).filter(Utilisateur.email == email).first()
+        if utilisateur is not None and not utilisateur.email_verifie:
+            utilisateur.email_verifie = True
+            session.commit()
+    finally:
+        session.close()
+
     return client.post(
         "/api/v1/auth/login", json={"email": email, "mot_de_passe": mot_de_passe}
     )

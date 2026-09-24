@@ -67,6 +67,16 @@ def test_superadmin_creer_nouvel_admin(client, db_session):
     assert log is not None
     assert log.donnees_apres["username"] == "mod1"
 
+    # Un admin est créé par un superadmin déjà authentifié, jamais par
+    # auto-inscription : sa toute première connexion doit fonctionner sans
+    # passer par une étape OTP qu'il n'a jamais eue (voir
+    # admin.service.creer_administrateur_admin, email_verifie=True).
+    connexion = client.post(
+        "/api/v1/auth/login",
+        json={"email": "moderateur@mynkap.cm", "mot_de_passe": "modpassword123"},
+    )
+    assert connexion.status_code == 200
+
 def test_admin_creer_admin_doublon_email_ou_username(client, db_session):
     _, superadmin_headers = _create_admin(db_session, username="super2", email="super2@mynkap.cm")
 

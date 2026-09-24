@@ -165,17 +165,11 @@ def test_admin_reinitialiser_mot_de_passe_client(client, db_session):
     tmp_password = reset_data["mot_de_passe_temporaire"]
 
     # Connexion avec l'ancien mot de passe échoue
-    fail_login = client.post(
-        "/api/v1/auth/login",
-        json={"email": "reset.test@mynkap.cm", "mot_de_passe": "ancienmdp123"}
-    )
+    fail_login = se_connecter(client, "reset.test@mynkap.cm", "ancienmdp123")
     assert fail_login.status_code == 400
 
     # Connexion avec le nouveau mot de passe temporaire réussit
-    success_login = client.post(
-        "/api/v1/auth/login",
-        json={"email": "reset.test@mynkap.cm", "mot_de_passe": tmp_password}
-    )
+    success_login = se_connecter(client, "reset.test@mynkap.cm", tmp_password)
     assert success_login.status_code == 200
 
     # Vérification AuditLog
