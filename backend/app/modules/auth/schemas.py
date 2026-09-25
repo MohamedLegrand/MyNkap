@@ -2,6 +2,23 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+
+def _normaliser_email(valeur: str) -> str:
+    """
+    RFC 5321/5322 autorise en théorie une casse significative sur la partie
+    locale d'une adresse, mais en pratique aucun fournisseur grand public
+    (Gmail, Outlook, Yahoo...) ne la respecte : Jean@x.com et jean@x.com
+    délivrent au même destinataire. La comparaison SQL sur `email`, elle,
+    est sensible à la casse — sans cette normalisation, un attaquant peut
+    créer un second compte MyNkap sur une variante de casse d'une adresse
+    qu'il ne possède pas (contournement du contrôle "déjà enregistrée" de
+    POST /auth/register) et faire recevoir ses codes OTP/mots de passe
+    oubliés à la vraie boîte mail du titulaire. Appliquée à l'inscription
+    ET à chaque connexion/vérification pour rester cohérente avec les
+    comptes déjà stockés en minuscules.
+    """
+    return valeur.strip().lower()
+
 # --- Schémas pour les profils ---
 class ProfileOut(BaseModel):
     id_profile: int
@@ -58,10 +75,14 @@ class UserRegister(BaseModel):
     last_name: str
     phone: str
 
+    _normaliser = field_validator("email")(_normaliser_email)
+
 # --- Schémas pour la connexion ---
 class UserLogin(BaseModel):
     email: EmailStr
     mot_de_passe: str
+
+    _normaliser = field_validator("email")(_normaliser_email)
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -84,6 +105,8 @@ class RegisterOtpResponse(BaseModel):
 class VerifyOtpRequest(BaseModel):
     email: EmailStr
     code: str = Field(..., min_length=6, max_length=6)
+
+    _normaliser = field_validator("email")(_normaliser_email)
 
 class VerifyOtpResponse(BaseModel):
     """N'émet aucun jeton de session : confirme seulement que l'adresse
@@ -126,6 +149,8 @@ class AdminOut(BaseModel):
 # --- Schémas pour la récupération de mot de passe ---
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+    _normaliser = field_validator("email")(_normaliser_email)
 
 class ResetPasswordRequest(BaseModel):
     token: str

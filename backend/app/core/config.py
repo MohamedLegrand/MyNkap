@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     # 5175 est le port fixe du frontend MyNkap, voir frontend/vite.config.ts.
     CORS_ORIGINS: str = "http://localhost:5175"
 
+    # IP directes (séparées par des virgules) depuis lesquelles X-Forwarded-For
+    # est considéré fiable — typiquement le reverse-proxy local (Nginx sur le
+    # même VPS, voir core/ip_client.py). Toute requête arrivant d'une IP hors
+    # de cette liste voit son X-Forwarded-For ignoré : sans ce filtre,
+    # n'importe quel client peut usurper l'en-tête pour se faire passer pour
+    # une IP différente à chaque appel et contourner la limite de débit par
+    # IP (confirmé exploitable en audit : register/login/forgot-password/OTP
+    # illimités avec une IP usurpée différente à chaque requête).
+    TRUSTED_PROXY_IPS: str = "127.0.0.1,::1"
+
     # Broker/backend Celery (tâches de fond : transactions récurrentes...)
     REDIS_URL: str = "redis://localhost:6379/0"
 
@@ -102,6 +112,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def trusted_proxy_ips_list(self) -> list[str]:
+        return [ip.strip() for ip in self.TRUSTED_PROXY_IPS.split(",") if ip.strip()]
 
     @property
     def hrpay_card_api_base(self) -> str:

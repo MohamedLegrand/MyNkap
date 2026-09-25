@@ -334,6 +334,7 @@ def authentifier_avec_google(db: Session, id_token_str: str) -> Utilisateur:
     email = payload.get("email")
     if not email or not payload.get("email_verified"):
         raise GoogleTokenInvalideError("L'e-mail du compte Google n'est pas vérifié.")
+    email = email.strip().lower()
 
     utilisateur = db.query(Utilisateur).filter(Utilisateur.email == email).first()
     if not utilisateur or not utilisateur.est_actif:

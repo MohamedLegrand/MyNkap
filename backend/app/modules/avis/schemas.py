@@ -1,11 +1,23 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class CreerAvisRequest(BaseModel):
     note: int = Field(..., ge=1, le=5)
     commentaire: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("commentaire")
+    @classmethod
+    def _commentaire_sans_html(cls, valeur: str) -> str:
+        # Publié tel quel sur la landing page (voir AvisPublicOut) : aucune
+        # balise n'a de raison d'être acceptée ici, un commentaire est du
+        # texte brut. Le frontend React échappe déjà son rendu (pas de
+        # dangerouslySetInnerHTML), mais l'API ne doit pas dépendre
+        # uniquement de ça pour rester sûre face à d'autres consommateurs.
+        if "<" in valeur or ">" in valeur:
+            raise ValueError("Le commentaire ne peut pas contenir de balises HTML.")
+        return valeur
 
 
 class AvisOut(BaseModel):

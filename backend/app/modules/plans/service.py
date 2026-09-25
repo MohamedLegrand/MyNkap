@@ -314,7 +314,7 @@ def notifier_essai_actif(db: Session, id_client: int) -> None:
     """
     Crée une notification confirmant au client qu'il bénéficie bien de
     l'essai Premium en cours — déclenchée depuis le bouton "Profiter de mes
-    30 jours Premium" du tableau de bord (jamais automatiquement à
+    7 jours Premium" du tableau de bord (jamais automatiquement à
     l'inscription : c'est une confirmation à la demande, pas une alerte
     système).
     """
