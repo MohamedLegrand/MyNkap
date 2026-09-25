@@ -10,7 +10,7 @@ from google.oauth2 import id_token as google_id_token
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.security import HACHAGE_FACTICE, get_password_hash, verify_password, create_access_token
 from app.modules.auth.models import Utilisateur, Client, Profile, RefreshToken
 from app.modules.auth.schemas import UserRegister, UserLogin, ResetPasswordRequest
 from app.modules.budgets import service as budgets_service
@@ -31,6 +31,18 @@ SEUIL_ALERTE_TENTATIVES = 3
 # prévient tôt, le verrou ne bloque qu'en cas d'échecs vraiment soutenus.
 SEUIL_VERROUILLAGE = 8
 DUREE_VERROUILLAGE = timedelta(minutes=15)
+
+# Un client peut légitimement rejouer le jeton de rafraîchissement qu'il
+# vient de faire tourner : la requête a pu réussir côté serveur (rotation
+# effectuée) sans que la réponse n'atteigne jamais le client (coupure
+# réseau, application tuée en arrière-plan) — sa seule option est alors de
+# retenter avec le jeton qu'il a encore. Dans cette fenêtre, une
+# réapparition du jeton révoqué est traitée comme une simple retentative
+# (401 ordinaire, sans conséquence) plutôt que comme un vol de session — au-
+# delà, elle reste un signal fort (voir valider_refresh_token) : un client
+# qui a continué à naviguer normalement avec son nouveau jeton n'a aucune
+# raison de rejouer l'ancien plusieurs minutes après.
+FENETRE_GRACE_REUTILISATION = timedelta(seconds=20)
 
 
 class GoogleTokenInvalideError(Exception):
@@ -57,6 +69,16 @@ class EmailNonVerifieError(Exception):
     de l'inscription ne vérifiait rien en pratique : un compte créé avec
     l'e-mail de quelqu'un d'autre (ou une adresse inexistante) restait
     pleinement utilisable sans jamais prouver qu'on en a l'accès.
+    """
+
+
+class RefreshTokenReutiliseError(Exception):
+    """
+    Un jeton de rafraîchissement déjà révoqué a été présenté à nouveau —
+    signe probable de vol de session (voir valider_refresh_token). Toutes
+    les sessions actives du client ont déjà été révoquées au moment où
+    cette exception est levée ; le routeur ne doit renvoyer qu'un 401
+    générique, identique à un jeton simplement invalide.
     """
 
 # --- Services d'Inscription et Connexion ---
@@ -137,6 +159,12 @@ def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utili
     """
     utilisateur = db.query(Utilisateur).filter(Utilisateur.email == login_in.email).first()
     if not utilisateur or not utilisateur.est_actif:
+        # Fait quand même tourner bcrypt sur un hachage factice : sans ça,
+        # cette branche répond bien plus vite qu'un compte existant (qui,
+        # lui, attend verify_password ci-dessous) — un écart de latence
+        # mesurable à distance qui permettrait de deviner quels e-mails sont
+        # inscrits sans jamais tenter un seul mot de passe.
+        verify_password(login_in.mot_de_passe, HACHAGE_FACTICE)
         return None
     if utilisateur.verrouille_jusqua is not None and utilisateur.verrouille_jusqua > datetime.utcnow():
         raise CompteVerrouilleError()
@@ -387,12 +415,51 @@ def creer_refresh_token(db: Session, client_id: int) -> Tuple[RefreshToken, str]
 def valider_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
     """
     Vérifie si le jeton existe, n'est pas expiré et n'est pas révoqué.
+
+    Un jeton de rafraîchissement n'est présenté qu'une seule fois dans un
+    usage normal : chaque appel à /auth/refresh le révoque et en émet un
+    nouveau (rotation, voir faire_tourner_refresh_token). Sa réapparition
+    après révocation n'est donc quasiment jamais un simple double appel
+    légitime — sauf dans la toute petite fenêtre suivant la rotation, où
+    elle peut aussi être une retentative réseau bénigne (voir
+    FENETRE_GRACE_REUTILISATION). Passé cette fenêtre, c'est un signal fort
+    de vol : le client légitime a eu largement le temps de recevoir et
+    utiliser son nouveau jeton, donc rejouer l'ancien n'a plus de
+    justification bénigne. Dans ce cas (hash connu, déjà révoqué, hors
+    fenêtre de grâce), on révoque par précaution toutes les sessions
+    actives du client et on lève RefreshTokenReutiliseError plutôt que de
+    se contenter de refuser ce seul jeton — la réponse HTTP reste un 401
+    générique dans tous les cas (voir router.refresh_token), pour ne rien
+    révéler à qui rejoue le jeton.
     """
-    db_token = db.query(RefreshToken).filter(
-        RefreshToken.token_hash == _hasher_token(token),
-        RefreshToken.est_revoque == False,
-        RefreshToken.date_expiration > datetime.utcnow()
-    ).first()
+    token_hash = _hasher_token(token)
+    db_token = db.query(RefreshToken).filter(RefreshToken.token_hash == token_hash).first()
+
+    if db_token is not None and db_token.est_revoque:
+        dans_la_fenetre_de_grace = (
+            db_token.date_revocation is not None
+            and datetime.utcnow() - db_token.date_revocation <= FENETRE_GRACE_REUTILISATION
+        )
+        if dans_la_fenetre_de_grace:
+            return None
+
+        nb_revoques = db.query(RefreshToken).filter(
+            RefreshToken.id_client == db_token.id_client,
+            RefreshToken.est_revoque == False,
+        ).update({"est_revoque": True, "date_revocation": datetime.utcnow()})
+        db.commit()
+        if nb_revoques:
+            notifications_service.creer_notification_client(
+                db, db_token.id_client, "SECURITE_SESSION_COMPROMISE",
+                "Toutes vos sessions ont été déconnectées",
+                "Un jeton de connexion déjà utilisé a été présenté à nouveau, ce qui peut indiquer "
+                "un vol de session. Par précaution, tous vos appareils ont été déconnectés. "
+                "Changez votre mot de passe si cette activité ne vous semble pas familière.",
+            )
+        raise RefreshTokenReutiliseError()
+
+    if db_token is None or db_token.date_expiration <= datetime.utcnow():
+        return None
     return db_token
 
 def revoquer_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
@@ -403,6 +470,7 @@ def revoquer_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
     db_token = db.query(RefreshToken).filter(RefreshToken.token_hash == _hasher_token(token)).first()
     if db_token:
         db_token.est_revoque = True
+        db_token.date_revocation = datetime.utcnow()
         db.commit()
         return db_token
     return None
@@ -416,6 +484,7 @@ def faire_tourner_refresh_token(db: Session, ancien: RefreshToken) -> str:
     légitime. Retourne le nouveau jeton en clair.
     """
     ancien.est_revoque = True
+    ancien.date_revocation = datetime.utcnow()
     db.commit()
     _, nouveau_token = creer_refresh_token(db, ancien.id_client)
     return nouveau_token

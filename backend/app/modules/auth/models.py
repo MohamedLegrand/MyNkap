@@ -158,6 +158,13 @@ class RefreshToken(Base):
     token_hash = Column(String, unique=True, index=True, nullable=False)
     date_expiration = Column(DateTime, nullable=False)
     est_revoque = Column(Boolean, default=False)
+    # Renseigné uniquement quand est_revoque bascule à True (rotation,
+    # déconnexion, ou révocation de précaution) — permet à
+    # auth.services.valider_refresh_token de distinguer une réutilisation
+    # immédiate (probable simple retentative réseau après une réponse
+    # perdue) d'une réutilisation tardive (signe plus fort de vol), voir
+    # FENETRE_GRACE_REUTILISATION.
+    date_revocation = Column(DateTime, nullable=True)
     date_creation = Column(DateTime, default=datetime.utcnow)
 
     # primaryjoin explicite : la FK ci-dessus pointe vers `utilisateurs`,

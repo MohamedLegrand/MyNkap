@@ -217,7 +217,7 @@ def changer_statut_client(
         db.query(RefreshToken).filter(
             RefreshToken.id_client == id_client,
             RefreshToken.est_revoque == False
-        ).update({"est_revoque": True})
+        ).update({"est_revoque": True, "date_revocation": datetime.utcnow()})
 
     db.commit()
     db.refresh(client)
@@ -267,7 +267,7 @@ def reinitialiser_mot_de_passe_client(
     db.query(RefreshToken).filter(
         RefreshToken.id_client == id_client,
         RefreshToken.est_revoque == False
-    ).update({"est_revoque": True})
+    ).update({"est_revoque": True, "date_revocation": datetime.utcnow()})
 
     db.commit()
 

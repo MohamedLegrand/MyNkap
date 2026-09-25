@@ -252,13 +252,58 @@ def test_refresh_token_tourne_et_invalide_lancien(client, db_session):
     # Le jeton renvoyé n'est jamais le même : rotation à chaque appel.
     assert nouveau_refresh_token != ancien_refresh_token
 
-    # Rejouer l'ancien jeton (déjà tourné) échoue désormais.
+    # Rejouer l'ancien jeton (déjà tourné) échoue.
     reponse_rejouee = client.post("/api/v1/auth/refresh", json={"refresh_token": ancien_refresh_token})
     assert reponse_rejouee.status_code == 401
 
-    # Le nouveau jeton, lui, fonctionne toujours.
+    # Ce rejeu vient d'avoir lieu (bien avant FENETRE_GRACE_REUTILISATION) :
+    # traité comme une simple retentative réseau bénigne, pas comme un vol
+    # (voir services.valider_refresh_token) — le jeton légitime tout juste
+    # émis par la rotation ci-dessus continue donc de fonctionner.
     reponse_nouveau = client.post("/api/v1/auth/refresh", json={"refresh_token": nouveau_refresh_token})
     assert reponse_nouveau.status_code == 200
+
+
+def test_reutilisation_tardive_refresh_token_revoque_toutes_les_sessions(client, db_session):
+    """Passé la fenêtre de grâce (voir services.FENETRE_GRACE_REUTILISATION),
+    la réutilisation d'un jeton révoqué n'a plus de justification bénigne :
+    toutes les sessions du client sont révoquées par précaution et il est
+    notifié — vérifié ici en reculant artificiellement date_revocation en
+    base, pour ne pas dépendre d'un vrai sommeil de plusieurs secondes dans
+    le test."""
+    from datetime import timedelta
+    from app.modules.auth.models import RefreshToken
+    from app.modules.auth import services as auth_services
+
+    client.post("/api/v1/auth/register", json=_register_payload())
+    tokens = se_connecter(client, "jean.dupont@example.com", "motdepasse123").json()
+    ancien_refresh_token = tokens["refresh_token"]
+
+    premiere_reponse = client.post("/api/v1/auth/refresh", json={"refresh_token": ancien_refresh_token})
+    nouveau_refresh_token = premiere_reponse.json()["refresh_token"]
+
+    ancien_en_base = (
+        db_session.query(RefreshToken)
+        .filter(RefreshToken.token_hash == auth_services._hasher_token(ancien_refresh_token))
+        .first()
+    )
+    ancien_en_base.date_revocation -= (auth_services.FENETRE_GRACE_REUTILISATION + timedelta(seconds=5))
+    db_session.commit()
+
+    reponse_rejouee = client.post("/api/v1/auth/refresh", json={"refresh_token": ancien_refresh_token})
+    assert reponse_rejouee.status_code == 401
+
+    # Le jeton légitime, lui, a été révoqué par précaution.
+    reponse_nouveau = client.post("/api/v1/auth/refresh", json={"refresh_token": nouveau_refresh_token})
+    assert reponse_nouveau.status_code == 401
+
+    utilisateur = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
+    notif = (
+        db_session.query(Notification)
+        .filter(Notification.id_utilisateur == utilisateur.id_utilisateur, Notification.type == "SECURITE_SESSION_COMPROMISE")
+        .first()
+    )
+    assert notif is not None
 
 
 def test_refresh_token_nest_jamais_stocke_en_clair(client, db_session):

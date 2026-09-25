@@ -213,8 +213,17 @@ def refresh_token(request: Request, refresh_in: TokenRefreshRequest, db: Session
     de rafraîchissement (Refresh Token). Fait tourner ce dernier à chaque
     appel (voir services.faire_tourner_refresh_token) : le jeton renvoyé
     ici remplace celui fourni, qui devient invalide immédiatement.
+
+    La réutilisation d'un jeton déjà révoqué déclenche une révocation
+    complète de toutes les sessions du client (voir
+    services.RefreshTokenReutiliseError) — mais la réponse reste ici un 401
+    générique, identique à un jeton simplement invalide, pour ne donner
+    aucune information à qui rejoue un jeton volé.
     """
-    db_token = services.valider_refresh_token(db, refresh_in.refresh_token)
+    try:
+        db_token = services.valider_refresh_token(db, refresh_in.refresh_token)
+    except services.RefreshTokenReutiliseError:
+        db_token = None
     if not db_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -7,6 +7,16 @@ from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# Hachage bcrypt valide mais sans mot de passe en clair connu de personne —
+# sert uniquement à faire consommer à verify_password() le même coût CPU
+# qu'une vérification réelle quand l'utilisateur n'existe pas (voir
+# auth.services.authentifier_utilisateur). Sans ça, un e-mail inexistant
+# répond immédiatement alors qu'un e-mail existant attend le temps du
+# hachage bcrypt : cet écart de latence, mesurable à distance, permet à un
+# attaquant de découvrir quels comptes existent sans jamais tenter un seul
+# mot de passe.
+HACHAGE_FACTICE = "$2b$12$aCd3VUqytmw01E9ad6vNKeq0uLsN2wuqHll9IUr1N48q/wi2gPEfW"
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Vérifier si un mot de passe en clair correspond à sa version hachée.
