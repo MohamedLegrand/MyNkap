@@ -32,6 +32,7 @@ import {
   ClientDetailModal,
   TransactionSuspecteDetailModal,
   PlanModal,
+  AvisDetailModal,
 } from '../components/AdminModals';
 import type {
   AdminClientListItem,
@@ -99,6 +100,7 @@ export const AdminDashboard: React.FC = () => {
   const [fraudTransactions, setFraudTransactions] = useState<AdminTransactionSuspecteItem[]>([]);
   const [fraudOverview, setFraudOverview] = useState<AdminFraudeOverview | null>(null);
   const [avisList, setAvisList] = useState<AdminAvisItem[]>([]);
+  const [avisSelectionne, setAvisSelectionne] = useState<AdminAvisItem | null>(null);
 
   const fetchAdminKPIs = useCallback(async () => {
     try {
@@ -1119,7 +1121,14 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-4 max-w-xs">
-                      <p className="text-muted-foreground line-clamp-2">{a.commentaire}</p>
+                      <button
+                        type="button"
+                        onClick={() => setAvisSelectionne(a)}
+                        className="text-left text-muted-foreground line-clamp-2 hover:text-foreground hover:underline"
+                        title={t('admin.dashboard.avis.view_full')}
+                      >
+                        {a.commentaire}
+                      </button>
                     </td>
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
@@ -1216,6 +1225,16 @@ export const AdminDashboard: React.FC = () => {
         isOpen={idTransactionDetail !== null}
         idTransaction={idTransactionDetail}
         onClose={() => setIdTransactionDetail(null)}
+      />
+
+      <AvisDetailModal
+        isOpen={avisSelectionne !== null}
+        avis={avisSelectionne}
+        onClose={() => setAvisSelectionne(null)}
+        onModerer={async (idAvis, statut) => {
+          await handleModererAvis(idAvis, statut);
+          setAvisSelectionne(null);
+        }}
       />
     </AdminLayout>
   );

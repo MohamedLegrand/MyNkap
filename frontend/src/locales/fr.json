@@ -1124,6 +1124,10 @@
         "main_balance_label": "Solde principal du client",
         "total_transactions_label": "Transactions totales",
         "suspicious_count_label": "Dont suspectes"
+      },
+      "avis_detail": {
+        "title": "Avis complet",
+        "submitted_label": "Envoyé le"
       }
     },
     "dashboard": {
@@ -1272,6 +1276,7 @@
         "subtitle": "Modération des avis avant publication sur la landing page",
         "th_note": "Note",
         "th_comment": "Commentaire",
+        "view_full": "Cliquer pour lire l'avis complet",
         "publish": "Publier",
         "reject": "Rejeter",
         "none": "Aucun avis pour le moment."

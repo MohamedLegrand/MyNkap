@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, ShieldCheck, ShieldOff, Key, Sliders, CheckCircle2, FileCode, Loader2, UserCog, Crown, AlertOctagon, Wand2 } from 'lucide-react';
+import { X, ShieldCheck, ShieldOff, Key, Sliders, CheckCircle2, XCircle, FileCode, Loader2, UserCog, Crown, AlertOctagon, Wand2, Star, MessageSquareHeart } from 'lucide-react';
 import { api } from '../services/api';
 import { PasswordInput } from './PasswordInput';
 import { genererMotDePasse } from '../utils/genererMotDePasse';
-import type { AdminClientDetail, AdminTransactionSuspecteDetail, Plan } from '../types';
+import type { AdminClientDetail, AdminTransactionSuspecteDetail, Plan, AdminAvisItem } from '../types';
 
 // --- 1. Modal Créer un Administrateur ---
 interface CreateAdminModalProps {
@@ -866,6 +866,88 @@ export const TransactionSuspecteDetailModal: React.FC<TransactionSuspecteDetailM
             </>
           )}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// --- 8. Modal Détail Avis (commentaire complet, jamais tronqué) + modération ---
+interface AvisDetailModalProps {
+  isOpen: boolean;
+  avis: AdminAvisItem | null;
+  onClose: () => void;
+  onModerer: (idAvis: number, statut: 'PUBLIE' | 'REJETE') => void | Promise<void>;
+}
+
+export const AvisDetailModal: React.FC<AvisDetailModalProps> = ({ isOpen, avis, onClose, onModerer }) => {
+  const { t } = useTranslation();
+  if (!isOpen || !avis) return null;
+
+  const STATUT_CLASSNAME: Record<AdminAvisItem['statut'], string> = {
+    PUBLIE: 'bg-forest-500/10 text-forest-600',
+    REJETE: 'bg-destructive/10 text-destructive',
+    EN_ATTENTE: 'bg-amber-500/10 text-amber-600',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
+          <div className="flex items-center gap-2">
+            <MessageSquareHeart className="h-5 w-5 text-primary" />
+            <h3 className="text-base font-bold">{t('admin.modals.avis_detail.title')}</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <strong className="block text-sm text-foreground">{avis.nom_client}</strong>
+              <span className="text-muted-foreground">{avis.email_client}</span>
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Star key={n} className={`h-4 w-4 ${n <= avis.note ? 'fill-secondary text-secondary' : 'text-muted-foreground/30'}`} />
+              ))}
+            </div>
+          </div>
+
+          {/* Commentaire intégral — jamais tronqué ici, contrairement à
+              l'aperçu du tableau (line-clamp-2) : c'est tout l'intérêt de
+              cette modale, pouvoir lire l'avis en entier avant de statuer. */}
+          <div className="bg-muted/30 p-4 rounded-xl border border-border">
+            <p className="text-foreground whitespace-pre-wrap break-words leading-relaxed">{avis.commentaire}</p>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+            <span>{t('admin.modals.avis_detail.submitted_label')} {new Date(avis.date_creation).toLocaleDateString('fr-FR')}</span>
+            <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${STATUT_CLASSNAME[avis.statut]}`}>
+              {avis.statut}
+            </span>
+          </div>
+        </div>
+
+        {avis.statut === 'EN_ATTENTE' && (
+          <div className="p-4 border-t border-border flex gap-3 shrink-0">
+            <button
+              onClick={() => onModerer(avis.id_avis, 'REJETE')}
+              className="flex-1 py-2.5 rounded-xl bg-destructive/10 text-destructive text-sm font-bold border border-destructive/20 inline-flex items-center justify-center gap-1.5 hover:bg-destructive/15"
+            >
+              <XCircle className="h-4 w-4" />
+              <span>{t('admin.dashboard.avis.reject')}</span>
+            </button>
+            <button
+              onClick={() => onModerer(avis.id_avis, 'PUBLIE')}
+              className="flex-1 py-2.5 rounded-xl bg-forest-500/10 text-forest-600 text-sm font-bold border border-forest-500/20 inline-flex items-center justify-center gap-1.5 hover:bg-forest-500/15"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{t('admin.dashboard.avis.publish')}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

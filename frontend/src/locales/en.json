@@ -1125,6 +1125,10 @@
         "main_balance_label": "Client's main balance",
         "total_transactions_label": "Total transactions",
         "suspicious_count_label": "Of which suspicious"
+      },
+      "avis_detail": {
+        "title": "Full review",
+        "submitted_label": "Submitted on"
       }
     },
     "dashboard": {
@@ -1273,6 +1277,7 @@
         "subtitle": "Moderate reviews before they appear on the landing page",
         "th_note": "Rating",
         "th_comment": "Comment",
+        "view_full": "Click to read the full review",
         "publish": "Publish",
         "reject": "Reject",
         "none": "No reviews yet."
