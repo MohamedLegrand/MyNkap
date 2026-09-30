@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import secrets
+import time
 import wave
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -12,6 +13,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.modules.analyse import service as analyse_service
 from app.modules.budgets import service as budgets_service
 from app.modules.budgets.schemas import BudgetCreate
 from app.modules.comptes import service as comptes_service
@@ -21,6 +23,7 @@ from app.modules.epargne import service as epargne_service
 from app.modules.jarvis.models import ActionIA, Conversation, Message
 from app.modules.tontines import service as tontines_service
 from app.modules.transactions import service as transactions_service
+from app.modules.transactions.models import Transaction
 from app.modules.transactions.schemas import TransactionCreate
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -45,6 +48,15 @@ logger = logging.getLogger(__name__)
 # comme contexte à chaque nouvel appel — pas de résumé/compression, une
 # limite simple suffit vu la taille du reste du projet.
 NB_MESSAGES_CONTEXTE = 10
+
+# Contexte enrichi (historique de transactions + résultats du module
+# Analyse) — jamais chargé pour la bulle de chat générale, uniquement quand
+# la question vient de l'onglet Analyse (voir poser_question, type_analyse).
+# Une limite est nécessaire : un client avec des années d'historique ferait
+# exploser la taille du prompt (coût, latence, risque de dépassement du
+# contexte du modèle) sans apporter de valeur au-delà de quelques mois.
+NB_JOURS_HISTORIQUE_TRANSACTIONS_ANALYSE = 90
+NB_TRANSACTIONS_MAX_CONTEXTE_ANALYSE = 40
 
 SYSTEM_PROMPT_TEMPLATE = """Tu es JARVIS, l'assistant financier de MyNkap, un expert en finance \
 personnelle et en comptabilité pour le marché d'Afrique Centrale (XAF).
@@ -89,9 +101,23 @@ ou incorrecte.
 - Si le client décrit plusieurs opérations ou plusieurs catégories à budgéter dans un seul \
 message, propose une action distincte pour chacune dans le tableau "actions" — n'hésite pas à en \
 proposer plusieurs à la fois.
+- Si le client te pose une question qui n'a aucun rapport avec ses finances ou ses habitudes de \
+gestion (ou qui n'a pas de sens), ne tente jamais d'y répondre littéralement ni d'inventer un \
+lien avec ses finances : rappelle poliment en une phrase que tu es un conseiller financier et \
+recentre sur ce que tu peux réellement l'aider à faire avec ses données réelles.
+- Un contexte d'analyse supplémentaire peut être fourni ci-dessous (historique détaillé de \
+transactions, score financier, résultats d'analyse déjà affichés au client) : c'est que le client \
+te consulte depuis l'onglet Analyse. Appuie-toi dessus en priorité pour repérer de vrais schémas \
+concrets (une catégorie qui explose, une dépense récurrente qui n'a pas de sens au vu du reste, un \
+écart entre ce que le client dit vouloir et ce que montre son historique réel) — remets \
+explicitement en cause ce que tu observes plutôt que de commenter les chiffres passivement. \
+Challenge le client avec 1 à 3 questions concrètes et chiffrées à la fois (jamais plus, pour ne \
+pas le noyer), toujours ancrées dans une transaction ou un montant réel qu'il a effectué — jamais \
+une question générique ("comment allez-vous ?", "avez-vous un budget ?").
 
 Situation financière actuelle du client :
 {contexte_financier}
+{contexte_analyse_supplementaire}
 
 {catalogue_comptes_categories}
 
@@ -259,6 +285,66 @@ def _construire_contexte_financier(db: Session, id_client: int) -> str:
     return "\n".join(lignes)
 
 
+def _construire_contexte_analyse(db: Session, id_client: int, type_analyse: Optional[str]) -> str:
+    """
+    Contexte enrichi injecté uniquement quand la question vient de l'onglet
+    Analyse (voir poser_question) : l'historique détaillé des transactions
+    (jamais seulement des agrégats — JARVIS doit pouvoir remettre en cause
+    des dépenses précises, pas juste des totaux par catégorie), le score
+    financier, et les résultats déjà calculés par le module Analyse pour le
+    type que le client est en train de regarder — pour que JARVIS commente
+    exactement ce que le client voit à l'écran, jamais un calcul divergent.
+
+    Un type_analyse inconnu/absent ne fait jamais échouer la requête : on
+    retombe simplement sur HABITUDES, jamais d'erreur remontée au client
+    pour une valeur que lui-même n'a pas saisie (elle vient du frontend).
+    """
+    date_min = date.today() - timedelta(days=NB_JOURS_HISTORIQUE_TRANSACTIONS_ANALYSE)
+    transactions = (
+        db.query(Transaction)
+        .filter(
+            Transaction.id_client == id_client,
+            Transaction.type.in_(("DEPENSE", "REVENU")),
+            Transaction.date >= date_min,
+        )
+        .order_by(Transaction.date.desc())
+        .limit(NB_TRANSACTIONS_MAX_CONTEXTE_ANALYSE)
+        .all()
+    )
+
+    lignes = [
+        f"- Historique des {len(transactions)} transactions les plus récentes "
+        f"(sur les {NB_JOURS_HISTORIQUE_TRANSACTIONS_ANALYSE} derniers jours) :"
+        if transactions
+        else f"- Aucune transaction sur les {NB_JOURS_HISTORIQUE_TRANSACTIONS_ANALYSE} derniers jours."
+    ]
+    for transaction in transactions:
+        categorie = transaction.categorie.nom if transaction.categorie else "—"
+        signe = "+" if transaction.type == "REVENU" else "-"
+        description = f" ({transaction.description})" if transaction.description else ""
+        lignes.append(
+            f"  - {transaction.date.isoformat()} : {signe}{transaction.montant} XAF, {categorie}{description}"
+        )
+
+    type_valide = type_analyse if type_analyse in analyse_service.CALCULATEURS_ANALYSE else "HABITUDES"
+    resultat_analyse = analyse_service.obtenir_analyse_courante(db, id_client, type_valide)
+    lignes.append(f"- Score financier du mois en cours : {resultat_analyse['score_financier']}/100")
+    lignes.append(
+        f"- Analyse {type_valide} du mois en cours (déjà affichée au client à l'écran) : "
+        + json.dumps(resultat_analyse["resultats"], ensure_ascii=False, default=str)
+    )
+
+    if type_analyse in analyse_service.CALCULATEURS_PREDICTION:
+        resultat_prediction = analyse_service.obtenir_prediction_courante(db, id_client, type_analyse)
+        lignes.append(
+            f"- Prédiction {type_analyse} déjà affichée au client à l'écran : "
+            f"montant_predit={resultat_prediction['montant_predit']}, "
+            f"recommandation=\"{resultat_prediction['recommandations']}\""
+        )
+
+    return "\n".join(lignes)
+
+
 def _formatter_catalogue_pour_ia(comptes: list, categories: list) -> str:
     """
     Liste les comptes/catégories réels du client avec leur identifiant —
@@ -398,6 +484,13 @@ def _construire_historique(conversation: Conversation) -> List[dict]:
     return [{"role": role_par_type[m.type], "content": m.contenu} for m in messages_precedents]
 
 
+# Une question inhabituelle ou mal formulée ne doit jamais faire échouer
+# tout l'échange à cause d'un simple aléa réseau/timeout ponctuel côté
+# Groq — une seule tentative supplémentaire, jamais plus (pas de boucle
+# qui retarderait indéfiniment une vraie panne du fournisseur).
+NB_TENTATIVES_GROQ = 2
+
+
 def _appeler_groq(system_prompt: str, historique: List[dict], question: str) -> dict:
     """
     Appel structuré (JSON mode) à l'API Groq, compatible OpenAI — pas de
@@ -407,36 +500,45 @@ def _appeler_groq(system_prompt: str, historique: List[dict], question: str) -> 
     """
     messages = [{"role": "system", "content": system_prompt}, *historique, {"role": "user", "content": question}]
 
-    try:
-        reponse = httpx.post(
-            GROQ_API_URL,
-            headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": GROQ_MODEL,
-                "messages": messages,
-                "response_format": {"type": "json_object"},
-                "temperature": 0.3,
-            },
-            timeout=20.0,
-        )
-        reponse.raise_for_status()
-        contenu_brut = reponse.json()["choices"][0]["message"]["content"]
-        return json.loads(contenu_brut)
-    except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError) as erreur:
-        # Toujours logué côté serveur : le message générique renvoyé au
-        # client (voir router.poser_question) ne dit jamais pourquoi — sans
-        # ce log, une clé invalide ou un modèle retiré du catalogue Groq
-        # (déjà arrivé, voir GROQ_MODEL) serait indiagnosticable à distance.
-        corps_reponse = getattr(erreur, "response", None)
-        logger.warning(
-            "Échec Groq (chat completions) : type=%s message=%s statut=%s corps=%s",
-            type(erreur).__name__, erreur, getattr(corps_reponse, "status_code", None),
-            getattr(corps_reponse, "text", "")[:500],
-        )
-        raise ServiceIAIndisponibleError(str(erreur))
+    derniere_erreur: Optional[Exception] = None
+    for tentative in range(1, NB_TENTATIVES_GROQ + 1):
+        try:
+            reponse = httpx.post(
+                GROQ_API_URL,
+                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": GROQ_MODEL,
+                    "messages": messages,
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.3,
+                },
+                timeout=20.0,
+            )
+            reponse.raise_for_status()
+            contenu_brut = reponse.json()["choices"][0]["message"]["content"]
+            return json.loads(contenu_brut)
+        except (httpx.HTTPError, KeyError, IndexError, json.JSONDecodeError) as erreur:
+            derniere_erreur = erreur
+            corps_reponse = getattr(erreur, "response", None)
+            logger.warning(
+                "Échec Groq (chat completions), tentative %d/%d : type=%s message=%s statut=%s corps=%s",
+                tentative, NB_TENTATIVES_GROQ, type(erreur).__name__, erreur,
+                getattr(corps_reponse, "status_code", None), getattr(corps_reponse, "text", "")[:500],
+            )
+            if tentative < NB_TENTATIVES_GROQ:
+                time.sleep(0.5)
+
+    # Toujours logué côté serveur : le message générique renvoyé au client
+    # (voir router.poser_question) ne dit jamais pourquoi — sans ce log,
+    # une clé invalide ou un modèle retiré du catalogue Groq (déjà arrivé,
+    # voir GROQ_MODEL) serait indiagnosticable à distance.
+    raise ServiceIAIndisponibleError(str(derniere_erreur))
 
 
-def poser_question(db: Session, id_client: int, id_conversation: UUID, contenu: str, canal: str = "TEXTE") -> Message:
+def poser_question(
+    db: Session, id_client: int, id_conversation: UUID, contenu: str, canal: str = "TEXTE",
+    type_analyse: Optional[str] = None,
+) -> Message:
     conversation = obtenir_conversation_du_client(db, id_conversation, id_client)
     if conversation is None:
         raise ConversationIntrouvableError()
@@ -447,11 +549,23 @@ def poser_question(db: Session, id_client: int, id_conversation: UUID, contenu: 
     db.add(question)
 
     contexte_financier = _construire_contexte_financier(db, id_client)
+    # Uniquement construit quand la question vient de l'onglet Analyse (voir
+    # AnalyseSection côté frontend) — jamais pour la bulle de chat générale,
+    # pour ne pas alourdir un simple "quel est mon solde ?" avec tout
+    # l'historique de transactions et les calculs du module Analyse.
+    contexte_analyse = (
+        "\nContexte d'analyse actuel (le client te consulte depuis l'onglet Analyse) :\n"
+        + _construire_contexte_analyse(db, id_client, type_analyse)
+        if type_analyse
+        else ""
+    )
     comptes = comptes_service.lister_comptes(db, id_client)
     categories = budgets_service.obtenir_categories(db, id_client)
     catalogue = _formatter_catalogue_pour_ia(comptes, categories)
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
-        contexte_financier=contexte_financier, catalogue_comptes_categories=catalogue
+        contexte_financier=contexte_financier,
+        contexte_analyse_supplementaire=contexte_analyse,
+        catalogue_comptes_categories=catalogue,
     )
 
     try:

@@ -703,3 +703,144 @@ def test_poser_question_vocale_rejette_un_enregistrement_trop_volumineux(client,
         headers=headers,
     )
     assert reponse.status_code == 400
+
+
+# --- Contexte enrichi depuis l'onglet Analyse (type_analyse) ---
+
+def test_type_analyse_injecte_historique_transactions_et_resultats_analyse(client, monkeypatch):
+    """
+    Quand la question vient de l'onglet Analyse (payload.type_analyse), le
+    system prompt doit contenir l'historique détaillé des transactions
+    (pas seulement des agrégats) et les résultats déjà calculés par le
+    module Analyse pour ce type — jamais pour une question "normale" sans
+    type_analyse (voir test_type_analyse_absent_najoute_rien_au_prompt).
+    """
+    headers = _register_and_login(client, "jarvis.analyse.contexte@example.com")
+    compte = client.post(
+        "/api/v1/comptes", json={"nom": "Cash", "type": "ESPECES", "solde_initial": 200000}, headers=headers
+    ).json()
+    categorie = next(
+        c for c in client.get("/api/v1/categories", headers=headers).json()
+        if c["type"] == "DEPENSE"
+    )
+    client.post(
+        "/api/v1/transactions",
+        json={
+            "id_compte": compte["id_compte"], "id_categorie": categorie["id_categorie"],
+            "montant": 12345, "type": "DEPENSE", "description": "Marché du dimanche",
+        },
+        headers=headers,
+    )
+
+    contexte_capture = {}
+
+    def fausse_reponse(system_prompt, historique, question):
+        contexte_capture["system_prompt"] = system_prompt
+        return _reponse_groq()
+
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", fausse_reponse)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Que penses-tu de mes habitudes ?", "type_analyse": "HABITUDES"},
+        headers=headers,
+    )
+    assert reponse.status_code == 201
+
+    prompt = contexte_capture["system_prompt"]
+    assert "Contexte d'analyse actuel" in prompt
+    assert "Marché du dimanche" in prompt
+    assert "12345" in prompt
+    assert "Score financier du mois en cours" in prompt
+    assert "Analyse HABITUDES" in prompt
+
+
+def test_type_analyse_absent_najoute_rien_au_prompt(client, monkeypatch):
+    """La bulle de chat générale (sans type_analyse) ne doit jamais payer le
+    coût du contexte enrichi — comportement strictement inchangé."""
+    headers = _register_and_login(client, "jarvis.sans.analyse@example.com")
+
+    contexte_capture = {}
+
+    def fausse_reponse(system_prompt, historique, question):
+        contexte_capture["system_prompt"] = system_prompt
+        return _reponse_groq()
+
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", fausse_reponse)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Quel est mon solde ?"},
+        headers=headers,
+    )
+    assert "Contexte d'analyse actuel" not in contexte_capture["system_prompt"]
+
+
+def test_type_analyse_inconnu_ne_fait_jamais_echouer_la_requete(client, monkeypatch):
+    """Un type_analyse invalide/inattendu (bug frontend, valeur manipulée...)
+    ne doit jamais faire planter la requête — repli silencieux sur
+    HABITUDES, jamais d'erreur remontée au client pour un champ qu'il ne
+    saisit pas lui-même."""
+    headers = _register_and_login(client, "jarvis.analyse.type.bizarre@example.com")
+    monkeypatch.setattr(jarvis_service, "_appeler_groq", lambda *a, **k: _reponse_groq())
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Une question", "type_analyse": "CECI_NEXISTE_PAS"},
+        headers=headers,
+    )
+    assert reponse.status_code == 201
+
+
+def test_message_uniquement_des_espaces_est_rejete(client):
+    """min_length=1 seul laisse passer un message qui ne contient que des
+    espaces — voir MessageCreate._rejeter_message_vide_apres_nettoyage."""
+    headers = _register_and_login(client, "jarvis.message.vide@example.com")
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "   \n\t  "},
+        headers=headers,
+    )
+    assert reponse.status_code == 422
+
+
+def test_appel_groq_reessaie_une_fois_avant_dechouer(client, monkeypatch):
+    """Une panne transitoire (timeout réseau ponctuel) ne doit pas faire
+    échouer tout l'échange si une seconde tentative immédiate aurait
+    réussi — voir jarvis.service.NB_TENTATIVES_GROQ."""
+    headers = _register_and_login(client, "jarvis.retry@example.com")
+
+    appels = {"nombre": 0}
+
+    class FausseReponseHTTP:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": '{"contenu": "ok", "actions": []}'}}]}
+
+    def faux_post(url, headers=None, json=None, timeout=None):
+        appels["nombre"] += 1
+        if appels["nombre"] == 1:
+            import httpx
+            raise httpx.ConnectTimeout("simulation d'un aléa réseau ponctuel")
+        return FausseReponseHTTP()
+
+    monkeypatch.setattr(jarvis_service.httpx, "post", faux_post)
+    monkeypatch.setattr(jarvis_service.time, "sleep", lambda *_: None)
+
+    conversation = client.post("/api/v1/jarvis/conversations", json={}, headers=headers).json()
+    reponse = client.post(
+        f"/api/v1/jarvis/conversations/{conversation['id_conversation']}/messages",
+        json={"contenu": "Une question"},
+        headers=headers,
+    )
+    assert reponse.status_code == 201
+    assert appels["nombre"] == 2

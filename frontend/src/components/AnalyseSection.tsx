@@ -17,6 +17,7 @@ import {
   Lightbulb,
   CheckCircle2,
   MessageCircle,
+  Bot,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -32,6 +33,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { api } from '../services/api';
+import { JarvisWidget } from './JarvisWidget';
 import i18n from '../i18n';
 import type { AnalyseFinanciere, Prediction, Budget, Categorie } from '../types';
 
@@ -857,6 +859,26 @@ export const AnalyseSection: React.FC = () => {
           />
         )
       )}
+
+      {/* JARVIS intégré à l'onglet Analyse — instance distincte de la bulle
+          flottante générale (JarvisFloatingBubble), enrichie du type
+          d'analyse actuellement affiché (voir JarvisWidget.typeAnalyse) :
+          historique détaillé des transactions + résultats d'analyse
+          injectés côté backend uniquement pour cette instance. */}
+      <div className="space-y-3 pt-2">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <Bot className="h-4 w-4 text-secondary" />
+          <span>{t('analyse.jarvis_section_title')}</span>
+        </h3>
+        <JarvisWidget
+          typeAnalyse={mode === 'analyse' ? typeAnalyse : typePrediction}
+          typeAnalyseLabel={t(
+            (mode === 'analyse' ? TYPES_ANALYSE : TYPES_PREDICTION).find(
+              (item) => item.valeur === (mode === 'analyse' ? typeAnalyse : typePrediction)
+            )?.labelKey ?? ''
+          )}
+        />
+      </div>
     </div>
   );
 };

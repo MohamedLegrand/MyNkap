@@ -7,7 +7,18 @@ import type { ActionIA, JarvisConversation, JarvisConversationDetail, JarvisMess
 
 const CLE_DERNIERE_CONVERSATION = 'mynkap_jarvis_derniere_conversation';
 
-export const JarvisWidget: React.FC = () => {
+interface JarvisWidgetProps {
+  // Renseignés uniquement quand ce widget est intégré dans l'onglet Analyse
+  // (voir AnalyseSection) — type technique envoyé au backend pour enrichir
+  // le contexte de JARVIS (historique de transactions, résultats d'analyse
+  // déjà affichés), et son libellé traduit pour l'affichage. La bulle
+  // flottante générale (JarvisFloatingBubble) n'en passe aucun : comportement
+  // strictement inchangé pour elle.
+  typeAnalyse?: string;
+  typeAnalyseLabel?: string;
+}
+
+export const JarvisWidget: React.FC<JarvisWidgetProps> = ({ typeAnalyse, typeAnalyseLabel }) => {
   const { t } = useTranslation();
   const [conversations, setConversations] = useState<JarvisConversation[]>([]);
   const [conversationActuelle, setConversationActuelle] = useState<string | null>(null);
@@ -25,12 +36,20 @@ export const JarvisWidget: React.FC = () => {
   const historiqueRef = useRef<HTMLDivElement | null>(null);
 
   const [actionsEnCours, setActionsEnCours] = useState<Set<string>>(new Set());
+  // Identifiant local du message optimiste (avant la vraie réponse serveur)
+  // — un simple compteur en ref plutôt que Date.now()/crypto.randomUUID :
+  // ces appels sont considérés impurs par la règle react-hooks/purity dès
+  // qu'ils apparaissent dans le corps du composant, même dans un gestionnaire
+  // d'événement asynchrone jamais exécuté pendant le rendu lui-même.
+  const compteurMessageOptimiste = useRef(0);
 
   const messageAccueil: JarvisMessage = {
     id_message: 'accueil',
     type: 'REPONSE',
     canal: 'TEXTE',
-    contenu: t('jarvis.welcome_message'),
+    contenu: typeAnalyse
+      ? t('jarvis.welcome_message_analyse', { label: typeAnalyseLabel ?? typeAnalyse })
+      : t('jarvis.welcome_message'),
     necessite_clarification: false,
     options_suggerees: null,
     peut_se_permettre: null,
@@ -39,6 +58,15 @@ export const JarvisWidget: React.FC = () => {
     actions: [],
     date_creation: new Date().toISOString(),
   };
+
+  // Suggestions cliquables pour démarrer une conversation depuis l'onglet
+  // Analyse sans avoir à taper — le clic envoie directement le texte comme
+  // premier message (voir envoyerTexte).
+  const suggestionsDemarrage = [
+    t('jarvis.starter_review'),
+    t('jarvis.starter_questions'),
+    t('jarvis.starter_savings'),
+  ];
 
   const chargerConversations = () => {
     api.request<JarvisConversation[]>('/jarvis/conversations')
@@ -188,9 +216,11 @@ export const JarvisWidget: React.FC = () => {
     }
   };
 
-  const envoyerMessageTexte = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const question = query.trim();
+  // Partagée entre le formulaire (saisie libre), les puces de suggestion de
+  // démarrage et les puces de clarification (QCM) de JARVIS — un seul
+  // chemin d'envoi, jamais dupliqué.
+  const envoyerTexte = async (texteBrut: string) => {
+    const question = texteBrut.trim();
     if (!question || isSending) return;
 
     setError(null);
@@ -199,7 +229,7 @@ export const JarvisWidget: React.FC = () => {
     try {
       const idConversation = await obtenirOuCreerConversation();
       const messageOptimiste: JarvisMessage = {
-        id_message: `optimiste-${Date.now()}`,
+        id_message: `optimiste-${compteurMessageOptimiste.current++}`,
         type: 'QUESTION',
         canal: 'TEXTE',
         contenu: question,
@@ -215,7 +245,7 @@ export const JarvisWidget: React.FC = () => {
 
       const reponse = await api.request<JarvisMessage>(`/jarvis/conversations/${idConversation}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ contenu: question }),
+        body: JSON.stringify(typeAnalyse ? { contenu: question, type_analyse: typeAnalyse } : { contenu: question }),
       });
       setMessages((prev) => [...prev, reponse]);
       chargerConversations();
@@ -224,6 +254,11 @@ export const JarvisWidget: React.FC = () => {
     } finally {
       setIsSending(false);
     }
+  };
+
+  const envoyerMessageTexte = (e: React.FormEvent) => {
+    e.preventDefault();
+    envoyerTexte(query);
   };
 
   const envoyerMessageVocal = async (blob: Blob) => {
@@ -296,7 +331,9 @@ export const JarvisWidget: React.FC = () => {
               <span>JARVIS IA</span>
               <span className="text-[10px] bg-secondary/20 text-secondary px-1.5 py-0.2 rounded font-black uppercase">{t('jarvis.active')}</span>
             </h3>
-            <p className="text-[11px] text-muted-foreground">{t('jarvis.tagline')}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {typeAnalyse ? t('jarvis.tagline_analyse', { label: typeAnalyseLabel ?? typeAnalyse }) : t('jarvis.tagline')}
+            </p>
           </div>
         </div>
 
@@ -382,6 +419,21 @@ export const JarvisWidget: React.FC = () => {
                 {msg.conseil_supplementaire && (
                   <p className="text-[11px] italic opacity-80 pt-1 border-t border-border/40">{msg.conseil_supplementaire}</p>
                 )}
+                {msg.type === 'REPONSE' && msg.necessite_clarification && msg.options_suggerees && msg.options_suggerees.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1.5 mt-1 border-t border-border/40">
+                    {msg.options_suggerees.map((option, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => envoyerTexte(option)}
+                        disabled={enCours}
+                        className="px-2.5 py-1.5 rounded-lg border border-secondary/40 bg-background/70 text-secondary text-[11px] font-bold hover:bg-secondary/10 disabled:opacity-60 transition-colors"
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {msg.actions.length > 0 && (
                   <div className="space-y-1.5 pt-1.5 mt-1 border-t border-border/40">
                     {msg.actions.map((action) => (
@@ -434,6 +486,20 @@ export const JarvisWidget: React.FC = () => {
             <div className="p-3 rounded-2xl bg-muted border border-border/60 rounded-tl-none">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
             </div>
+          </div>
+        )}
+        {typeAnalyse && messages.length === 0 && !enCours && (
+          <div className="flex flex-wrap gap-1.5 justify-start pl-1">
+            {suggestionsDemarrage.map((suggestion, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => envoyerTexte(suggestion)}
+                className="px-2.5 py-1.5 rounded-lg border border-secondary/40 bg-secondary/5 text-secondary text-[11px] font-bold hover:bg-secondary/10 transition-colors"
+              >
+                {suggestion}
+              </button>
+            ))}
           </div>
         )}
       </div>

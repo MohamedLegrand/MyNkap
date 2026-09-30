@@ -715,7 +715,8 @@
     "budget_risk_none": "No budget seems at risk of being exceeded at the current pace. Your current management is very good, keep it up!",
     "savings_capacity_positive": "You have room to save this month. Consider transferring this amount to a savings account as soon as you receive your income, before being tempted to spend it elsewhere.",
     "savings_capacity_negative": "Your expenses currently cover all of your income: hard to save this month. Try to find one spending item to cut, even a small one.",
-    "future_expenses_note": "This estimate is based on your average over the last 3 months. It will become more accurate over time as we gather more data on your habits."
+    "future_expenses_note": "This estimate is based on your average over the last 3 months. It will become more accurate over time as we gather more data on your habits.",
+    "jarvis_section_title": "Discuss it with JARVIS"
   },
   "jarvis": {
     "welcome_message": "Hello! I'm JARVIS, your AI financial assistant. Ask me a question about your finances, by text or by voice.",
@@ -736,7 +737,12 @@
     "recording": "Recording...",
     "ask_placeholder": "Ask JARVIS a question...",
     "stop_recording": "Stop recording",
-    "ask_by_voice": "Ask a question by voice"
+    "ask_by_voice": "Ask a question by voice",
+    "welcome_message_analyse": "I'm looking at your {{label}} with you. Ask me a question, or pick a suggestion below to get started.",
+    "tagline_analyse": "Aware of your {{label}}",
+    "starter_review": "What do you think of my spending habits?",
+    "starter_questions": "Ask me questions to help me manage my money better",
+    "starter_savings": "Where could I save money?"
   },
   "locked": {
     "not_included": "{{titre}} is not included in your current plan",

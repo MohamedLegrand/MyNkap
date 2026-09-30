@@ -100,7 +100,9 @@ def poser_question(
     situation financière réelle du client (lecture seule, aucune action
     n'est exécutée dans cette version)."""
     try:
-        return service.poser_question(db, client.id_client, id_conversation, payload.contenu)
+        return service.poser_question(
+            db, client.id_client, id_conversation, payload.contenu, type_analyse=payload.type_analyse
+        )
     except service.ConversationIntrouvableError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation introuvable")
     except service.ServiceIAIndisponibleError:

@@ -714,7 +714,8 @@
     "budget_risk_none": "Aucun budget ne semble menacé de dépassement au rythme actuel. Votre gestion actuelle est très bonne, continuez ainsi !",
     "savings_capacity_positive": "Vous avez de la marge pour épargner ce mois-ci. Pensez à virer cette somme vers un compte épargne dès réception de vos revenus, avant d'être tenté de la dépenser ailleurs.",
     "savings_capacity_negative": "Vos dépenses couvrent actuellement l'ensemble de vos revenus : difficile d'épargner ce mois-ci. Essayez de repérer un poste de dépense à réduire, même léger.",
-    "future_expenses_note": "Cette estimation se base sur votre moyenne des 3 derniers mois. Elle deviendra plus précise avec le temps, au fur et à mesure que nous accumulons davantage de données sur vos habitudes."
+    "future_expenses_note": "Cette estimation se base sur votre moyenne des 3 derniers mois. Elle deviendra plus précise avec le temps, au fur et à mesure que nous accumulons davantage de données sur vos habitudes.",
+    "jarvis_section_title": "Discutez-en avec JARVIS"
   },
   "jarvis": {
     "welcome_message": "Bonjour ! Je suis JARVIS, votre assistant financier IA. Posez-moi une question sur vos finances, à l'écrit ou à l'oral.",
@@ -735,7 +736,12 @@
     "recording": "Enregistrement en cours...",
     "ask_placeholder": "Posez votre question à JARVIS...",
     "stop_recording": "Arrêter l'enregistrement",
-    "ask_by_voice": "Poser une question à la voix"
+    "ask_by_voice": "Poser une question à la voix",
+    "welcome_message_analyse": "Je regarde vos {{label}} avec vous. Posez-moi une question, ou choisissez une suggestion ci-dessous pour démarrer.",
+    "tagline_analyse": "Conscient de vos {{label}}",
+    "starter_review": "Que penses-tu de mes habitudes de dépense ?",
+    "starter_questions": "Pose-moi des questions pour m'aider à mieux gérer mon argent",
+    "starter_savings": "Où est-ce que je pourrais économiser ?"
   },
   "locked": {
     "not_included": "{{titre}} n'est pas inclus dans votre forfait actuel",

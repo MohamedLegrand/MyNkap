@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ConversationCreate(BaseModel):
@@ -11,6 +11,25 @@ class ConversationCreate(BaseModel):
 
 class MessageCreate(BaseModel):
     contenu: str = Field(..., min_length=1, max_length=2000)
+    # Renseigné uniquement quand la question vient de l'onglet Analyse (voir
+    # AnalyseSection côté frontend) — une des clés de analyse.CALCULATEURS_ANALYSE
+    # ou CALCULATEURS_PREDICTION. Une valeur non reconnue ne fait jamais
+    # échouer la requête (voir jarvis.service._construire_contexte_analyse,
+    # qui retombe silencieusement sur HABITUDES) : ce champ vient du
+    # frontend, jamais tapé par le client, une erreur 422 ici ne l'aiderait
+    # à rien corriger.
+    type_analyse: Optional[str] = Field(default=None, max_length=30)
+
+    @field_validator("contenu")
+    @classmethod
+    def _rejeter_message_vide_apres_nettoyage(cls, valeur: str) -> str:
+        # min_length=1 seul laisse passer un message composé uniquement
+        # d'espaces/retours à la ligne — inutile d'aller jusqu'à l'appel IA
+        # pour un message qui ne contient rien à traiter.
+        nettoye = valeur.strip()
+        if not nettoye:
+            raise ValueError("Le message ne peut pas être vide.")
+        return nettoye
 
 
 class ActionIAOut(BaseModel):
