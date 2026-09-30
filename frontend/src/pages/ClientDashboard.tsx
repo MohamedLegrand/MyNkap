@@ -464,7 +464,7 @@ export const ClientDashboard: React.FC = () => {
           {abonnement?.plan.acces_jarvis && (
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => document.getElementById('jarvis-widget')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => setActiveTab('jarvis')}
                 className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-3 px-5 rounded-xl border border-white/25 backdrop-blur-md transition-all flex items-center gap-2"
               >
                 <Bot className="h-4 w-4" />
@@ -859,11 +859,12 @@ export const ClientDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Colonne Droite (Budgets, Épargne & Widget JARVIS) - 1 tier */}
+            {/* Colonne Droite (Budgets, Épargne) - 1 tier — le widget JARVIS
+                (chat complet) a été retiré d'ici : il prenait trop de place
+                dans la Vue d'ensemble. Toujours accessible en entier via son
+                propre onglet ("Poser une question à JARVIS" ci-dessus, ou le
+                menu latéral), voir plus bas activeTab === 'jarvis'. */}
             <div className="space-y-8">
-              {/* Widget Assistant Virtuel JARVIS IA — réservé au forfait Premium */}
-              {abonnement?.plan.acces_jarvis && <JarvisWidget />}
-
               {/* Suivi des Budgets par Catégorie */}
               <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
