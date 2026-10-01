@@ -40,6 +40,11 @@ def initier_recharge(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Seul le compte Abonnement peut être rechargé.",
             )
+        except service.RechargeDejaEnCoursError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Une recharge est déjà en cours pour ce compte, merci de patienter quelques instants.",
+            )
         except service.PaiementRefuseError as erreur:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
         except service.ServicePaiementIndisponibleError:
@@ -67,6 +72,11 @@ def initier_recharge(
         )
     except service.PaysOuOperateurInvalideError as erreur:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
+    except service.RechargeDejaEnCoursError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Une recharge est déjà en cours pour ce compte, merci de patienter quelques instants.",
+        )
     except service.PaiementRefuseError as erreur:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
     except service.ServicePaiementIndisponibleError:

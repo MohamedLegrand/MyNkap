@@ -86,6 +86,19 @@
   }
 }
 
+/* Safari iOS zoome automatiquement la page quand un champ de saisie a une
+   police < 16px au focus — indépendant du <meta viewport> ci-dessus. On
+   force 16px uniquement sur mobile pour ne pas changer le design desktop ;
+   !important nécessaire pour passer devant les classes Tailwind (text-xs,
+   text-sm...) déjà posées sur ces champs dans les formulaires. */
+@media screen and (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 @layer utilities {
   /* Bandeau de confiance qui défile horizontalement sans jamais s'arrêter
      (voir la section "Conçu pour la sécurité..." de la landing page). La

@@ -25,6 +25,8 @@ from app.modules.admin.schemas import (
     AdminPaiementItem,
     AdminPaiementListResponse,
     AdminPlanCreate,
+    AdminRechargeItem,
+    AdminRechargeListResponse,
     AdminPlanUpdate,
     AdminResetPasswordResponse,
     AdminStatusUpdate,
@@ -474,6 +476,27 @@ def list_paiements(
     Réservé aux administrateurs.
     """
     return service.lister_paiements_admin(
+        db, q=q, statut=statut, page=page, page_size=page_size
+    )
+
+@router.get(
+    "/recharges",
+    response_model=AdminRechargeListResponse,
+    summary="Lister et filtrer l'historique des recharges de compte (Admin)"
+)
+def list_recharges(
+    q: Optional[str] = Query(None, description="Recherche par email client ou référence HR-Skills Pay"),
+    statut: Optional[str] = Query(None, description="Filtre par statut de recharge (PENDING, SUCCESS, FAILED)"),
+    page: int = Query(1, ge=1, description="Numéro de page"),
+    page_size: int = Query(20, ge=1, le=100, description="Taille de page"),
+    current_admin: Administrateur = Depends(get_current_active_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Consulter l'historique des recharges de compte (Mobile Money ou carte) — distinct des paiements
+    de souscription (voir /admin/paiements). Réservé aux administrateurs.
+    """
+    return service.lister_recharges_admin(
         db, q=q, statut=statut, page=page, page_size=page_size
     )
 

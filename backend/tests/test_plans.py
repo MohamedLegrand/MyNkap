@@ -132,6 +132,28 @@ def test_initier_paiement_cree_un_paiement_pending(client, monkeypatch):
     assert client.get("/api/v1/abonnement", headers=headers).json()["plan"]["nom"] != "ESSENTIEL"
 
 
+def test_initier_paiement_alors_quun_est_deja_pending_est_refuse(client, db_session, monkeypatch):
+    """
+    Garde-fou anti-double-paiement (miroir du test recharges) : un second
+    clic ne doit jamais créer un deuxième PaiementAbonnement tant que le
+    premier est encore PENDING.
+    """
+    headers = _register_and_login(client, "plans.doubleclic@example.com")
+    monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_premiere")
+
+    corps = {
+        "nom_plan": "ESSENTIEL", "cycle_facturation": "MENSUEL",
+        "phone_number": "237655500393", "operator": "orange", "pays": "CM",
+    }
+    premiere = client.post("/api/v1/abonnement/paiements", json=corps, headers=headers)
+    assert premiere.status_code == 201
+
+    seconde = client.post("/api/v1/abonnement/paiements", json=corps, headers=headers)
+    assert seconde.status_code == 409
+
+    assert db_session.query(PaiementAbonnement).count() == 1
+
+
 def test_initier_paiement_sans_telephone_est_refuse(client, monkeypatch):
     headers = _register_and_login(client, "plans.sanstelephone@example.com")
     monkeypatch.setattr(plans_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_test")

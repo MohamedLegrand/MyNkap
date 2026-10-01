@@ -34,7 +34,9 @@ from app.modules.audit.service import enregistrer_action
 # correspondante — jamais l'extension d'origine du fichier envoyé, qui n'a
 # aucune garantie de correspondre à son contenu réel.
 EXTENSIONS_PAR_TYPE_AVATAR = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
-TAILLE_MAX_AVATAR = 3 * 1024 * 1024  # 3 Mo
+# Même raisonnement que comptes_router.TAILLE_MAX_LOGO : un avatar est une
+# petite image carrée, jamais une photo pleine résolution.
+TAILLE_MAX_AVATAR = 1 * 1024 * 1024  # 1 Mo
 
 
 def _contenu_correspond_au_type_declare(contenu: bytes, content_type: str) -> bool:
@@ -350,7 +352,7 @@ async def uploader_photo_profil(
     if len(contenu) > TAILLE_MAX_AVATAR:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La photo dépasse la taille maximale autorisée (3 Mo).",
+            detail="La photo dépasse la taille maximale autorisée (1 Mo).",
         )
     if not _contenu_correspond_au_type_declare(contenu, photo.content_type):
         raise HTTPException(

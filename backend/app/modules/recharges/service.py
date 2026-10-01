@@ -57,6 +57,17 @@ class PaiementRefuseError(Exception):
     """
 
 
+class RechargeDejaEnCoursError(Exception):
+    """
+    Une recharge PENDING existe déjà pour ce compte — même raisonnement
+    que plans.service.PaiementDejaEnCoursError : l'idempotency_key envoyée
+    à HR-Skills Pay est basée sur id_recharge, donc elle ne protège que le
+    retry réseau d'UNE ligne déjà créée, jamais une double soumission qui
+    en crée une nouvelle (double clic, double tap, nouvel essai après
+    lenteur réseau). Seul ce garde-fou empêche un double débit réel.
+    """
+
+
 def _client_hrpay() -> hrpay.HRPayClient:
     return hrpay.HRPayClient(settings.HRPAY_PUBLIC_KEY, settings.HRPAY_SECRET_KEY)
 
@@ -67,7 +78,7 @@ def _valider_pays_et_operateur(pays: str, operator: str) -> str:
     try:
         pays_enum = hrpay.Country(pays)
     except ValueError:
-        raise PaysOuOperateurInvalideError(f"Pays non couvert par HR-Skills Pay : {pays}.")
+        raise PaysOuOperateurInvalideError(f"La recharge n'est pas disponible pour le pays « {pays} ».")
 
     operateurs_disponibles = hrpay.operators_for_country(pays_enum)
     if operator.upper() not in [op.value for op in operateurs_disponibles]:
@@ -76,7 +87,7 @@ def _valider_pays_et_operateur(pays: str, operator: str) -> str:
     for info in hrpay.operators_by_country():
         if info.country == pays_enum:
             return info.currency.value
-    raise PaysOuOperateurInvalideError(f"Pays non couvert par HR-Skills Pay : {pays}.")
+    raise PaysOuOperateurInvalideError(f"La recharge n'est pas disponible pour le pays « {pays} ».")
 
 
 def _appeler_hrpay_cash_in(
@@ -103,6 +114,24 @@ def _verifier_statut_hrpay(reference: str) -> str:
         return statut.value if hasattr(statut, "value") else statut
 
 
+def _verifier_aucune_recharge_en_cours(db: Session, id_client: int, id_compte: int) -> None:
+    """
+    Garde-fou anti-double-paiement : voir RechargeDejaEnCoursError pour le
+    raisonnement complet (miroir de plans.service._verifier_aucun_paiement_en_cours).
+    """
+    existe_deja = (
+        db.query(RechargeCompte)
+        .filter(
+            RechargeCompte.id_client == id_client,
+            RechargeCompte.id_compte == id_compte,
+            RechargeCompte.statut == "PENDING",
+        )
+        .first()
+    )
+    if existe_deja is not None:
+        raise RechargeDejaEnCoursError()
+
+
 def initier_recharge(
     db: Session, id_client: int, id_compte: int, montant: Decimal, phone_number: str, operator: str, pays: str
 ) -> RechargeCompte:
@@ -126,6 +155,7 @@ def initier_recharge(
         raise CompteNonRechargeableError()
     if not phone_number or not operator:
         raise TelephoneOperateurRequisError()
+    _verifier_aucune_recharge_en_cours(db, id_client, id_compte)
 
     devise = _valider_pays_et_operateur(pays, operator)
 
@@ -231,6 +261,7 @@ def initier_recharge_carte(
         raise CompteIntrouvableError()
     if compte.type != "ABONNEMENT":
         raise CompteNonRechargeableError()
+    _verifier_aucune_recharge_en_cours(db, id_client, id_compte)
 
     recharge = RechargeCompte(
         id_client=id_client,
@@ -336,6 +367,10 @@ def verifier_recharges_en_attente(db: Session) -> int:
                 f"Votre recharge de {recharge.montant} {recharge.devise} a bien été créditée sur votre compte.",
             )
         elif statut in ("FAILED", "REFUNDED"):
+            logger.warning(
+                "Recharge %s passée FAILED : methode=%s reference=%s statut_fournisseur=%s",
+                recharge.id_recharge, recharge.methode, recharge.reference_hrpay, statut,
+            )
             recharge.statut = "FAILED"
             db.commit()
             nb_traites += 1

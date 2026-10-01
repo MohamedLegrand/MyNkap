@@ -103,6 +103,11 @@ def initier_paiement(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Un cycle de facturation (MENSUEL ou ANNUEL) est requis pour ce plan.",
             )
+        except service.PaiementDejaEnCoursError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Un paiement est déjà en cours pour votre abonnement, merci de patienter quelques instants.",
+            )
         except service.PaiementRefuseError as erreur:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
         except service.ServicePaiementIndisponibleError:
@@ -130,6 +135,11 @@ def initier_paiement(
         )
     except service.PaysOuOperateurInvalideError as erreur:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
+    except service.PaiementDejaEnCoursError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un paiement est déjà en cours pour votre abonnement, merci de patienter quelques instants.",
+        )
     except service.PaiementRefuseError as erreur:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erreur))
     except service.ServicePaiementIndisponibleError:

@@ -446,6 +446,21 @@ export interface AdminPaiementItem {
   date_confirmation: string | null;
 }
 
+export interface AdminRechargeItem {
+  id_recharge: number;
+  id_client: number;
+  email_client: string;
+  nom_compte: string;
+  methode: 'MOBILE_MONEY' | 'CARTE';
+  montant: number;
+  devise: string;
+  pays: string;
+  reference_hrpay: string;
+  statut: 'PENDING' | 'SUCCESS' | 'FAILED';
+  date_creation: string;
+  date_confirmation: string | null;
+}
+
 export interface Avis {
   id_avis: number;
   note: number;

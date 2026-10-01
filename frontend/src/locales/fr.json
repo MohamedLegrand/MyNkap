@@ -784,10 +784,10 @@
       "logo_label": "Logo (facultatif)",
       "logo_import": "Importer mon logo",
       "logo_none": "Aucun logo",
-      "logo_hint": "Choisissez un logo dans la liste ou importez le vôtre (JPEG, PNG ou WebP, 3 Mo max). Sans choix, le logo par défaut du type s'applique (Mobile Money, espèces), sinon il reste vide.",
+      "logo_hint": "Choisissez un logo dans la liste ou importez le vôtre (JPEG, PNG ou WebP, 1 Mo max). Sans choix, le logo par défaut du type s'applique (Mobile Money, espèces), sinon il reste vide.",
       "logo_preview_alt": "Aperçu du logo du compte",
       "logo_error_type": "Format non supporté : utilisez une image JPEG, PNG ou WebP.",
-      "logo_error_size": "L'image dépasse la taille maximale autorisée (3 Mo).",
+      "logo_error_size": "L'image dépasse la taille maximale autorisée (1 Mo).",
       "logo_upload_failed": "Le compte est créé, mais l'import du logo a échoué. Réessayez."
     },
     "categorie": {
@@ -905,7 +905,7 @@
       "change_photo": "Changer la photo",
       "remove_photo": "Supprimer",
       "photo_error_type": "Format non supporté (JPEG, PNG ou WebP uniquement).",
-      "photo_error_size": "La photo dépasse 3 Mo.",
+      "photo_error_size": "La photo dépasse 1 Mo.",
       "updated": "Profil mis à jour."
     },
     "transaction_recurrente": {
@@ -1237,6 +1237,7 @@
         "by_plan": "Par plan",
         "tab_subscriptions": "Abonnements",
         "tab_payments": "Paiements",
+        "tab_recharges": "Recharges",
         "tab_plans": "Plans tarifaires",
         "new_plan": "Nouveau plan",
         "th_monthly_price": "Prix mensuel",
@@ -1253,6 +1254,8 @@
         "th_action_single": "Action",
         "validate_manually": "Valider manuellement",
         "none_payments": "Aucun paiement.",
+        "th_target_account": "Compte crédité",
+        "none_recharges": "Aucune recharge.",
         "access_badges": {
           "dettes": "Dettes",
           "epargne": "Épargne",

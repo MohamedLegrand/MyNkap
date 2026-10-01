@@ -39,6 +39,7 @@ export const obtenirLogoCompte = (compte: Pick<CompteFinancier, 'type' | 'nom' |
   compte.logo || logoParDefaut(compte);
 
 // Formats acceptés à l'import (mêmes que le backend : SVG exclu, il peut
-// embarquer du script) et taille maximale (3 Mo, comme la photo de profil).
+// embarquer du script) et taille maximale (1 Mo, même limite que le backend
+// — un logo est une petite image carrée, jamais une photo pleine résolution).
 export const TYPES_LOGO_IMPORTE = ['image/jpeg', 'image/png', 'image/webp'];
-export const TAILLE_MAX_LOGO_OCTETS = 3 * 1024 * 1024;
+export const TAILLE_MAX_LOGO_OCTETS = 1 * 1024 * 1024;

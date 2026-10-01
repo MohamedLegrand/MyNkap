@@ -62,6 +62,18 @@ class PaiementRefuseError(Exception):
     """
 
 
+class PaiementDejaEnCoursError(Exception):
+    """
+    Un paiement PENDING existe déjà pour ce client — un second clic (double
+    clic, double tap, nouvel essai après lenteur réseau) créerait une
+    deuxième ligne PaiementAbonnement avec sa propre idempotency_key
+    (basée sur id_paiement), donc un second débit réel chez HR-Skills Pay :
+    l'idempotency_key protège un retry réseau sur la MÊME ligne, jamais
+    une double soumission qui en crée une nouvelle. Ce garde-fou est la
+    seule protection contre un double paiement.
+    """
+
+
 class EssaiInactifError(Exception):
     """Le client n'est pas (ou plus) en période d'essai — rien à confirmer."""
 
@@ -450,7 +462,7 @@ def _valider_pays_et_operateur(pays: str, operator: str) -> str:
     try:
         pays_enum = hrpay.Country(pays)
     except ValueError:
-        raise PaysOuOperateurInvalideError(f"Pays non couvert par HR-Skills Pay : {pays}.")
+        raise PaysOuOperateurInvalideError(f"La recharge n'est pas disponible pour le pays « {pays} ».")
 
     operateurs_disponibles = hrpay.operators_for_country(pays_enum)
     if operator.upper() not in [op.value for op in operateurs_disponibles]:
@@ -461,7 +473,7 @@ def _valider_pays_et_operateur(pays: str, operator: str) -> str:
     for info in hrpay.operators_by_country():
         if info.country == pays_enum:
             return info.currency.value
-    raise PaysOuOperateurInvalideError(f"Pays non couvert par HR-Skills Pay : {pays}.")
+    raise PaysOuOperateurInvalideError(f"La recharge n'est pas disponible pour le pays « {pays} ».")
 
 
 def _obtenir_prix(db: Session, plan: Plan, devise: str) -> tuple:
@@ -476,7 +488,7 @@ def _obtenir_prix(db: Session, plan: Plan, devise: str) -> tuple:
         .first()
     )
     if prix is None:
-        raise PaysOuOperateurInvalideError(f"Aucun prix défini pour {plan.nom} en {devise}.")
+        raise PaysOuOperateurInvalideError(f"Le plan {plan.nom} n'est pas disponible dans cette devise pour le moment.")
     return prix.prix_mensuel, prix.prix_annuel
 
 
@@ -524,6 +536,23 @@ def obtenir_paiement_du_client(db: Session, id_paiement: int, id_client: int) ->
     )
 
 
+def _verifier_aucun_paiement_en_cours(db: Session, id_client: int) -> None:
+    """
+    Garde-fou anti-double-paiement : un paiement PENDING récent pour ce
+    client bloque toute nouvelle tentative (Mobile Money ou carte). Sans ce
+    contrôle, un double clic crée deux PaiementAbonnement distincts, chacun
+    avec sa propre idempotency_key — donc deux débits réels chez HR-Skills
+    Pay (voir PaiementDejaEnCoursError).
+    """
+    existe_deja = (
+        db.query(PaiementAbonnement)
+        .filter(PaiementAbonnement.id_client == id_client, PaiementAbonnement.statut == "PENDING")
+        .first()
+    )
+    if existe_deja is not None:
+        raise PaiementDejaEnCoursError()
+
+
 def initier_paiement_plan(
     db: Session, id_client: int, nom_plan: str, cycle_facturation: str, phone_number: str, operator: str, pays: str
 ) -> PaiementAbonnement:
@@ -541,6 +570,7 @@ def initier_paiement_plan(
         raise CycleFacturationRequisError()
     if not phone_number or not operator:
         raise TelephoneOperateurRequisError()
+    _verifier_aucun_paiement_en_cours(db, id_client)
 
     # Résout la devise réelle depuis le pays choisi (jamais plan.devise, qui
     # n'est que le prix de référence XAF affiché sur la page publique), puis
@@ -654,6 +684,7 @@ def initier_paiement_plan_carte(
         raise PlanIntrouvableError()
     if cycle_facturation not in DUREE_CYCLE:
         raise CycleFacturationRequisError()
+    _verifier_aucun_paiement_en_cours(db, id_client)
 
     montant = plan.prix_mensuel if cycle_facturation == "MENSUEL" else plan.prix_annuel
 
@@ -732,6 +763,10 @@ def verifier_paiements_en_attente(db: Session) -> int:
                 lien="/admin?tab=subscriptions",
             )
         elif statut in ("FAILED", "REFUNDED"):
+            logger.warning(
+                "Paiement %s passé FAILED : methode=%s reference=%s statut_fournisseur=%s",
+                paiement.id_paiement, paiement.methode, paiement.reference_hrpay, statut,
+            )
             paiement.statut = "FAILED"
             db.commit()
             nb_traites += 1

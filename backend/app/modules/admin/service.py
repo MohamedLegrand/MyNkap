@@ -31,6 +31,8 @@ from app.modules.admin.schemas import (
     AdminListItem,
     AdminPaiementItem,
     AdminPaiementListResponse,
+    AdminRechargeItem,
+    AdminRechargeListResponse,
     AdminPlanCreate,
     AdminPlanUpdate,
     AdminResetPasswordResponse,
@@ -62,6 +64,7 @@ from app.modules.avis.models import Avis
 from app.modules.notifications import service as notifications_service
 from app.modules.plans import service as plans_service
 from app.modules.plans.models import Abonnement, PaiementAbonnement, Plan
+from app.modules.recharges.models import RechargeCompte
 from app.modules.transactions.models import Transaction
 
 # --- Services de Gestion des Clients ---
@@ -1079,6 +1082,66 @@ def lister_paiements_admin(
         page_size=page_size,
         items=items,
     )
+
+
+def lister_recharges_admin(
+    db: Session,
+    q: Optional[str] = None,
+    statut: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> AdminRechargeListResponse:
+    """
+    Lister et filtrer l'historique des recharges de compte (Mobile Money ou
+    carte) — distinct de lister_paiements_admin, qui ne couvre que les
+    paiements de souscription (PaiementAbonnement) : sans cette fonction,
+    aucune recharge n'apparaît nulle part côté admin.
+    """
+    query = db.query(RechargeCompte, Client.email, CompteFinancier.nom).join(
+        Client, RechargeCompte.id_client == Client.id_client
+    ).join(CompteFinancier, RechargeCompte.id_compte == CompteFinancier.id_compte)
+
+    if q:
+        search_pattern = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Client.email.ilike(search_pattern),
+                RechargeCompte.reference_hrpay.ilike(search_pattern),
+            )
+        )
+    if statut:
+        query = query.filter(RechargeCompte.statut.ilike(f"%{statut.strip()}%"))
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    results = query.order_by(RechargeCompte.date_creation.desc()).offset(offset).limit(page_size).all()
+
+    items = []
+    for r, email, nom_compte in results:
+        items.append(
+            AdminRechargeItem(
+                id_recharge=r.id_recharge,
+                id_client=r.id_client,
+                email_client=email,
+                nom_compte=nom_compte,
+                methode=r.methode,
+                montant=Decimal(str(r.montant)),
+                devise=r.devise,
+                pays=r.pays,
+                reference_hrpay=r.reference_hrpay,
+                statut=r.statut,
+                date_creation=r.date_creation,
+                date_confirmation=r.date_confirmation,
+            )
+        )
+
+    return AdminRechargeListResponse(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=items,
+    )
+
 
 def forcer_abonnement_client_admin(
     db: Session,

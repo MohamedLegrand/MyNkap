@@ -71,6 +71,33 @@ def test_initier_recharge_cree_une_recharge_pending(client, monkeypatch):
     assert Decimal(solde) == Decimal("0")
 
 
+def test_initier_recharge_alors_quune_est_deja_pending_est_refuse(client, monkeypatch):
+    """
+    Garde-fou anti-double-paiement : un second clic (ou une nouvelle requête
+    pendant que la première est encore PENDING) ne doit jamais créer une
+    deuxième ligne RechargeCompte — ça créerait un deuxième débit réel chez
+    HR-Skills Pay (idempotency_key basée sur id_recharge, donc différente
+    pour chaque nouvelle ligne).
+    """
+    headers = _register_and_login(client, "recharge.doubleclic@example.com")
+    compte = _compte_abonnement(client, headers)
+    monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_premiere")
+
+    corps = {
+        "id_compte": compte["id_compte"], "montant": 10000,
+        "phone_number": "237655500393", "operator": "orange", "pays": "CM",
+    }
+    premiere = client.post("/api/v1/recharges", json=corps, headers=headers)
+    assert premiere.status_code == 201
+
+    seconde = client.post("/api/v1/recharges", json=corps, headers=headers)
+    assert seconde.status_code == 409
+
+    # Une seule ligne a réellement été créée en base.
+    recharges = client.get("/api/v1/recharges", headers=headers).json()
+    assert len(recharges) == 1
+
+
 def test_initier_recharge_sur_un_compte_non_abonnement_est_refuse(client, monkeypatch):
     headers = _register_and_login(client, "recharge.nonabonnement@example.com")
     compte = _creer_compte(client, headers)

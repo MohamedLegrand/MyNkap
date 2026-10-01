@@ -17,7 +17,10 @@ from app.modules.comptes.schemas import (
 router = APIRouter(prefix="/comptes", tags=["Comptes financiers"])
 
 EXTENSIONS_PAR_TYPE_LOGO = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
-TAILLE_MAX_LOGO = 3 * 1024 * 1024  # 3 Mo
+# Un logo de compte est une petite image carrée, jamais une photo : 1 Mo est
+# déjà généreux (ex-3 Mo, resserré pour ne pas alourdir le stockage/la bande
+# passante pour ce type de fichier).
+TAILLE_MAX_LOGO = 1 * 1024 * 1024  # 1 Mo
 
 
 def _contenu_correspond_au_type_declare(contenu: bytes, content_type: str) -> bool:
@@ -113,7 +116,7 @@ async def importer_logo(
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_active_client),
 ):
-    """Importe le logo personnalisé d'un compte (JPEG, PNG ou WebP, 3 Mo max)."""
+    """Importe le logo personnalisé d'un compte (JPEG, PNG ou WebP, 1 Mo max)."""
     compte = _get_compte_ou_404(db, id_compte, client.id_client)
 
     extension = EXTENSIONS_PAR_TYPE_LOGO.get(logo.content_type)
@@ -126,7 +129,7 @@ async def importer_logo(
     if len(contenu) > TAILLE_MAX_LOGO:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le logo dépasse la taille maximale autorisée (3 Mo).",
+            detail="Le logo dépasse la taille maximale autorisée (1 Mo).",
         )
     if not _contenu_correspond_au_type_declare(contenu, logo.content_type):
         raise HTTPException(

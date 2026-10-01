@@ -46,6 +46,7 @@ import type {
   AuditStatsResponse,
   AdminAbonnementOverview,
   AdminPaiementItem,
+  AdminRechargeItem,
   AdminFraudeOverview,
   AdminAvisItem,
   Plan,
@@ -78,7 +79,7 @@ export const AdminDashboard: React.FC = () => {
 
   const [idClientDetail, setIdClientDetail] = useState<number | null>(null);
   const [idTransactionDetail, setIdTransactionDetail] = useState<number | null>(null);
-  const [modeSubscriptions, setModeSubscriptions] = useState<'abonnements' | 'paiements' | 'plans'>('abonnements');
+  const [modeSubscriptions, setModeSubscriptions] = useState<'abonnements' | 'paiements' | 'recharges' | 'plans'>('abonnements');
 
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [planEnEdition, setPlanEnEdition] = useState<Plan | null>(null);
@@ -96,6 +97,7 @@ export const AdminDashboard: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<AdminAbonnementItem[]>([]);
   const [subscriptionsOverview, setSubscriptionsOverview] = useState<AdminAbonnementOverview | null>(null);
   const [paiements, setPaiements] = useState<AdminPaiementItem[]>([]);
+  const [recharges, setRecharges] = useState<AdminRechargeItem[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [fraudTransactions, setFraudTransactions] = useState<AdminTransactionSuspecteItem[]>([]);
   const [fraudOverview, setFraudOverview] = useState<AdminFraudeOverview | null>(null);
@@ -153,15 +155,17 @@ export const AdminDashboard: React.FC = () => {
 
   const fetchSubscriptions = useCallback(async () => {
     try {
-      const [res, overview, paiementsRes, plansRes] = await Promise.all([
+      const [res, overview, paiementsRes, rechargesRes, plansRes] = await Promise.all([
         api.request<Paginated<AdminAbonnementItem>>('/admin/abonnements'),
         api.request<AdminAbonnementOverview>('/admin/abonnements/overview'),
         api.request<Paginated<AdminPaiementItem>>('/admin/paiements'),
+        api.request<Paginated<AdminRechargeItem>>('/admin/recharges'),
         api.request<Plan[]>('/admin/plans'),
       ]);
       setSubscriptions(res.items);
       setSubscriptionsOverview(overview);
       setPaiements(paiementsRes.items);
+      setRecharges(rechargesRes.items);
       setPlans(plansRes);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin.dashboard.errors.subscriptions'));
@@ -846,6 +850,12 @@ export const AdminDashboard: React.FC = () => {
                 {t('admin.dashboard.subscriptions.tab_payments')}
               </button>
               <button
+                onClick={() => setModeSubscriptions('recharges')}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'recharges' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                {t('admin.dashboard.subscriptions.tab_recharges')}
+              </button>
+              <button
                 onClick={() => setModeSubscriptions('plans')}
                 className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'plans' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
@@ -962,6 +972,42 @@ export const AdminDashboard: React.FC = () => {
               </table>
               </div>
               {subscriptions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_subscriptions')}</p>}
+            </div>
+          ) : modeSubscriptions === 'recharges' ? (
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
+                  <tr>
+                    <th className="p-4">{t('admin.dashboard.common.th_client')}</th>
+                    <th className="p-4">{t('admin.dashboard.subscriptions.th_target_account')}</th>
+                    <th className="p-4">{t('modals.payment_method.label')}</th>
+                    <th className="p-4">{t('transfers.amount')}</th>
+                    <th className="p-4">{t('modals.plan_upgrade.reference')}</th>
+                    <th className="p-4">{t('admin.dashboard.common.th_status')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-medium">
+                  {recharges.map((r) => (
+                    <tr key={r.id_recharge} className="hover:bg-muted/30">
+                      <td className="p-4 font-bold text-foreground">{r.email_client}</td>
+                      <td className="p-4 text-primary font-bold">{r.nom_compte}</td>
+                      <td className="p-4 text-muted-foreground">{r.methode === 'CARTE' ? t('modals.payment_method.card') : t('modals.payment_method.mobile_money')}</td>
+                      <td className="p-4 font-black">{formatXAF(r.montant)}</td>
+                      <td className="p-4 font-mono text-[11px] text-muted-foreground">{r.reference_hrpay}</td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full text-[10px] ${
+                          r.statut === 'SUCCESS' ? 'bg-forest-500/10 text-forest-600' : r.statut === 'FAILED' ? 'bg-destructive/10 text-destructive' : 'bg-amber-500/10 text-amber-600'
+                        }`}>
+                          {r.statut}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </div>
+              {recharges.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_recharges')}</p>}
             </div>
           ) : (
             <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">

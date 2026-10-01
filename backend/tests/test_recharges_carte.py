@@ -74,6 +74,40 @@ def test_initier_recharge_carte_renvoie_checkout_url_et_applique_le_gross_up(cli
     assert Decimal(solde) == Decimal("0")
 
 
+def test_initier_recharge_carte_bloquee_par_une_recharge_mobile_money_deja_pending(client, db_session, monkeypatch):
+    """
+    Le garde-fou anti-double-paiement est par compte, pas par rail : une
+    recharge Mobile Money encore PENDING doit aussi bloquer une tentative
+    par carte sur le même compte (et inversement) — sinon un client pressé
+    pourrait débiter les deux rails pour la même recharge.
+    """
+    headers = _register_and_login(client, "carte.recharge.doublerail@example.com")
+    compte = _compte_abonnement(client, headers)
+    monkeypatch.setattr(recharges_service, "_appeler_hrpay_cash_in", lambda *a, **k: "ref_momo")
+    monkeypatch.setattr(
+        recharges_service, "_creer_paiement_carte",
+        lambda *a, **k: PaiementCarteCree(reference="card_xyz", checkout_url="https://pay.enkap.cm/xyz", statut="PENDING"),
+    )
+
+    momo = client.post(
+        "/api/v1/recharges",
+        json={
+            "id_compte": compte["id_compte"], "montant": 10000,
+            "phone_number": "237655500393", "operator": "orange", "pays": "CM",
+        },
+        headers=headers,
+    )
+    assert momo.status_code == 201
+
+    carte = client.post(
+        "/api/v1/recharges",
+        json={"id_compte": compte["id_compte"], "montant": 10000, "methode": "CARTE"},
+        headers=headers,
+    )
+    assert carte.status_code == 409
+    assert db_session.query(RechargeCompte).count() == 1
+
+
 def test_initier_recharge_carte_ne_reclame_pas_de_telephone(client, monkeypatch):
     headers = _register_and_login(client, "carte.recharge.sanstel@example.com")
     compte = _compte_abonnement(client, headers)

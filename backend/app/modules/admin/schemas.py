@@ -233,6 +233,29 @@ class AdminPaiementListResponse(BaseModel):
     page_size: int
     items: List[AdminPaiementItem]
 
+class AdminRechargeItem(BaseModel):
+    id_recharge: int
+    id_client: int
+    email_client: EmailStr
+    nom_compte: str
+    methode: str
+    montant: Decimal
+    devise: str
+    pays: str
+    reference_hrpay: str
+    statut: str
+    date_creation: datetime
+    date_confirmation: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class AdminRechargeListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[AdminRechargeItem]
+
 class AdminForceAbonnementPayload(BaseModel):
     id_plan: int
     cycle_facturation: Optional[Literal["MENSUEL", "ANNUEL"]] = Field("MENSUEL", description="MENSUEL ou ANNUEL")

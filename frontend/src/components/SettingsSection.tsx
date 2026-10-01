@@ -27,7 +27,7 @@ const LANGUES: { valeur: string; label: string }[] = [
   { valeur: 'en', label: 'English' },
 ];
 const TYPES_PHOTO_ACCEPTES = ['image/jpeg', 'image/png', 'image/webp'];
-const TAILLE_MAX_PHOTO = 3 * 1024 * 1024; // 3 Mo, même limite que le backend
+const TAILLE_MAX_PHOTO = 1 * 1024 * 1024; // 1 Mo, même limite que le backend
 
 const CARD = 'bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4';
 const INPUT = 'w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary';

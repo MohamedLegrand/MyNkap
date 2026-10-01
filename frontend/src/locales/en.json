@@ -785,10 +785,10 @@
       "logo_label": "Logo (optional)",
       "logo_import": "Upload my logo",
       "logo_none": "No logo",
-      "logo_hint": "Pick a logo from the list or upload your own (JPEG, PNG or WebP, 3 MB max). If you don't, the type's default logo applies (Mobile Money, cash), otherwise it stays empty.",
+      "logo_hint": "Pick a logo from the list or upload your own (JPEG, PNG or WebP, 1 MB max). If you don't, the type's default logo applies (Mobile Money, cash), otherwise it stays empty.",
       "logo_preview_alt": "Account logo preview",
       "logo_error_type": "Unsupported format: please use a JPEG, PNG or WebP image.",
-      "logo_error_size": "The image exceeds the maximum allowed size (3 MB).",
+      "logo_error_size": "The image exceeds the maximum allowed size (1 MB).",
       "logo_upload_failed": "The account was created, but the logo upload failed. Please try again."
     },
     "categorie": {
@@ -906,7 +906,7 @@
       "change_photo": "Change photo",
       "remove_photo": "Remove",
       "photo_error_type": "Unsupported format (JPEG, PNG or WebP only).",
-      "photo_error_size": "The photo exceeds 3 MB.",
+      "photo_error_size": "The photo exceeds 1 MB.",
       "updated": "Profile updated."
     },
     "transaction_recurrente": {
@@ -1238,6 +1238,7 @@
         "by_plan": "By plan",
         "tab_subscriptions": "Subscriptions",
         "tab_payments": "Payments",
+        "tab_recharges": "Recharges",
         "tab_plans": "Pricing Plans",
         "new_plan": "New plan",
         "th_monthly_price": "Monthly price",
@@ -1254,6 +1255,8 @@
         "th_action_single": "Action",
         "validate_manually": "Validate manually",
         "none_payments": "No payments.",
+        "th_target_account": "Credited account",
+        "none_recharges": "No recharges.",
         "access_badges": {
           "dettes": "Debts",
           "epargne": "Savings",
