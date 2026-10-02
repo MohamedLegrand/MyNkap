@@ -1,3 +1,4 @@
+import logging
 import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +28,7 @@ from app.modules.tontines.router import router as tontines_router
 from app.modules.avis.router import router as avis_router
 from app.modules.recharges.router import router as recharges_router
 
+logger = logging.getLogger(__name__)
 
 # Le schéma de la base de données est géré par Alembic (voir backend/alembic/).
 # Lancer `alembic upgrade head` avant de démarrer l'API.
@@ -84,7 +86,12 @@ app.mount("/avatars", StaticFiles(directory=settings.AVATARS_DOSSIER), name="ava
 
 @app.exception_handler(MyNkapException)
 def mynkap_exception_handler(_request: Request, exc: MyNkapException):
-    return JSONResponse(status_code=400, content={"detail": str(exc) or "Erreur applicative MyNkap."})
+    # Jamais str(exc) dans la réponse : un futur module qui lève
+    # MyNkapException avec un détail interne (requête SQL, chemin de
+    # fichier...) ne doit jamais l'exposer tel quel au frontend. Le détail
+    # réel part dans les logs serveur, jamais dans la réponse HTTP.
+    logger.warning("MyNkapException non gérée spécifiquement : %s", exc)
+    return JSONResponse(status_code=400, content={"detail": "Une erreur est survenue, veuillez réessayer."})
 
 # Enregistrement des points d'accès (routes)
 app.include_router(auth_router, prefix=settings.API_V1_STR)

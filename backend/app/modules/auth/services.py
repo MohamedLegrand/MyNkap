@@ -5,13 +5,15 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
 import httpx
+from fastapi import Request
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import HACHAGE_FACTICE, get_password_hash, verify_password, create_access_token
-from app.modules.auth.models import Utilisateur, Client, Profile, RefreshToken
+from app.modules.audit.service import enregistrer_action
+from app.modules.auth.models import Utilisateur, Client, PendingInscription, Profile, RefreshToken
 from app.modules.auth.schemas import UserRegister, UserLogin, ResetPasswordRequest
 from app.modules.budgets import service as budgets_service
 from app.modules.comptes import service as comptes_service
@@ -83,27 +85,30 @@ class RefreshTokenReutiliseError(Exception):
 
 # --- Services d'Inscription et Connexion ---
 
-def creer_client(db: Session, client_in: UserRegister) -> Client:
+def _finaliser_creation_client(
+    db: Session, email: str, mot_de_passe_hache: str, first_name: str, last_name: str, phone: str
+) -> Client:
     """
-    Crée un nouvel utilisateur de type Client, lui génère son profil par défaut,
-    et persiste le tout en base de données.
+    Cœur commun de la création d'un Client (profil par défaut, catégories
+    usuelles, essai gratuit, compte Abonnement, notifications) — partagé
+    entre creer_client (mot de passe en clair, utilisé par le script de
+    seed de démonstration) et confirmer_inscription (mot de passe déjà
+    haché, stocké dans PendingInscription depuis demarrer_inscription).
+    Prend le mot de passe déjà haché pour ne jamais le hacher deux fois.
     """
-    # 1. Hachage du mot de passe
-    mot_de_passe_hache = get_password_hash(client_in.mot_de_passe)
-
-    # 2. Création de l'utilisateur de base
+    # 1. Création de l'utilisateur de base
     db_client = Client(
-        email=client_in.email,
+        email=email,
         mot_de_passe=mot_de_passe_hache,
-        first_name=client_in.first_name,
-        last_name=client_in.last_name,
-        phone=client_in.phone,
+        first_name=first_name,
+        last_name=last_name,
+        phone=phone,
         type="client"
     )
     db.add(db_client)
     db.flush()  # Pour récupérer l'id_client généré
 
-    # 3. Création du profil par défaut (XAF / FR)
+    # 2. Création du profil par défaut (XAF / FR)
     db_profile = Profile(
         id_client=db_client.id_client,
         devise="XAF",
@@ -111,15 +116,15 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
     )
     db.add(db_profile)
 
-    # 4. Catégories usuelles par défaut, pour que le client puisse
+    # 3. Catégories usuelles par défaut, pour que le client puisse
     # enregistrer une transaction dès sa première connexion (voir
     # budgets.service.creer_categories_par_defaut)
     budgets_service.creer_categories_par_defaut(db, db_client.id_client)
 
-    # 5. Essai gratuit de 7 jours, accès complet (voir plans.service.creer_abonnement_essai)
+    # 4. Essai gratuit de 7 jours, accès complet (voir plans.service.creer_abonnement_essai)
     plans_service.creer_abonnement_essai(db, db_client.id_client)
 
-    # 6. Compte financier dédié au paiement des abonnements — rechargeable
+    # 5. Compte financier dédié au paiement des abonnements — rechargeable
     # par le client et utilisé pour le renouvellement automatique (voir
     # comptes.service.creer_compte_abonnement)
     comptes_service.creer_compte_abonnement(db, db_client.id_client)
@@ -127,7 +132,7 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
     db.commit()
     db.refresh(db_client)
 
-    # 7. Notifications (bienvenue côté client, signalement côté admin) —
+    # 6. Notifications (bienvenue côté client, signalement côté admin) —
     # non bloquantes pour l'inscription : gérées dans leur propre commit,
     # après que le client existe déjà réellement en base.
     notifications_service.creer_notification_client(
@@ -144,6 +149,20 @@ def creer_client(db: Session, client_in: UserRegister) -> Client:
     )
 
     return db_client
+
+
+def creer_client(db: Session, client_in: UserRegister) -> Client:
+    """
+    Crée un nouvel utilisateur de type Client directement, mot de passe en
+    clair — utilisé par le script de seed de démonstration uniquement. Le
+    flux public d'inscription (POST /auth/register) ne passe plus par ici :
+    voir demarrer_inscription puis confirmer_inscription, qui ne créent le
+    Client qu'une fois le code OTP confirmé.
+    """
+    return _finaliser_creation_client(
+        db, client_in.email, get_password_hash(client_in.mot_de_passe),
+        client_in.first_name, client_in.last_name, client_in.phone,
+    )
 
 def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utilisateur]:
     """
@@ -268,40 +287,137 @@ def emettre_session(db: Session, utilisateur: Utilisateur) -> dict:
         "user_type": utilisateur.type,
     }
 
-# --- Services de vérification d'e-mail par code OTP (inscription) ---
+# --- Inscription en attente de confirmation par code OTP ---
+#
+# Le Client n'est créé qu'une fois le code confirmé (voir
+# confirmer_inscription) — jamais à POST /auth/register. Les fonctions
+# generer_et_envoyer_otp/verifier_otp ci-dessous restent le chemin LEGACY :
+# elles ne concernent que les comptes Client créés avant ce changement et
+# encore non vérifiés (voir PendingInscription pour le détail), un cas qui
+# ne peut plus se produire pour une inscription démarrée après.
 
-def generer_et_envoyer_otp(db: Session, utilisateur: Utilisateur) -> None:
-    """
-    Génère un code à 6 chiffres valable 45 minutes et l'envoie par e-mail
-    (Brevo). Appelé uniquement à l'inscription (voir router.register), pour
-    confirmer que l'adresse fournie est bien joignable — voir verifier_otp()
-    pour la seconde étape. Durée alignée sur le délai de renvoi côté
-    frontend (OtpVerificationStep.DUREE_COOLDOWN_RENVOI_SECONDES) : le code
-    reste valide pendant toute la fenêtre où le bouton "renvoyer" est
-    désactivé, sinon un client lent à consulter ses e-mails se retrouverait
-    bloqué sans code utilisable ni possibilité d'en redemander un.
-    """
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    utilisateur.otp_code = code
-    utilisateur.otp_expiration = datetime.utcnow() + timedelta(minutes=45)
-    db.commit()
+DUREE_VALIDITE_OTP_INSCRIPTION = timedelta(minutes=45)
 
-    contenu_html = (
+
+def _construire_email_otp(code: str) -> str:
+    return (
         f"<p>Bonjour,</p>"
-        f"<p>Voici votre code de vérification MyNkap, valable 5 minutes :</p>"
+        f"<p>Voici votre code de vérification MyNkap, valable 45 minutes :</p>"
         f'<p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#254E2A;">{code}</p>'
         f"<p>Si vous n'êtes pas à l'origine de cette inscription, ignorez cet e-mail.</p>"
     )
-    _envoyer_email_brevo(utilisateur.email, "Votre code de vérification MyNkap", contenu_html)
+
+
+def demarrer_inscription(db: Session, client_in: UserRegister) -> PendingInscription:
+    """
+    Démarre (ou renouvelle si un essai précédent pour cet e-mail n'a jamais
+    été confirmé — c'est ce que rappelle le bouton "renvoyer le code" du
+    frontend, OtpVerificationStep.onResend, qui rappelle POST /auth/register
+    à l'identique) une inscription en attente et lui envoie un code OTP.
+    N'est appelée que si aucun Utilisateur (vérifié ou legacy non vérifié)
+    n'existe déjà pour cet e-mail — voir router.register.
+    """
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    expiration = datetime.utcnow() + DUREE_VALIDITE_OTP_INSCRIPTION
+
+    pending = db.query(PendingInscription).filter(PendingInscription.email == client_in.email).first()
+    if pending is None:
+        pending = PendingInscription(email=client_in.email)
+        db.add(pending)
+
+    pending.mot_de_passe = get_password_hash(client_in.mot_de_passe)
+    pending.first_name = client_in.first_name
+    pending.last_name = client_in.last_name
+    pending.phone = client_in.phone
+    pending.otp_code = code
+    pending.otp_expiration = expiration
+    db.commit()
+
+    _envoyer_email_brevo(pending.email, "Votre code de vérification MyNkap", _construire_email_otp(code))
+    return pending
+
+
+def confirmer_inscription(db: Session, email: str, code: str, request: Optional[Request] = None) -> Optional[Client]:
+    """
+    Valide le code d'une inscription en attente (voir demarrer_inscription)
+    et, seulement si le code est correct et non expiré, crée réellement le
+    Client (profil, catégories par défaut, essai gratuit, compte Abonnement
+    — voir _finaliser_creation_client), tracé dans l'AuditLog ("CREER",
+    comme l'ancien flux le faisait à l'inscription — voir router.register).
+    Invalide le code dans tous les cas (usage unique). Renvoie None si
+    aucune inscription en attente n'existe pour cet e-mail (y compris le
+    cas où elle a déjà été confirmée, ou n'a jamais existé — voir
+    router.verify_otp pour le repli vers l'ancien mécanisme, verifier_otp).
+    """
+    pending = db.query(PendingInscription).filter(PendingInscription.email == email).first()
+    if pending is None:
+        return None
+    if not pending.otp_code or not pending.otp_expiration:
+        return None
+
+    code_valide = (
+        pending.otp_expiration >= datetime.utcnow()
+        and secrets.compare_digest(pending.otp_code, code)
+    )
+
+    pending.otp_code = None
+    pending.otp_expiration = None
+
+    if not code_valide:
+        db.commit()
+        return None
+
+    db.commit()  # persiste l'invalidation du code avant de créer le compte
+
+    client = _finaliser_creation_client(
+        db, pending.email, pending.mot_de_passe, pending.first_name, pending.last_name, pending.phone,
+    )
+    client.email_verifie = True
+    db.commit()
+
+    db.delete(pending)
+    db.commit()
+
+    enregistrer_action(
+        db,
+        id_utilisateur=client.id_client,
+        action="CREER",
+        ressource="Client",
+        id_ressource=client.id_client,
+        donnees_apres={"email": client.email},
+        request=request,
+    )
+
+    return client
+
+
+def generer_et_envoyer_otp(db: Session, utilisateur: Utilisateur) -> None:
+    """
+    LEGACY — ne concerne que les comptes Client créés avant l'introduction
+    de PendingInscription, encore non vérifiés (voir router.register).
+    Génère un code à 6 chiffres valable 45 minutes et l'envoie par e-mail
+    (Brevo). Durée alignée sur le délai de renvoi côté frontend
+    (OtpVerificationStep.DUREE_COOLDOWN_RENVOI_SECONDES) : le code reste
+    valide pendant toute la fenêtre où le bouton "renvoyer" est désactivé,
+    sinon un client lent à consulter ses e-mails se retrouverait bloqué
+    sans code utilisable ni possibilité d'en redemander un.
+    """
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    utilisateur.otp_code = code
+    utilisateur.otp_expiration = datetime.utcnow() + DUREE_VALIDITE_OTP_INSCRIPTION
+    db.commit()
+
+    _envoyer_email_brevo(utilisateur.email, "Votre code de vérification MyNkap", _construire_email_otp(code))
 
 
 def verifier_otp(db: Session, email: str, code: str) -> Optional[Utilisateur]:
     """
-    Valide le code OTP envoyé à l'inscription pour l'e-mail donné et marque
-    l'adresse comme vérifiée. Retourne l'utilisateur si le code est
-    correct, non expiré, et le compte toujours actif — invalide le code
-    dans tous les cas (usage unique). N'ouvre aucune session : voir
-    authentifier_utilisateur (POST /auth/login) pour se connecter ensuite.
+    LEGACY — voir generer_et_envoyer_otp. Valide le code OTP envoyé à
+    l'inscription pour l'e-mail donné et marque l'adresse comme vérifiée.
+    Retourne l'utilisateur si le code est correct, non expiré, et le
+    compte toujours actif — invalide le code dans tous les cas (usage
+    unique). N'ouvre aucune session : voir authentifier_utilisateur
+    (POST /auth/login) pour se connecter ensuite.
     """
     utilisateur = db.query(Utilisateur).filter(Utilisateur.email == email).first()
     if not utilisateur or not utilisateur.est_actif:
@@ -349,10 +465,17 @@ def authentifier_avec_google(db: Session, id_token_str: str) -> Utilisateur:
     d'identité, retrouve le compte MyNkap existant associé à son adresse
     e-mail et ouvre directement la session, comme authentifier_utilisateur
     — Google étant déjà un fournisseur d'identité vérifié (email_verified),
-    aucune étape OTP supplémentaire n'est nécessaire. Ne crée jamais de
-    compte à la volée — Google ne fournit pas de numéro de téléphone,
-    requis à l'inscription (Mobile Money) — l'utilisateur doit d'abord
-    s'inscrire normalement.
+    aucune étape OTP supplémentaire n'est nécessaire.
+
+    Ne crée jamais de compte à partir de rien — Google ne fournit pas de
+    numéro de téléphone, requis à l'inscription (Mobile Money). En
+    revanche, si une inscription en attente existe pour cette adresse
+    (voir PendingInscription : l'utilisateur s'est déjà inscrit par
+    e-mail/mot de passe, téléphone inclus, mais n'a pas encore saisi le
+    code reçu par Brevo), Google vient de prouver que l'adresse est bien
+    joignable — exactement ce que le code OTP établirait — donc ça
+    finalise la création du compte avec les informations déjà fournies à
+    l'inscription, sans attendre l'e-mail Brevo.
     """
     try:
         payload = _verifier_id_token_google(id_token_str)
@@ -365,8 +488,18 @@ def authentifier_avec_google(db: Session, id_token_str: str) -> Utilisateur:
     email = email.strip().lower()
 
     utilisateur = db.query(Utilisateur).filter(Utilisateur.email == email).first()
-    if not utilisateur or not utilisateur.est_actif:
+    if utilisateur is not None and not utilisateur.est_actif:
         raise CompteInexistantPourGoogleError()
+
+    if utilisateur is None:
+        pending = db.query(PendingInscription).filter(PendingInscription.email == email).first()
+        if pending is None:
+            raise CompteInexistantPourGoogleError()
+        utilisateur = _finaliser_creation_client(
+            db, pending.email, pending.mot_de_passe, pending.first_name, pending.last_name, pending.phone,
+        )
+        db.delete(pending)
+        db.commit()
 
     # Google vient de vérifier cette adresse (email_verified ci-dessus) :
     # marque l'e-mail confirmé s'il ne l'était pas encore, pour que la

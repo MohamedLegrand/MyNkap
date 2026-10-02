@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.core.database import Base, get_db
 from app.core import models_registry  # noqa: F401 (enregistre toutes les tables)
 from app.main import app, limiter
-from app.modules.auth.models import Utilisateur
+from app.modules.auth.models import PendingInscription, Utilisateur
 from app.modules.plans.models import Plan, PrixPlanDevise
 
 engine = create_engine(
@@ -103,22 +103,39 @@ def se_connecter(client, email: str, mot_de_passe: str):
     """
     Connecte un utilisateur via /auth/login (e-mail + mot de passe, plus de
     double authentification par OTP à cette étape — réservée à la
-    vérification de l'e-mail à l'inscription, voir auth.services.verifier_otp).
+    vérification de l'e-mail à l'inscription, voir
+    auth.services.confirmer_inscription).
 
     La connexion exige désormais l'e-mail vérifié (voir
     EmailNonVerifieError) : la plupart des appelants de ce helper ne
     testent pas ce flux en particulier (voir test_auth.py pour les tests
-    qui, eux, passent explicitement par /auth/verify-otp), donc on marque
-    l'e-mail vérifié ici directement en base plutôt que d'exiger que
-    chaque appelant le fasse — même connexion partagée que le reste des
-    fixtures (StaticPool), voir tests/test_admin_clients.py.
+    qui, eux, passent explicitement par /auth/verify-otp), donc on confirme
+    l'inscription ici directement plutôt que d'exiger que chaque appelant
+    le fasse — même connexion partagée que le reste des fixtures
+    (StaticPool), voir tests/test_admin_clients.py.
+
+    Depuis que POST /auth/register ne crée plus le Client immédiatement
+    (voir PendingInscription), il n'existe souvent encore aucun
+    Utilisateur à ce stade : on confirme alors l'inscription en attente
+    avec son propre code OTP, exactement comme le ferait un vrai appel à
+    /auth/verify-otp (plutôt que de deviner/contourner). Le cas où un
+    Utilisateur existe déjà, non vérifié, reste géré à l'ancienne — c'est
+    le chemin legacy (compte créé avant ce changement, voir
+    auth.services.verifier_otp).
     """
+    from app.modules.auth import services as auth_services
+
     session = TestingSessionLocal()
     try:
         utilisateur = session.query(Utilisateur).filter(Utilisateur.email == email).first()
-        if utilisateur is not None and not utilisateur.email_verifie:
-            utilisateur.email_verifie = True
-            session.commit()
+        if utilisateur is not None:
+            if not utilisateur.email_verifie:
+                utilisateur.email_verifie = True
+                session.commit()
+        else:
+            pending = session.query(PendingInscription).filter(PendingInscription.email == email).first()
+            if pending is not None:
+                auth_services.confirmer_inscription(session, email, pending.otp_code)
     finally:
         session.close()
 

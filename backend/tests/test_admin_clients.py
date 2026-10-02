@@ -3,7 +3,7 @@ import pytest
 from app.core.security import create_access_token, get_password_hash
 from app.modules.audit.models import AuditLog
 from app.modules.notifications.models import Notification
-from app.modules.auth.models import Administrateur, Client, RefreshToken
+from app.modules.auth.models import Administrateur, Client, PendingInscription, RefreshToken
 from tests.conftest import se_connecter, TestingSessionLocal
 
 def _create_admin(db_session, username="superadmin", email="admin@mynkap.cm", password="adminpassword123", niveau_acces=1):
@@ -23,9 +23,11 @@ def _create_admin(db_session, username="superadmin", email="admin@mynkap.cm", pa
 
 def _register_client(client, email="client1@example.com", mot_de_passe="clientpassword123", first_name="Paul", last_name="Biya", phone="+237699999999", db_session=None):
     """
-    Renvoie {id_client, email} : /auth/register ne renvoie plus le client
-    directement (voir test_auth.py), on va donc chercher son id en base
-    quand un appelant en a besoin (db_session facultatif, StaticPool
+    Inscrit ET confirme immédiatement un client : /auth/register ne crée
+    plus le Client directement (voir test_auth.py), seule la validation
+    du code OTP le fait (auth.services.confirmer_inscription) — on la
+    déclenche donc ici avec le vrai code, pour renvoyer {id_client, email}
+    d'un client réellement existant (db_session facultatif, StaticPool
     partage la même connexion que celle de l'app — même principe que
     tests.conftest.se_connecter).
     """
@@ -43,6 +45,10 @@ def _register_client(client, email="client1@example.com", mot_de_passe="clientpa
 
     session = db_session or TestingSessionLocal()
     try:
+        pending = session.query(PendingInscription).filter(PendingInscription.email == email).first()
+        verif = client.post("/api/v1/auth/verify-otp", json={"email": email, "code": pending.otp_code})
+        assert verif.status_code == 200
+
         db_client = session.query(Client).filter(Client.email == email).first()
         id_client = db_client.id_client
     finally:
@@ -99,7 +105,7 @@ def test_admin_obtenir_detail_client(client, db_session):
     assert detail["nombre_comptes_financiers"] == 1
 
 def test_admin_desactiver_et_reactiver_client_avec_audit(client, db_session):
-    admin, admin_headers = _create_admin(db_session, username="admin_status")
+    admin, admin_headers = _create_admin(db_session, username="admin_status", niveau_acces=2)
     client_data = _register_client(client, "suspend.test@mynkap.cm")
     id_client = client_data["id_client"]
 
@@ -150,7 +156,7 @@ def test_admin_desactiver_et_reactiver_client_avec_audit(client, db_session):
     assert log_react is not None
 
 def test_admin_reinitialiser_mot_de_passe_client(client, db_session):
-    _, admin_headers = _create_admin(db_session, username="admin_reset")
+    _, admin_headers = _create_admin(db_session, username="admin_reset", niveau_acces=2)
     client_data = _register_client(client, "reset.test@mynkap.cm", mot_de_passe="ancienmdp123")
     id_client = client_data["id_client"]
 
@@ -189,8 +195,35 @@ def test_admin_reinitialiser_mot_de_passe_client(client, db_session):
     assert notification is not None
 
 
+def test_admin_niveau1_ne_peut_pas_toucher_au_statut_ou_mdp_dun_client(client, db_session):
+    """
+    changer_statut_client (suspendre/désactiver) et
+    reinitialiser_mot_de_passe_client (prise de contrôle complète du
+    compte : mot de passe en clair renvoyé) exigent niveau 2+, comme les
+    autres actions à fort impact de ce module (forcer un abonnement,
+    valider un paiement...) — un admin niveau 1 (Support) ne doit pouvoir
+    ni suspendre un client, ni réinitialiser son mot de passe.
+    """
+    _, l1_headers = _create_admin(db_session, username="clientl1", email="clientl1@mynkap.cm", niveau_acces=1)
+    infos = _register_client(client, "cible.niveau1@example.com")
+    id_client = infos["id_client"]
+
+    res_status = client.patch(
+        f"/api/v1/admin/clients/{id_client}/status",
+        json={"est_actif": False, "raison": "test"},
+        headers=l1_headers,
+    )
+    assert res_status.status_code == 403
+
+    res_reset = client.post(
+        f"/api/v1/admin/clients/{id_client}/reset-password",
+        headers=l1_headers,
+    )
+    assert res_reset.status_code == 403
+
+
 def test_admin_desactiver_distinct_de_suspendre(client, db_session):
-    admin, admin_headers = _create_admin(db_session, username="admin_desact")
+    admin, admin_headers = _create_admin(db_session, username="admin_desact", niveau_acces=2)
     infos = _register_client(client, "desact@example.com", db_session=db_session)
     id_client = infos["id_client"]
     url = f"/api/v1/admin/clients/{id_client}/status"
@@ -222,7 +255,7 @@ def test_admin_desactiver_distinct_de_suspendre(client, db_session):
 
 
 def test_admin_statut_client_sans_donnee_rejete(client, db_session):
-    admin, admin_headers = _create_admin(db_session, username="admin_vide")
+    admin, admin_headers = _create_admin(db_session, username="admin_vide", niveau_acces=2)
     infos = _register_client(client, "vide@example.com", db_session=db_session)
     res = client.patch(f"/api/v1/admin/clients/{infos['id_client']}/status", json={}, headers=admin_headers)
     assert res.status_code == 422

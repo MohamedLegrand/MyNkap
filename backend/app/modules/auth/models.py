@@ -175,3 +175,40 @@ class RefreshToken(Base):
         back_populates="refresh_tokens",
         primaryjoin="foreign(RefreshToken.id_client) == Client.id_client",
     )
+
+
+class PendingInscription(Base):
+    """
+    Inscription en attente de confirmation par code OTP — AUCUN Utilisateur
+    ni Client n'existe encore en base pour cette ligne. Tant que le code
+    envoyé par e-mail n'est pas validé (voir auth.services.confirmer_inscription,
+    appelée depuis POST /auth/verify-otp), ces données ne sont qu'une
+    tentative : un abandon avant l'OTP (code jamais saisi, expiré, e-mail
+    jamais reçu) ne laisse donc aucune trace permanente, contrairement à
+    l'ancien flux où le Client était créé immédiatement à POST /auth/register
+    puis seulement marqué "vérifié" après coup — ce qui permettait à
+    n'importe qui de faire exister un compte réel (jamais utilisable, mais
+    bien réel) au nom d'un e-mail qu'il ne possède pas, et laissait
+    s'accumuler indéfiniment des comptes abandonnés jamais nettoyés.
+
+    Compatibilité : les comptes Client créés avant ce changement, encore
+    non vérifiés, restent gérés via l'ancien mécanisme (Utilisateur.otp_code,
+    voir auth.services.verifier_otp) — ce modèle ne concerne que les
+    inscriptions démarrées après.
+    """
+    __tablename__ = "inscriptions_en_attente"
+
+    id_inscription = Column(Integer, primary_key=True, index=True)
+    # Déjà normalisé en minuscules avant d'atteindre ce modèle (voir
+    # auth.schemas._normaliser_email) — unique pour qu'un second essai sur
+    # le même e-mail renouvelle cette ligne plutôt que d'en créer une autre.
+    email = Column(String, unique=True, index=True, nullable=False)
+    mot_de_passe = Column(String, nullable=False)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
+    # Nullable : mis à None après un essai (réussi ou échoué), usage unique
+    # — même principe que Utilisateur.otp_code.
+    otp_code = Column(String(6), nullable=True)
+    otp_expiration = Column(DateTime, nullable=True)
+    date_creation = Column(DateTime, default=datetime.utcnow, nullable=False)

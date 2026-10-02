@@ -61,19 +61,23 @@ router = APIRouter(prefix="/auth", tags=["Authentification"])
 @limiter.limit("5/minute")
 def register(request: Request, client_in: UserRegister, db: Session = Depends(get_db)):
     """
-    Inscription d'un nouveau client et initialisation de son profil financier.
-    Le compte est créé immédiatement, mais aucun jeton n'est émis ici : un
-    code de vérification à 6 chiffres part par e-mail (même mécanisme que
-    la double authentification à la connexion, voir services.generer_et_envoyer_otp)
-    pour confirmer que l'adresse fournie est bien joignable avant tout accès
-    réel — voir POST /auth/verify-otp pour la seconde étape.
+    Démarre une inscription en attente de confirmation par code OTP.
+    Aucun compte n'est créé ici : un code à 6 chiffres part par e-mail, et
+    c'est seulement sa validation (POST /auth/verify-otp, voir
+    services.confirmer_inscription) qui crée réellement le Client — tant
+    que ce n'est pas fait, cette tentative ne laisse aucune trace
+    permanente, et personne ne peut faire exister un compte au nom d'un
+    e-mail qu'il ne possède pas sans jamais prouver qu'il le possède.
 
-    Si l'e-mail correspond déjà à un compte jamais vérifié, aucun doublon
-    n'est créé : un nouveau code est simplement renvoyé (voir le bouton
-    "renvoyer le code" du frontend, OtpVerificationStep.onResend, qui
-    rappelle cette même route) — indispensable depuis que la connexion
-    exige l'e-mail vérifié (voir services.EmailNonVerifieError), sous
-    peine de bloquer définitivement un client qui a perdu son premier code.
+    Si l'e-mail a déjà une inscription en attente (essai précédent non
+    confirmé), elle est simplement renouvelée (nouveau code) — c'est ce
+    que rappelle le bouton "renvoyer le code" du frontend
+    (OtpVerificationStep.onResend, qui rappelle cette même route).
+
+    Compatibilité : un compte Client créé avant l'introduction de ce
+    mécanisme, encore non vérifié, continue d'être géré à l'ancienne (un
+    nouveau code lui est renvoyé directement) plutôt que de créer une
+    inscription en attente en doublon pour lui.
     """
     utilisateur_existant = db.query(Utilisateur).filter(Utilisateur.email == client_in.email).first()
     if utilisateur_existant:
@@ -86,28 +90,15 @@ def register(request: Request, client_in: UserRegister, db: Session = Depends(ge
         return {
             "otp_requis": True,
             "message": "Un nouveau code de vérification a été envoyé par e-mail.",
-            "expires_in": 300,
+            "expires_in": int(services.DUREE_VALIDITE_OTP_INSCRIPTION.total_seconds()),
         }
 
-    # Créer le client
-    nouveau_client = services.creer_client(db, client_in)
-
-    enregistrer_action(
-        db,
-        id_utilisateur=nouveau_client.id_client,
-        action="CREER",
-        ressource="Client",
-        id_ressource=nouveau_client.id_client,
-        donnees_apres={"email": nouveau_client.email},
-        request=request,
-    )
-
-    services.generer_et_envoyer_otp(db, nouveau_client)
+    services.demarrer_inscription(db, client_in)
 
     return {
         "otp_requis": True,
-        "message": "Compte créé. Un code de vérification a été envoyé par e-mail.",
-        "expires_in": 300,
+        "message": "Un code de vérification a été envoyé par e-mail.",
+        "expires_in": int(services.DUREE_VALIDITE_OTP_INSCRIPTION.total_seconds()),
     }
 
 @router.post("/login", response_model=TokenResponse)
@@ -193,11 +184,22 @@ def login_google(request: Request, payload: GoogleLoginRequest, db: Session = De
 @limiter.limit("10/minute")
 def verify_otp(request: Request, payload: VerifyOtpRequest, db: Session = Depends(get_db)):
     """
-    Confirme le code de vérification envoyé à l'inscription (voir POST
-    /auth/register) et marque l'adresse e-mail comme vérifiée. N'émet
-    aucun jeton de session : le client doit ensuite se connecter
+    Confirme le code envoyé à l'inscription (voir POST /auth/register) et,
+    s'il est valide, crée réellement le compte Client (voir
+    services.confirmer_inscription — c'est cette étape, et non plus
+    POST /auth/register, qui fait désormais exister le compte en base).
+    N'émet aucun jeton de session : le client doit ensuite se connecter
     normalement via POST /auth/login.
+
+    Compatibilité : si aucune inscription en attente n'est trouvée pour
+    cet e-mail (compte créé avant l'introduction de ce mécanisme), retombe
+    sur l'ancienne vérification (services.verifier_otp), qui opère
+    directement sur le Client déjà existant.
     """
+    nouveau_client = services.confirmer_inscription(db, payload.email, payload.code, request=request)
+    if nouveau_client is not None:
+        return {"message": "Adresse e-mail vérifiée avec succès. Vous pouvez maintenant vous connecter."}
+
     utilisateur = services.verifier_otp(db, payload.email, payload.code)
     if not utilisateur:
         raise HTTPException(
@@ -427,7 +429,7 @@ def forgot_password(request: Request, forgot_in: ForgotPasswordRequest, db: Sess
     services.generer_forgot_password_token(db, forgot_in.email)
     # Message générique pour éviter le dénombrement d'utilisateurs
     return {
-        "message": "Si l'adresse email existe, un message de récupération a été simulé dans la console."
+        "message": "Si cette adresse e-mail existe, un message de récupération vient de lui être envoyé."
     }
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)

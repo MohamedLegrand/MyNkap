@@ -1,5 +1,5 @@
 from app.modules.auth import services as auth_services
-from app.modules.auth.models import Client, Utilisateur
+from app.modules.auth.models import Client, PendingInscription, Utilisateur
 from app.modules.notifications.models import Notification
 from tests.conftest import se_connecter
 
@@ -16,46 +16,53 @@ def _register_payload(**overrides):
     return payload
 
 
-def test_register_creates_client_with_default_profile(client, db_session):
+def test_register_cree_une_inscription_en_attente_sans_creer_le_client(client, db_session):
     """
-    /auth/register ne renvoie pas le client directement : un code de
-    vérification part par e-mail et la réponse ne contient que
-    otp_requis/message/expires_in — voir test_register_declenche_un_otp.
-    Le client et son profil par défaut existent bien en base dès cet appel,
-    avant même toute vérification OTP.
+    /auth/register ne crée plus le Client immédiatement : seule une
+    inscription en attente (PendingInscription) existe tant que le code
+    OTP n'est pas confirmé (voir test_verifier_otp_apres_inscription_confirme_lemail_sans_ouvrir_de_session)
+    — un abandon avant l'OTP ne laisse donc plus aucune trace permanente.
     """
     response = client.post("/api/v1/auth/register", json=_register_payload())
 
     assert response.status_code == 201
     body = response.json()
     assert body["otp_requis"] is True
-    assert body["expires_in"] == 300
+    assert body["expires_in"] == 2700
 
-    db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
-    assert db_client is not None
-    assert db_client.profile.devise == "XAF"
-    assert db_client.profile.langue == "FR"
-    assert db_client.email_verifie is False
+    assert db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first() is None
+
+    pending = db_session.query(PendingInscription).filter(
+        PendingInscription.email == "jean.dupont@example.com"
+    ).first()
+    assert pending is not None
+    assert pending.first_name == "Jean"
+    assert pending.phone == "+237600000000"
 
 
 def test_register_declenche_un_otp(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
 
-    db_utilisateur = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
-    assert db_utilisateur.otp_code is not None
-    assert db_utilisateur.otp_expiration is not None
+    pending = db_session.query(PendingInscription).filter(
+        PendingInscription.email == "jean.dupont@example.com"
+    ).first()
+    assert pending.otp_code is not None
+    assert pending.otp_expiration is not None
 
 
 def test_verifier_otp_apres_inscription_confirme_lemail_sans_ouvrir_de_session(client, db_session):
     """
-    /auth/verify-otp ne sert plus qu'à confirmer l'e-mail à l'inscription :
-    il n'émet plus de jetons — le client doit se connecter séparément via
-    /auth/login (voir test_login_avec_identifiants_corrects_renvoie_les_jetons).
+    /auth/verify-otp crée réellement le compte (voir
+    auth.services.confirmer_inscription) et n'émet aucun jeton : le client
+    doit se connecter séparément via /auth/login (voir
+    test_login_avec_identifiants_corrects_renvoie_les_jetons).
     """
     client.post("/api/v1/auth/register", json=_register_payload())
 
-    db_utilisateur = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
-    code = db_utilisateur.otp_code
+    pending = db_session.query(PendingInscription).filter(
+        PendingInscription.email == "jean.dupont@example.com"
+    ).first()
+    code = pending.otp_code
 
     response = client.post(
         "/api/v1/auth/verify-otp",
@@ -68,19 +75,26 @@ def test_verifier_otp_apres_inscription_confirme_lemail_sans_ouvrir_de_session(c
     assert "refresh_token" not in body
     assert body["message"]
 
-    db_session.refresh(db_utilisateur)
-    assert db_utilisateur.email_verifie is True
+    assert db_session.query(PendingInscription).filter(
+        PendingInscription.email == "jean.dupont@example.com"
+    ).first() is None
+
+    db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
+    assert db_client is not None
+    assert db_client.email_verifie is True
+    assert db_client.profile.devise == "XAF"
+    assert db_client.profile.langue == "FR"
 
 
 def _verifier_email(client, db_session, email="jean.dupont@example.com"):
-    """Lit le code OTP directement en base et le vérifie via /auth/verify-otp
-    — même principe que _register_client dans test_admin_clients.py."""
-    db_utilisateur = db_session.query(Utilisateur).filter(Utilisateur.email == email).first()
+    """Lit le code OTP de l'inscription en attente et le vérifie via
+    /auth/verify-otp — même principe que _register_client dans
+    test_admin_clients.py."""
+    pending = db_session.query(PendingInscription).filter(PendingInscription.email == email).first()
     reponse = client.post(
-        "/api/v1/auth/verify-otp", json={"email": email, "code": db_utilisateur.otp_code}
+        "/api/v1/auth/verify-otp", json={"email": email, "code": pending.otp_code}
     )
     assert reponse.status_code == 200
-    db_session.refresh(db_utilisateur)
 
 
 def test_register_renvoie_un_nouveau_code_si_le_compte_nest_pas_encore_verifie(client, db_session):
@@ -92,21 +106,21 @@ def test_register_renvoie_un_nouveau_code_si_le_compte_nest_pas_encore_verifie(c
     connexion exige l'e-mail vérifié (voir EmailNonVerifieError).
     """
     client.post("/api/v1/auth/register", json=_register_payload())
-    db_utilisateur = db_session.query(Utilisateur).filter(
-        Utilisateur.email == "jean.dupont@example.com"
+    pending = db_session.query(PendingInscription).filter(
+        PendingInscription.email == "jean.dupont@example.com"
     ).first()
-    premier_code = db_utilisateur.otp_code
+    premier_code = pending.otp_code
 
     response = client.post("/api/v1/auth/register", json=_register_payload())
     assert response.status_code == 201
     assert response.json()["otp_requis"] is True
 
-    # Un seul compte, avec un nouveau code — jamais un doublon.
-    assert db_session.query(Utilisateur).filter(
-        Utilisateur.email == "jean.dupont@example.com"
+    # Une seule inscription en attente, avec un nouveau code — jamais un doublon.
+    assert db_session.query(PendingInscription).filter(
+        PendingInscription.email == "jean.dupont@example.com"
     ).count() == 1
-    db_session.refresh(db_utilisateur)
-    assert db_utilisateur.otp_code != premier_code
+    db_session.refresh(pending)
+    assert pending.otp_code != premier_code
 
 
 def test_register_rejects_duplicate_email_une_fois_verifie(client, db_session):
@@ -117,17 +131,46 @@ def test_register_rejects_duplicate_email_une_fois_verifie(client, db_session):
     assert response.status_code == 400
 
 
-def test_login_avant_verification_de_lemail_est_refuse(client):
+def test_login_avec_inscription_en_attente_non_confirmee_est_refuse(client):
     """
-    Le cœur du correctif : des identifiants corrects ne suffisent pas tant
-    que l'e-mail n'a jamais été vérifié — sans ce contrôle, l'étape OTP de
-    l'inscription ne vérifiait rien en pratique (voir EmailNonVerifieError).
+    Tant que le code OTP n'est pas confirmé, aucun compte n'existe encore
+    (voir PendingInscription) : une tentative de connexion avec les
+    identifiants qu'on vient de choisir échoue comme des identifiants
+    incorrects (générique), pas comme un e-mail non vérifié — il n'y a
+    simplement encore rien à quoi se connecter.
     """
     client.post("/api/v1/auth/register", json=_register_payload())
 
     response = client.post(
         "/api/v1/auth/login",
         json={"email": "jean.dupont@example.com", "mot_de_passe": "motdepasse123"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_login_avec_compte_legacy_non_verifie_est_refuse(client, db_session):
+    """
+    Chemin de compatibilité : un compte Client créé avant l'introduction
+    de PendingInscription, encore non vérifié, reste bloqué par
+    EmailNonVerifieError (403) — c'était le cœur du correctif historique :
+    sans ce contrôle, l'étape OTP de l'inscription ne vérifiait rien en
+    pratique (voir auth.services.EmailNonVerifieError).
+    """
+    from app.core.security import get_password_hash
+
+    legacy = Client(
+        email="legacy.nonverifie@example.com",
+        mot_de_passe=get_password_hash("motdepasse123"),
+        first_name="Legacy", last_name="Test", phone="+237600000001",
+        type="client", email_verifie=False,
+    )
+    db_session.add(legacy)
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "legacy.nonverifie@example.com", "mot_de_passe": "motdepasse123"},
     )
 
     assert response.status_code == 403
@@ -180,8 +223,10 @@ def test_verify_otp_avec_code_incorrect_est_rejete(client):
 def test_verify_otp_est_a_usage_unique(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
 
-    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
-    code = db_client.otp_code
+    pending = db_session.query(PendingInscription).filter(
+        PendingInscription.email == "jean.dupont@example.com"
+    ).first()
+    code = pending.otp_code
 
     premiere_verification = client.post(
         "/api/v1/auth/verify-otp", json={"email": "jean.dupont@example.com", "code": code}
@@ -200,9 +245,11 @@ def test_verify_otp_expire_est_rejete(client, db_session):
 
     client.post("/api/v1/auth/register", json=_register_payload())
 
-    db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
-    code = db_client.otp_code
-    db_client.otp_expiration = datetime.utcnow() - timedelta(minutes=1)
+    pending = db_session.query(PendingInscription).filter(
+        PendingInscription.email == "jean.dupont@example.com"
+    ).first()
+    code = pending.otp_code
+    pending.otp_expiration = datetime.utcnow() - timedelta(minutes=1)
     db_session.commit()
 
     response = client.post(
@@ -331,6 +378,7 @@ def test_logout_revokes_refresh_token(client, db_session):
 
 def test_forgot_password_generates_a_reset_token_for_existing_email(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
 
     response = client.post(
         "/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"}
@@ -393,6 +441,7 @@ def test_reset_password_avec_jeton_expire_est_rejete(client, db_session):
     from datetime import datetime, timedelta
 
     client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
     client.post("/api/v1/auth/forgot-password", json={"email": "jean.dupont@example.com"})
 
     db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
@@ -482,6 +531,7 @@ def test_connexion_reussie_cree_une_notification_client(client):
 
 def test_plusieurs_mots_de_passe_incorrects_notifient_le_client_une_seule_fois(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
 
     for _ in range(auth_services.SEUIL_ALERTE_TENTATIVES + 2):
         client.post(
@@ -511,6 +561,7 @@ def test_verrouillage_apres_trop_dechecs_bloque_meme_le_bon_mot_de_passe(client,
     plusieurs IP, que le rate limit par IP seul ne peut pas voir).
     """
     client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
 
     for _ in range(auth_services.SEUIL_VERROUILLAGE):
         client.post(
@@ -527,6 +578,7 @@ def test_verrouillage_apres_trop_dechecs_bloque_meme_le_bon_mot_de_passe(client,
 
 def test_le_verrouillage_expire_et_une_connexion_reussie_reinitialise_les_compteurs(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
 
     for _ in range(auth_services.SEUIL_VERROUILLAGE):
         client.post(
@@ -796,6 +848,7 @@ def test_avatar_avec_un_schema_non_http_est_rejete(client, db_session):
 
 def test_une_connexion_reussie_reinitialise_le_compteur_de_tentatives(client, db_session):
     client.post("/api/v1/auth/register", json=_register_payload())
+    _verifier_email(client, db_session)
 
     for _ in range(auth_services.SEUIL_ALERTE_TENTATIVES):
         client.post(

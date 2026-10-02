@@ -192,8 +192,16 @@ def changer_statut_client(
     """
     Active ou désactive le compte d'un client.
     Si le compte est désactivé, révoque immédiatement tous ses refresh tokens de session.
+    Garde-fous : Réservé aux administrateurs niveau 2+ (même seuil que les autres actions à fort
+    impact de ce module — forcer_abonnement, valider un paiement...).
     Tracé dans l'AuditLog.
     """
+    if admin.niveau_acces < 2:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : droits insuffisants pour modifier le statut d'un client (niveau 2 minimum requis).",
+        )
+
     client = db.query(Client).filter(Client.id_client == id_client).first()
     if not client:
         raise HTTPException(
@@ -251,8 +259,17 @@ def reinitialiser_mot_de_passe_client(
 ) -> AdminResetPasswordResponse:
     """
     Génère un mot de passe temporaire sécurisé pour un client et révoque ses sessions.
+    Garde-fous : Réservé aux administrateurs niveau 2+ — cette action équivaut à une prise de
+    contrôle complète du compte client (mot de passe en clair renvoyé, sessions révoquées), donc
+    au même niveau que les autres actions à fort impact de ce module.
     Tracé dans l'AuditLog.
     """
+    if admin.niveau_acces < 2:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : droits insuffisants pour réinitialiser le mot de passe d'un client (niveau 2 minimum requis).",
+        )
+
     client = db.query(Client).filter(Client.id_client == id_client).first()
     if not client:
         raise HTTPException(

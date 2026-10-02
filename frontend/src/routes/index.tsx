@@ -1538,10 +1538,11 @@ const RegisterPage = () => {
 
     setIsSubmitting(true);
     try {
-      // Le compte est créé immédiatement, mais /auth/register ne renvoie
-      // aucun jeton : un code à 6 chiffres part par e-mail pour confirmer
-      // que l'adresse saisie est bien joignable avant tout accès réel —
-      // voir handleVerifyCode ci-dessous.
+      // Le compte n'est pas encore créé : /auth/register ne fait que
+      // démarrer une inscription en attente et envoyer un code à 6
+      // chiffres par e-mail. C'est sa validation (handleVerifyCode
+      // ci-dessous) qui crée réellement le compte, une fois l'adresse
+      // confirmée joignable.
       await api.request('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
