@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -23,6 +24,6 @@ class Rapport(Base):
     chemin_fichier = Column(String, nullable=True)
     taille = Column(Integer, nullable=True)
     statut = Column(String, default="EN_COURS", nullable=False)  # EN_COURS, GENERE, ERREUR
-    date_generation = Column(DateTime, default=datetime.utcnow)
+    date_generation = Column(DateTime, default=maintenant_utc)
 
     client = relationship("Client", back_populates="rapports")

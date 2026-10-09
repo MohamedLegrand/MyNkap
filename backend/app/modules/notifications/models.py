@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from app.core.database import Base
 
@@ -25,4 +26,4 @@ class Notification(Base):
     # Route frontend optionnelle vers laquelle naviguer au clic (ex: /dashboard).
     lien = Column(String, nullable=True)
     est_lue = Column(Boolean, default=False, nullable=False)
-    date_creation = Column(DateTime, default=datetime.utcnow, index=True)
+    date_creation = Column(DateTime, default=maintenant_utc, index=True)

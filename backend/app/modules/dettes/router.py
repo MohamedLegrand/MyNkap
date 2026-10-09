@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_active_client
 from app.modules.auth.models import Client
-from app.modules.dettes import service
+from app.modules.dettes import service 
 from app.modules.dettes.models import Dette
 from app.modules.dettes.schemas import DetteCreate, DetteOut, EncaisserRequest, RembourserRequest
 from app.modules.plans.dependencies import exiger_fonctionnalite

@@ -6,6 +6,7 @@ import secrets
 import time
 import wave
 from datetime import date, datetime, timedelta
+from app.core.time import maintenant_utc
 from decimal import Decimal, InvalidOperation
 from typing import List, Optional, Tuple
 from uuid import UUID
@@ -383,7 +384,7 @@ def _valider_et_creer_actions(
     """
     comptes_par_id = {compte.id_compte: compte for compte in comptes}
     categories_par_id = {c.id_categorie: c for c in categories if c.est_actif}
-    date_expiration = datetime.utcnow() + DUREE_VALIDITE_ACTION
+    date_expiration = maintenant_utc() + DUREE_VALIDITE_ACTION
 
     actions: List[ActionIA] = []
     for brute in actions_brutes:
@@ -459,7 +460,7 @@ def _valider_et_creer_actions(
             # Toujours le mois en cours — jamais laissé au fournisseur IA de
             # choisir une période, un budget proposé porte forcément sur
             # "ce mois-ci" dans la conversation.
-            aujourdhui = datetime.utcnow()
+            aujourdhui = maintenant_utc()
             resume = f"Budget « {categorie.nom} » : {montant_limite} XAF pour {aujourdhui.strftime('%m/%Y')}"
             donnees_cible = json.dumps({
                 "id_categorie": categorie.id_categorie,
@@ -597,7 +598,7 @@ def poser_question(
     )
     db.add_all(actions_proposees)
 
-    conversation.date_dernier_message = datetime.utcnow()
+    conversation.date_dernier_message = maintenant_utc()
     if conversation.titre is None:
         conversation.titre = contenu[:100]
 
@@ -733,7 +734,7 @@ def confirmer_action(db: Session, id_client: int, id_action: UUID) -> ActionIA:
     """
     action = _obtenir_action_en_attente(db, id_client, id_action)
 
-    if action.date_expiration is not None and datetime.utcnow() > action.date_expiration:
+    if action.date_expiration is not None and maintenant_utc() > action.date_expiration:
         action.statut = "ANNULE"
         db.commit()
         raise ActionExpireeError()

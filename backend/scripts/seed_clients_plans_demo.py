@@ -22,6 +22,7 @@ import sys
 import os
 import random
 from datetime import date, datetime, timedelta
+from app.core.time import maintenant_utc
 from decimal import Decimal
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -138,7 +139,7 @@ def activer_plan(db, client: Client, nom_plan: str) -> None:
             pays="CM",
             reference_hrpay=reference,
             statut="SUCCESS",
-            date_confirmation=datetime.utcnow(),
+            date_confirmation=maintenant_utc(),
         )
         db.add(paiement)
         db.commit()

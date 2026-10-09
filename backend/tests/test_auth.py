@@ -1,3 +1,4 @@
+from app.core.time import maintenant_utc
 from app.modules.auth import services as auth_services
 from app.modules.auth.models import Client, PendingInscription, Utilisateur
 from app.modules.notifications.models import Notification
@@ -249,7 +250,7 @@ def test_verify_otp_expire_est_rejete(client, db_session):
         PendingInscription.email == "jean.dupont@example.com"
     ).first()
     code = pending.otp_code
-    pending.otp_expiration = datetime.utcnow() - timedelta(minutes=1)
+    pending.otp_expiration = maintenant_utc() - timedelta(minutes=1)
     db_session.commit()
 
     response = client.post(
@@ -446,7 +447,7 @@ def test_reset_password_avec_jeton_expire_est_rejete(client, db_session):
 
     db_client = db_session.query(Client).filter(Client.email == "jean.dupont@example.com").first()
     reset_token = db_client.reset_password_token
-    db_client.reset_password_expires = datetime.utcnow() - timedelta(minutes=1)
+    db_client.reset_password_expires = maintenant_utc() - timedelta(minutes=1)
     db_session.commit()
 
     response = client.post(
@@ -588,7 +589,7 @@ def test_le_verrouillage_expire_et_une_connexion_reussie_reinitialise_les_compte
 
     from datetime import datetime, timedelta
     db_client = db_session.query(Utilisateur).filter(Utilisateur.email == "jean.dupont@example.com").first()
-    db_client.verrouille_jusqua = datetime.utcnow() - timedelta(seconds=1)
+    db_client.verrouille_jusqua = maintenant_utc() - timedelta(seconds=1)
     db_session.commit()
 
     reponse = se_connecter(client, "jean.dupont@example.com", "motdepasse123")

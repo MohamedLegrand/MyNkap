@@ -1,5 +1,6 @@
 import calendar
 from datetime import date as date_type, datetime
+from app.core.time import maintenant_utc
 from typing import List, Optional
 from fastapi import Request
 from sqlalchemy.orm import Session
@@ -148,7 +149,7 @@ def marquer_cotisation(
         raise CotisationIntrouvableError()
 
     cotisation.est_versee = est_versee
-    cotisation.date_versement = datetime.utcnow() if est_versee else None
+    cotisation.date_versement = maintenant_utc() if est_versee else None
     db.commit()
     db.refresh(tontine)
     return tontine

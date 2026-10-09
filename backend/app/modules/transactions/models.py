@@ -1,4 +1,5 @@
 from datetime import date as date_type, datetime
+from app.core.time import maintenant_utc
 from decimal import Decimal
 from sqlalchemy import CheckConstraint, Column, Integer, String, Numeric, Boolean, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
@@ -21,8 +22,8 @@ class OperationFinanciere:
     montant = Column(Numeric(14, 2), nullable=False)
     description = Column(String, nullable=True)
     date = Column(Date, nullable=False, default=date_type.today)
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
 
 # Signe de l'impact patrimonial par type de Transaction. ANNULATION est
@@ -178,7 +179,7 @@ class TransactionRecurrente(Base):
     # automatiquement dès que prochaine_execution la dépasse.
     date_fin = Column(Date, nullable=True)
     est_active = Column(Boolean, default=True)
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
 
     client = relationship("Client", back_populates="transactions_recurrentes")
     compte = relationship("CompteFinancier", foreign_keys=[id_compte])
@@ -204,8 +205,8 @@ class TemplateTransaction(Base):
     # financier, mais on garde le même principe que partout ailleurs dans
     # le projet plutôt qu'une suppression réelle.
     est_actif = Column(Boolean, default=True, nullable=False)
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
     client = relationship("Client", back_populates="templates_transaction")
     compte = relationship("CompteFinancier", foreign_keys=[id_compte])

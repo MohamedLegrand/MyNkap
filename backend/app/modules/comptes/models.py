@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from decimal import Decimal
 from sqlalchemy import CheckConstraint, Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
@@ -17,7 +18,7 @@ class ComptePrincipal(Base):
     id_client = Column(Integer, ForeignKey("clients.id_client"), unique=True, nullable=False)
     solde_total = Column(Numeric(14, 2), default=0, nullable=False)
     devise = Column(String, default="XAF", nullable=False)
-    date_mise_a_jour = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_mise_a_jour = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
     client = relationship("Client", back_populates="compte_principal")
 
@@ -56,8 +57,8 @@ class CompteFinancier(Base):
     # laisse le logo vide.
     logo = Column(String, nullable=True)
     est_actif = Column(Boolean, default=True)
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
     client = relationship("Client", back_populates="comptes_financiers")
 

@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -27,7 +28,7 @@ class Plan(Base):
     # route ne vérifie ce flag pour l'instant.
     acces_rapport = Column(Boolean, default=False, nullable=False)
     acces_tontine = Column(Boolean, default=False, nullable=False)
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
 
     abonnements = relationship("Abonnement", back_populates="plan")
     prix_devises = relationship("PrixPlanDevise", back_populates="plan")
@@ -64,7 +65,7 @@ class Abonnement(Base):
     id_abonnement = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), unique=True, nullable=False)
     id_plan = Column(Integer, ForeignKey("plans.id_plan"), nullable=False)
-    date_debut = Column(DateTime, default=datetime.utcnow, nullable=False)
+    date_debut = Column(DateTime, default=maintenant_utc, nullable=False)
     date_fin = Column(DateTime, nullable=True)
     # MENSUEL ou ANNUEL — None pour le plan GRATUIT (pas de cycle de
     # facturation, jamais d'expiration).
@@ -75,7 +76,7 @@ class Abonnement(Base):
     # passée — remis à False à chaque nouveau cycle (voir plans.service
     # changer_plan et _tenter_renouvellement_auto).
     rappel_renouvellement_envoye = Column(Boolean, default=False, nullable=False, server_default="false")
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
 
     client = relationship("Client", back_populates="abonnement")
     plan = relationship("Plan", back_populates="abonnements")
@@ -113,7 +114,7 @@ class PaiementAbonnement(Base):
     # pour le Mobile Money, ou pour une carte gelée en revue anti-fraude.
     checkout_url = Column(String, nullable=True)
     statut = Column(String, default="PENDING", nullable=False)  # PENDING, SUCCESS, FAILED
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
     date_confirmation = Column(DateTime, nullable=True)
 
     client = relationship("Client")

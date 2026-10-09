@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -27,7 +28,7 @@ class Categorie(Base):
     # Budget référencent id_categorie, un hard-delete casserait leur
     # historique (même principe que CompteFinancier/Budget).
     est_actif = Column(Boolean, default=True, nullable=False)
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
 
     client = relationship("Client", back_populates="categories")
     transactions = relationship("Transaction", back_populates="categorie")
@@ -62,8 +63,8 @@ class Budget(Base):
     # que CompteFinancier (l'historique des alertes en AuditLog resterait
     # sinon orphelin d'un budget réellement supprimé).
     est_actif = Column(Boolean, default=True, nullable=False)
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
     client = relationship("Client", back_populates="budgets")
     categorie = relationship("Categorie", back_populates="budgets")

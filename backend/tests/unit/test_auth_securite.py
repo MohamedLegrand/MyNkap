@@ -6,6 +6,7 @@ de données, aucun client HTTP — tout est calculé en mémoire ou sur un objet
 construit directement en Python.
 """
 from datetime import datetime, timedelta
+from app.core.time import maintenant_utc, depuis_timestamp_utc
 
 from jose import jwt
 
@@ -45,15 +46,15 @@ def test_create_access_token_contient_le_bon_sujet():
 def test_create_access_token_expiration_par_defaut_dans_le_futur():
     token = create_access_token(subject="42")
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    assert datetime.utcfromtimestamp(payload["exp"]) > datetime.utcnow()
+    assert depuis_timestamp_utc(payload["exp"]) > maintenant_utc()
 
 
 def test_create_access_token_respecte_lexpiration_personnalisee():
     token = create_access_token(subject="42", expires_delta=timedelta(minutes=5))
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    expiration = datetime.utcfromtimestamp(payload["exp"])
+    expiration = depuis_timestamp_utc(payload["exp"])
     # Doit expirer dans ~5 minutes, pas dans les ACCESS_TOKEN_EXPIRE_MINUTES par défaut.
-    assert timedelta(minutes=4) < expiration - datetime.utcnow() <= timedelta(minutes=5)
+    assert timedelta(minutes=4) < expiration - maintenant_utc() <= timedelta(minutes=5)
 
 
 def test_create_access_token_rejete_avec_une_mauvaise_cle():
@@ -72,7 +73,7 @@ def test_reinitialiser_tentatives_echouees_remet_tout_a_zero():
         type="client",
         tentatives_echouees=4,
         alerte_tentatives_envoyee=True,
-        verrouille_jusqua=datetime.utcnow() + timedelta(minutes=10),
+        verrouille_jusqua=maintenant_utc() + timedelta(minutes=10),
     )
     _reinitialiser_tentatives_echouees(utilisateur)
     assert utilisateur.tentatives_echouees == 0

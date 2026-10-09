@@ -1,5 +1,6 @@
 import calendar
 from datetime import date, datetime, timedelta
+from app.core.time import maintenant_utc
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 from sqlalchemy import func
@@ -454,7 +455,7 @@ def obtenir_analyse_courante(
         "periode_fin": periode_fin,
         "resultats": resultats,
         "score_financier": score,
-        "date_generation": datetime.utcnow(),
+        "date_generation": maintenant_utc(),
     }
 
 
@@ -475,7 +476,7 @@ def obtenir_prediction_courante(
         "type": type_,
         "periode_debut": periode_debut,
         "periode_fin": periode_fin,
-        "date_generation": datetime.utcnow(),
+        "date_generation": maintenant_utc(),
         **donnees,
     }
 

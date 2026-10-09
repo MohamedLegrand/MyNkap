@@ -11,7 +11,7 @@ TypeCompte = Literal["MOBILE_MONEY", "BANCAIRE", "ESPECES", "EPARGNE", "ABONNEME
 # affiché tel quel dans la page du client — une URL externe permettrait du
 # suivi/pistage). Un logo importé passe uniquement par POST /comptes/{id}/logo,
 # qui l'héberge lui-même.
-LOGO_PREDEFINI = re.compile(r"^/(mobile-money/[a-z0-9-]+|cash|carte|momo|orange)\.(jpg|png|webp|avif|svg)$")
+LOGO_PREDEFINI = re.compile(r"^/(mobile-money/[a-z0-9-]+|cash|carte|momo|orange)\.(jpg|png|webp|avif|svg)$") 
 
 
 def _valider_logo_predefini(valeur: Optional[str]) -> Optional[str]:

@@ -2,6 +2,7 @@ import hashlib
 import os
 import secrets
 from datetime import datetime, timedelta
+from app.core.time import maintenant_utc
 from typing import Optional, Tuple
 
 import httpx
@@ -185,7 +186,7 @@ def authentifier_utilisateur(db: Session, login_in: UserLogin) -> Optional[Utili
         # inscrits sans jamais tenter un seul mot de passe.
         verify_password(login_in.mot_de_passe, HACHAGE_FACTICE)
         return None
-    if utilisateur.verrouille_jusqua is not None and utilisateur.verrouille_jusqua > datetime.utcnow():
+    if utilisateur.verrouille_jusqua is not None and utilisateur.verrouille_jusqua > maintenant_utc():
         raise CompteVerrouilleError()
     if not verify_password(login_in.mot_de_passe, utilisateur.mot_de_passe):
         _signaler_tentative_echouee(db, utilisateur)
@@ -236,7 +237,7 @@ def _signaler_tentative_echouee(db: Session, utilisateur: Utilisateur) -> None:
     if faut_alerter:
         utilisateur.alerte_tentatives_envoyee = True
     if utilisateur.tentatives_echouees >= SEUIL_VERROUILLAGE:
-        utilisateur.verrouille_jusqua = datetime.utcnow() + DUREE_VERROUILLAGE
+        utilisateur.verrouille_jusqua = maintenant_utc() + DUREE_VERROUILLAGE
     db.commit()
 
     if faut_alerter:
@@ -262,7 +263,7 @@ def _notifier_connexion_reussie(db: Session, utilisateur: Utilisateur) -> None:
         notifications_service.creer_notification_client(
             db, utilisateur.id_utilisateur, "CONNEXION_REUSSIE",
             "Nouvelle connexion à votre compte",
-            f"Connexion réussie le {datetime.utcnow().strftime('%d/%m/%Y à %H:%M')} UTC. "
+            f"Connexion réussie le {maintenant_utc().strftime('%d/%m/%Y à %H:%M')} UTC. "
             "Si ce n'est pas vous, changez votre mot de passe immédiatement.",
         )
 
@@ -318,7 +319,7 @@ def demarrer_inscription(db: Session, client_in: UserRegister) -> PendingInscrip
     n'existe déjà pour cet e-mail — voir router.register.
     """
     code = f"{secrets.randbelow(1_000_000):06d}"
-    expiration = datetime.utcnow() + DUREE_VALIDITE_OTP_INSCRIPTION
+    expiration = maintenant_utc() + DUREE_VALIDITE_OTP_INSCRIPTION
 
     pending = db.query(PendingInscription).filter(PendingInscription.email == client_in.email).first()
     if pending is None:
@@ -356,7 +357,7 @@ def confirmer_inscription(db: Session, email: str, code: str, request: Optional[
         return None
 
     code_valide = (
-        pending.otp_expiration >= datetime.utcnow()
+        pending.otp_expiration >= maintenant_utc()
         and secrets.compare_digest(pending.otp_code, code)
     )
 
@@ -404,7 +405,7 @@ def generer_et_envoyer_otp(db: Session, utilisateur: Utilisateur) -> None:
     """
     code = f"{secrets.randbelow(1_000_000):06d}"
     utilisateur.otp_code = code
-    utilisateur.otp_expiration = datetime.utcnow() + DUREE_VALIDITE_OTP_INSCRIPTION
+    utilisateur.otp_expiration = maintenant_utc() + DUREE_VALIDITE_OTP_INSCRIPTION
     db.commit()
 
     _envoyer_email_brevo(utilisateur.email, "Votre code de vérification MyNkap", _construire_email_otp(code))
@@ -426,7 +427,7 @@ def verifier_otp(db: Session, email: str, code: str) -> Optional[Utilisateur]:
         return None
 
     code_valide = (
-        utilisateur.otp_expiration >= datetime.utcnow()
+        utilisateur.otp_expiration >= maintenant_utc()
         and secrets.compare_digest(utilisateur.otp_code, code)
     )
 
@@ -533,7 +534,7 @@ def creer_refresh_token(db: Session, client_id: int) -> Tuple[RefreshToken, str]
     """
     token_string = secrets.token_hex(32)
     # Le jeton expire dans 8 jours
-    expiration = datetime.utcnow() + timedelta(days=8)
+    expiration = maintenant_utc() + timedelta(days=8)
 
     db_refresh = RefreshToken(
         id_client=client_id,
@@ -571,7 +572,7 @@ def valider_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
     if db_token is not None and db_token.est_revoque:
         dans_la_fenetre_de_grace = (
             db_token.date_revocation is not None
-            and datetime.utcnow() - db_token.date_revocation <= FENETRE_GRACE_REUTILISATION
+            and maintenant_utc() - db_token.date_revocation <= FENETRE_GRACE_REUTILISATION
         )
         if dans_la_fenetre_de_grace:
             return None
@@ -579,7 +580,7 @@ def valider_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
         nb_revoques = db.query(RefreshToken).filter(
             RefreshToken.id_client == db_token.id_client,
             RefreshToken.est_revoque == False,
-        ).update({"est_revoque": True, "date_revocation": datetime.utcnow()})
+        ).update({"est_revoque": True, "date_revocation": maintenant_utc()})
         db.commit()
         if nb_revoques:
             notifications_service.creer_notification_client(
@@ -591,7 +592,7 @@ def valider_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
             )
         raise RefreshTokenReutiliseError()
 
-    if db_token is None or db_token.date_expiration <= datetime.utcnow():
+    if db_token is None or db_token.date_expiration <= maintenant_utc():
         return None
     return db_token
 
@@ -603,7 +604,7 @@ def revoquer_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
     db_token = db.query(RefreshToken).filter(RefreshToken.token_hash == _hasher_token(token)).first()
     if db_token:
         db_token.est_revoque = True
-        db_token.date_revocation = datetime.utcnow()
+        db_token.date_revocation = maintenant_utc()
         db.commit()
         return db_token
     return None
@@ -617,7 +618,7 @@ def faire_tourner_refresh_token(db: Session, ancien: RefreshToken) -> str:
     légitime. Retourne le nouveau jeton en clair.
     """
     ancien.est_revoque = True
-    ancien.date_revocation = datetime.utcnow()
+    ancien.date_revocation = maintenant_utc()
     db.commit()
     _, nouveau_token = creer_refresh_token(db, ancien.id_client)
     return nouveau_token
@@ -697,7 +698,7 @@ def generer_forgot_password_token(db: Session, email: str) -> Optional[str]:
     reset_token = secrets.token_urlsafe(32)
     client.reset_password_token = reset_token
     # Le token expire dans 15 minutes
-    client.reset_password_expires = datetime.utcnow() + timedelta(minutes=15)
+    client.reset_password_expires = maintenant_utc() + timedelta(minutes=15)
 
     db.commit()
 
@@ -722,7 +723,7 @@ def reinitialiser_mot_de_passe(db: Session, reset_in: ResetPasswordRequest) -> O
     """
     client = db.query(Client).filter(
         Client.reset_password_token == reset_in.token,
-        Client.reset_password_expires > datetime.utcnow()
+        Client.reset_password_expires > maintenant_utc()
     ).first()
 
     if not client:

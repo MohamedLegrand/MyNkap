@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -19,8 +20,8 @@ class ObjectifEpargne(Base):
     montant_cible = Column(Numeric(14, 2), nullable=False)
     date_echeance = Column(Date, nullable=True)
     statut = Column(String, default="EN_COURS", nullable=False)  # EN_COURS, ATTEINT, ABANDONNE
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
     client = relationship("Client", back_populates="objectifs_epargne")
     compte_epargne = relationship("CompteFinancier", foreign_keys=[id_compte_epargne])

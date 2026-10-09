@@ -1,6 +1,7 @@
 import logging
 import math
 from datetime import datetime, timedelta
+from app.core.time import maintenant_utc
 from decimal import Decimal
 from typing import List, Optional
 import hrpay
@@ -128,8 +129,8 @@ def creer_abonnement_essai(db: Session, id_client: int) -> Abonnement:
         id_client=id_client,
         id_plan=plan_premium.id_plan,
         statut="ESSAI",
-        date_debut=datetime.utcnow(),
-        date_fin=datetime.utcnow() + DUREE_ESSAI_GRATUIT,
+        date_debut=maintenant_utc(),
+        date_fin=maintenant_utc() + DUREE_ESSAI_GRATUIT,
         cycle_facturation=None,
         renouvellement_auto=False,
     )
@@ -157,7 +158,7 @@ def obtenir_abonnement_actif(db: Session, id_client: int) -> Abonnement:
         db.refresh(abonnement)
         return abonnement
 
-    if abonnement.date_fin is not None and abonnement.date_fin <= datetime.utcnow():
+    if abonnement.date_fin is not None and abonnement.date_fin <= maintenant_utc():
         tentative_renouvellement = abonnement.cycle_facturation is not None and abonnement.renouvellement_auto
         if tentative_renouvellement and _tenter_renouvellement_auto(db, id_client, abonnement):
             return abonnement
@@ -226,8 +227,8 @@ def _tenter_renouvellement_auto(db: Session, id_client: int, abonnement: Abonnem
         type="RENOUVELLEMENT_ABONNEMENT",
     ))
 
-    abonnement.date_debut = datetime.utcnow()
-    abonnement.date_fin = datetime.utcnow() + DUREE_CYCLE[abonnement.cycle_facturation]
+    abonnement.date_debut = maintenant_utc()
+    abonnement.date_fin = maintenant_utc() + DUREE_CYCLE[abonnement.cycle_facturation]
     abonnement.statut = "ACTIF"
     # Nouveau cycle : le rappel du précédent ne concerne plus celui-ci (voir
     # notifier_renouvellements_proches).
@@ -264,7 +265,7 @@ def notifier_renouvellements_proches(db: Session) -> int:
     échéance (rappel_renouvellement_envoye, remis à False à chaque nouveau
     cycle — voir changer_plan et _tenter_renouvellement_auto).
     """
-    seuil = datetime.utcnow() + DELAI_RAPPEL_RENOUVELLEMENT
+    seuil = maintenant_utc() + DELAI_RAPPEL_RENOUVELLEMENT
     a_notifier = (
         db.query(Abonnement)
         .filter(
@@ -273,7 +274,7 @@ def notifier_renouvellements_proches(db: Session) -> int:
             Abonnement.statut == "ACTIF",
             Abonnement.rappel_renouvellement_envoye.is_(False),
             Abonnement.date_fin.isnot(None),
-            Abonnement.date_fin > datetime.utcnow(),
+            Abonnement.date_fin > maintenant_utc(),
             Abonnement.date_fin <= seuil,
         )
         .all()
@@ -334,7 +335,7 @@ def notifier_essai_actif(db: Session, id_client: int) -> None:
     if abonnement.statut != "ESSAI" or abonnement.date_fin is None:
         raise EssaiInactifError()
 
-    jours_restants = max(0, (abonnement.date_fin - datetime.utcnow()).days + 1)
+    jours_restants = max(0, (abonnement.date_fin - maintenant_utc()).days + 1)
     notifications_service.creer_notification_client(
         db,
         id_client,
@@ -363,7 +364,7 @@ def changer_plan(
 
     abonnement.id_plan = plan.id_plan
     abonnement.statut = "ACTIF"
-    abonnement.date_debut = datetime.utcnow()
+    abonnement.date_debut = maintenant_utc()
     abonnement.renouvellement_auto = True
     # Nouveau cycle : le rappel du précédent (le cas échéant) ne concerne
     # plus celui-ci (voir notifier_renouvellements_proches).
@@ -376,7 +377,7 @@ def changer_plan(
         if cycle_facturation not in DUREE_CYCLE:
             raise CycleFacturationRequisError()
         abonnement.cycle_facturation = cycle_facturation
-        abonnement.date_fin = datetime.utcnow() + DUREE_CYCLE[cycle_facturation]
+        abonnement.date_fin = maintenant_utc() + DUREE_CYCLE[cycle_facturation]
 
     db.commit()
     db.refresh(abonnement)
@@ -745,7 +746,7 @@ def verifier_paiements_en_attente(db: Session) -> int:
             nom_plan = paiement.plan_demande.nom
             changer_plan(db, paiement.id_client, nom_plan, paiement.cycle_facturation)
             paiement.statut = "SUCCESS"
-            paiement.date_confirmation = datetime.utcnow()
+            paiement.date_confirmation = maintenant_utc()
             db.commit()
             nb_traites += 1
 

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from app.core.time import maintenant_utc
 from decimal import Decimal
 
 import hrpay
@@ -46,7 +47,7 @@ def test_nouveau_client_a_un_essai_premium_de_7_jours(client):
     assert body["date_fin"] is not None
 
     date_fin = datetime.fromisoformat(body["date_fin"])
-    duree_restante = date_fin - datetime.utcnow()
+    duree_restante = date_fin - maintenant_utc()
     # Marge de quelques minutes pour absorber le temps d'exécution du test.
     assert timedelta(days=6, hours=23) < duree_restante <= timedelta(days=7)
 
@@ -307,7 +308,7 @@ def test_abonnement_expire_revient_a_gratuit_meme_avec_renouvellement_auto(clien
 
     abonnement = db_session.query(Abonnement).first()
     assert abonnement.renouvellement_auto is True
-    abonnement.date_fin = datetime.utcnow() - timedelta(days=1)
+    abonnement.date_fin = maintenant_utc() - timedelta(days=1)
     db_session.commit()
 
     reponse = client.get("/api/v1/abonnement", headers=headers)
@@ -344,14 +345,14 @@ def test_renouvellement_auto_debite_le_compte_abonnement_et_prolonge_labonnement
     db_session.commit()
 
     abonnement = db_session.query(Abonnement).filter(Abonnement.id_client == id_client).first()
-    abonnement.date_fin = datetime.utcnow() - timedelta(days=1)
+    abonnement.date_fin = maintenant_utc() - timedelta(days=1)
     db_session.commit()
 
     reponse = client.get("/api/v1/abonnement", headers=headers)
     body = reponse.json()
     assert body["plan"]["nom"] == "ESSENTIEL"
     assert body["cycle_facturation"] == "MENSUEL"
-    assert datetime.fromisoformat(body["date_fin"]) > datetime.utcnow()
+    assert datetime.fromisoformat(body["date_fin"]) > maintenant_utc()
 
     db_session.refresh(compte_abonnement)
     assert compte_abonnement.solde == Decimal("2500")  # 5000 - 2500 (prix mensuel ESSENTIEL)
@@ -378,7 +379,7 @@ def test_notifier_renouvellements_proches_previent_une_seule_fois_avant_lecheanc
     plans_service.changer_plan(db_session, id_client, "ESSENTIEL", "MENSUEL")
 
     abonnement = db_session.query(Abonnement).filter(Abonnement.id_client == id_client).first()
-    abonnement.date_fin = datetime.utcnow() + timedelta(days=2)
+    abonnement.date_fin = maintenant_utc() + timedelta(days=2)
     db_session.commit()
 
     nb_notifies = plans_service.notifier_renouvellements_proches(db_session)
@@ -446,7 +447,7 @@ def test_reactiver_renouvellement_apres_annulation_le_remet_actif(client, db_ses
     db_session.commit()
 
     abonnement = db_session.query(Abonnement).filter(Abonnement.id_client == id_client).first()
-    abonnement.date_fin = datetime.utcnow() - timedelta(days=1)
+    abonnement.date_fin = maintenant_utc() - timedelta(days=1)
     db_session.commit()
 
     reponse = client.get("/api/v1/abonnement", headers=headers)

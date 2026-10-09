@@ -1,6 +1,7 @@
 import logging
 import math
 from datetime import datetime
+from app.core.time import maintenant_utc
 from decimal import Decimal
 from typing import List, Optional
 import hrpay
@@ -356,7 +357,7 @@ def verifier_recharges_en_attente(db: Session) -> int:
 
             recharge.statut = "SUCCESS"
             recharge.id_transaction = transaction.id_transaction
-            recharge.date_confirmation = datetime.utcnow()
+            recharge.date_confirmation = maintenant_utc()
             db.commit()
             synchroniser_compte_principal(db, recharge.id_client)
             nb_traites += 1

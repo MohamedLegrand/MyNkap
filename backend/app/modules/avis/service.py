@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from app.core.time import maintenant_utc
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
@@ -71,10 +72,10 @@ def doit_demander_avis(db: Session, client: Client) -> bool:
     if db.query(Avis).filter(Avis.id_client == client.id_client).first() is not None:
         return False
 
-    if datetime.utcnow() - client.date_creation < ANCIENNETE_MINIMALE:
+    if maintenant_utc() - client.date_creation < ANCIENNETE_MINIMALE:
         return False
 
-    if client.prochaine_invitation_avis is not None and datetime.utcnow() < client.prochaine_invitation_avis:
+    if client.prochaine_invitation_avis is not None and maintenant_utc() < client.prochaine_invitation_avis:
         return False
 
     return True
@@ -86,5 +87,5 @@ def reporter_avis(db: Session, client: Client) -> None:
     ne rien lui redemander avant DUREE_REPORT. Ne crée aucune ligne dans
     `avis` : ce n'est pas un avis, juste une date de relance sur Client.
     """
-    client.prochaine_invitation_avis = datetime.utcnow() + DUREE_REPORT
+    client.prochaine_invitation_avis = maintenant_utc() + DUREE_REPORT
     db.commit()

@@ -28,10 +28,15 @@ import {
   Legend,
   BarChart,
   Bar,
+  LabelList,
+  AreaChart,
+  Area,
+  ReferenceLine,
   XAxis,
   YAxis,
   CartesianGrid,
 } from 'recharts';
+import type { DotItemDotProps } from 'recharts';
 import { api } from '../services/api';
 import { JarvisWidget } from './JarvisWidget';
 import i18n from '../i18n';
@@ -39,6 +44,20 @@ import type { AnalyseFinanciere, Prediction, Budget, Categorie } from '../types'
 
 const localeActuelle = () => (i18n.language === 'en' ? 'en-US' : 'fr-FR');
 const formatMontant = (valeur: string | number) => `${Number(valeur).toLocaleString('fr-FR')} XAF`;
+// Version compacte pour les étiquettes directement affichées sur les barres
+// (k/M au-delà de 1 000) — sans elle, un montant complet "123 456 XAF" au
+// sommet d'une barre étroite se chevauche avec sa voisine dans un graphique
+// groupé. "0" reste explicite plutôt que de laisser une barre muette : sans
+// cette étiquette, une valeur à zéro est juste invisible, indiscernable
+// d'un bug d'affichage (c'est exactement ce qui a soulevé la question).
+const formatMontantCourt = (valeur: string | number) => {
+  const n = Number(valeur);
+  if (n === 0) return '0';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}M`;
+  if (abs >= 1_000) return `${(n / 1_000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}k`;
+  return n.toLocaleString('fr-FR');
+};
 const formatPeriode = (debut: string, fin: string) =>
   `${new Date(debut).toLocaleDateString(localeActuelle())} → ${new Date(fin).toLocaleDateString(localeActuelle())}`;
 const formatMoisCourt = (iso: string) => new Date(iso).toLocaleDateString(localeActuelle(), { month: 'short', year: '2-digit' });
@@ -48,6 +67,12 @@ const formatMoisCourt = (iso: string) => new Date(iso).toLocaleDateString(locale
 // distinguable, même avec un grand nombre de catégories personnalisées.
 const PALETTE = ['#16a34a', '#2563eb', '#f59e0b', '#db2777', '#7c3aed', '#0891b2', '#dc2626', '#ea580c', '#4f46e5', '#059669'];
 
+// Vert de marque MyNkap (voir tailwind.config, forest.700 / --primary) —
+// réservé aux courbes d'évolution "héros" du tableau de bord (score,
+// prédictions), jamais mélangé à la palette multi-teintes ci-dessus qui
+// sert à distinguer des catégories entre elles.
+const COULEUR_MARQUE = 'hsl(var(--primary))';
+
 const STYLE_TOOLTIP = {
   contentStyle: {
     background: 'hsl(var(--card))',
@@ -55,11 +80,33 @@ const STYLE_TOOLTIP = {
     borderRadius: 12,
     fontSize: 12,
     color: 'hsl(var(--foreground))',
+    boxShadow: '0 8px 24px -8px rgb(0 0 0 / 0.18)',
+    padding: '10px 14px',
   },
-  labelStyle: { color: 'hsl(var(--foreground))', fontWeight: 700 },
+  labelStyle: { color: 'hsl(var(--foreground))', fontWeight: 700, marginBottom: 4 },
+  cursor: { stroke: 'hsl(var(--border))', strokeWidth: 1, strokeDasharray: '4 4' },
 };
 
 const AXE_STYLE = { fontSize: 11, fill: 'hsl(var(--muted-foreground))' };
+
+// Identifiants des <linearGradient> déclarés une seule fois dans
+// <DegradesPalette> et réutilisés par chaque graphique via url(#id) — évite
+// de redéfinir les mêmes dégradés dans chaque composant de graphique.
+const idDegrade = (couleur: string) => `degrade-${couleur.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+// Dégradés verticaux (opaque en haut, qui s'estompe vers le bas) partagés
+// par tous les graphiques à barres du module : un aplat uni a l'air plat,
+// un léger dégradé donne tout de suite un rendu "tableau de bord" soigné.
+const DegradesPalette: React.FC = () => (
+  <defs>
+    {PALETTE.map((couleur) => (
+      <linearGradient key={couleur} id={idDegrade(couleur)} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={couleur} stopOpacity={0.95} />
+        <stop offset="100%" stopColor={couleur} stopOpacity={0.55} />
+      </linearGradient>
+    ))}
+  </defs>
+);
 
 type TypeAnalyse = 'HABITUDES' | 'TENDANCES' | 'COMPARAISON' | 'COMPORTEMENT';
 type TypePrediction = 'DEPENSES_FUTURES' | 'RISQUE_BUDGETAIRE' | 'CAPACITE_EPARGNE';
@@ -167,18 +214,39 @@ const RenduHabitudes: React.FC<{ resultats: Record<string, unknown> }> = ({ resu
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        {t('analyse.total_spent')} : <strong className="text-foreground">{formatMontant(totalDepenses ?? '0')}</strong>
-      </p>
-
       <CarteGraphique titre={t('analyse.chart_breakdown')}>
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
-            <Pie data={repartition} dataKey="pourcentage" nameKey="categorie" cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={3} isAnimationActive={false}>
+            <DegradesPalette />
+            <Pie
+              data={repartition}
+              dataKey="pourcentage"
+              nameKey="categorie"
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={96}
+              paddingAngle={3}
+              isAnimationActive={false}
+            >
               {repartition.map((entry, i) => (
-                <Cell key={entry.categorie} fill={PALETTE[i % PALETTE.length]} stroke="hsl(var(--card))" strokeWidth={2} />
+                <Cell
+                  key={entry.categorie}
+                  fill={`url(#${idDegrade(PALETTE[i % PALETTE.length])})`}
+                  stroke="hsl(var(--card))"
+                  strokeWidth={2}
+                />
               ))}
             </Pie>
+            {/* Total au centre du donut — convention des tableaux de bord
+                exécutifs : le chiffre qui compte le plus se lit sans survoler
+                aucune part. */}
+            <text x="50%" y="48%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground font-black" style={{ fontSize: 18 }}>
+              {formatMontant(totalDepenses ?? '0')}
+            </text>
+            <text x="50%" y="60%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground font-bold uppercase" style={{ fontSize: 9.5, letterSpacing: '0.04em' }}>
+              {t('analyse.total_spent')}
+            </text>
             <Tooltip formatter={(value: unknown) => `${Number(value)}%`} {...STYLE_TOOLTIP} />
             <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: 11, lineHeight: '1.7em' }} />
           </PieChart>
@@ -237,14 +305,19 @@ const RenduTendances: React.FC<{ resultats: Record<string, unknown> }> = ({ resu
     <div className="space-y-4">
       <CarteGraphique titre={t('analyse.chart_trends')}>
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={donneesGraphique} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+          <BarChart data={donneesGraphique} margin={{ top: 8, right: 8, left: 0, bottom: 8 }} barGap={6}>
+            <DegradesPalette />
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis dataKey="categorie" tick={AXE_STYLE} interval={0} angle={-20} textAnchor="end" height={55} />
             <YAxis tick={AXE_STYLE} />
             <Tooltip formatter={(value: unknown) => formatMontant(Number(value))} {...STYLE_TOOLTIP} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey={labelPeriodeActuelle} fill={PALETTE[1]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
-            <Bar dataKey={labelMoyenne3Mois} fill={PALETTE[2]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey={labelPeriodeActuelle} fill={`url(#${idDegrade(PALETTE[1])})`} radius={[6, 6, 0, 0]} isAnimationActive={false}>
+              <LabelList dataKey={labelPeriodeActuelle} position="top" formatter={(v: unknown) => formatMontantCourt(Number(v))} style={{ fontSize: 10, fontWeight: 700, fill: 'hsl(var(--foreground))' }} />
+            </Bar>
+            <Bar dataKey={labelMoyenne3Mois} fill={`url(#${idDegrade(PALETTE[2])})`} radius={[6, 6, 0, 0]} isAnimationActive={false}>
+              <LabelList dataKey={labelMoyenne3Mois} position="top" formatter={(v: unknown) => formatMontantCourt(Number(v))} style={{ fontSize: 10, fontWeight: 700, fill: 'hsl(var(--foreground))' }} />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </CarteGraphique>
@@ -369,14 +442,19 @@ const RenduComparaison: React.FC<{ resultats: Record<string, unknown> }> = ({ re
     <div className="space-y-4">
       <CarteGraphique titre={t('analyse.chart_comparison')}>
         <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={donneesGraphique} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+          <BarChart data={donneesGraphique} margin={{ top: 8, right: 8, left: 0, bottom: 8 }} barGap={6}>
+            <DegradesPalette />
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis dataKey="categorie" tick={AXE_STYLE} />
             <YAxis tick={AXE_STYLE} />
             <Tooltip formatter={(value: unknown) => formatMontant(Number(value))} {...STYLE_TOOLTIP} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey={labelActuelle} fill={PALETTE[1]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
-            <Bar dataKey={labelPrecedente} fill={PALETTE[5]} radius={[6, 6, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey={labelActuelle} fill={`url(#${idDegrade(PALETTE[1])})`} radius={[6, 6, 0, 0]} isAnimationActive={false}>
+              <LabelList dataKey={labelActuelle} position="top" formatter={(v: unknown) => formatMontantCourt(Number(v))} style={{ fontSize: 10, fontWeight: 700, fill: 'hsl(var(--foreground))' }} />
+            </Bar>
+            <Bar dataKey={labelPrecedente} fill={`url(#${idDegrade(PALETTE[5])})`} radius={[6, 6, 0, 0]} isAnimationActive={false}>
+              <LabelList dataKey={labelPrecedente} position="top" formatter={(v: unknown) => formatMontantCourt(Number(v))} style={{ fontSize: 10, fontWeight: 700, fill: 'hsl(var(--foreground))' }} />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </CarteGraphique>
@@ -466,13 +544,14 @@ const RenduComportement: React.FC<{ resultats: Record<string, unknown> }> = ({ r
       <CarteGraphique titre={t('analyse.overview_title')}>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart layout="vertical" data={donneesGraphique} margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
+            <DegradesPalette />
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
             <XAxis type="number" allowDecimals={false} tick={AXE_STYLE} />
             <YAxis type="category" dataKey="label" tick={AXE_STYLE} width={150} />
             <Tooltip {...STYLE_TOOLTIP} />
             <Bar dataKey="valeur" radius={[0, 6, 6, 0]} isAnimationActive={false}>
               {donneesGraphique.map((d, i) => (
-                <Cell key={d.label} fill={PALETTE[i % PALETTE.length]} />
+                <Cell key={d.label} fill={`url(#${idDegrade(PALETTE[i % PALETTE.length])})`} />
               ))}
             </Bar>
           </BarChart>
@@ -493,32 +572,187 @@ const RENDUS_ANALYSE: Record<TypeAnalyse, React.FC<{ resultats: Record<string, u
 
 const niveauConfianceCouleur = (niveau: number) => (niveau >= 0.7 ? PALETTE[0] : niveau >= 0.4 ? PALETTE[2] : PALETTE[6]);
 
+interface PointEvolution {
+  label: string;
+  valeur: number;
+  estimation: boolean;
+  estMax?: boolean;
+  estMin?: boolean;
+}
+
+interface SeuilReference {
+  valeur: number;
+  label: string;
+  couleur: string;
+}
+
+// Chaque point de la courbe est un vrai marqueur visible (pas un simple
+// pixel sur la ligne) — c'est ce qui donne un graphique d'évolution son
+// aspect "lisible à l'œil nu" plutôt qu'un trait abstrait. Trois styles
+// distincts, sans ambiguïté de couleur (jamais de code couleur superposé à
+// la couleur de la série elle-même) :
+//  - point courant/estimation : halo + anneau creux (c'est encore provisoire)
+//  - meilleur et pire mois de la période : anneau élargi + valeur affichée
+//    directement au-dessus/en-dessous, comme une légende qui s'auto-désigne
+//  - mois ordinaire : disque plein cerclé de blanc, bien visible sur la grille
+const creerPointCourbe = (couleur: string, formatValeur: (v: number) => string) => {
+  const PointCourbe = (props: DotItemDotProps) => {
+    const { cx, cy } = props;
+    const payload = props.payload as PointEvolution | undefined;
+    if (cx == null || cy == null || !payload) return null;
+
+    if (payload.estimation) {
+      return (
+        <g>
+          <circle cx={cx} cy={cy} r={10} fill={couleur} fillOpacity={0.18} />
+          <circle cx={cx} cy={cy} r={5.5} fill="hsl(var(--card))" stroke={couleur} strokeWidth={2.75} />
+        </g>
+      );
+    }
+
+    if (payload.estMax || payload.estMin) {
+      const decalageY = payload.estMax ? -16 : 20;
+      const glyphe = payload.estMax ? '▲' : '▼';
+      return (
+        <g>
+          <circle cx={cx} cy={cy} r={8} fill="hsl(var(--card))" stroke={couleur} strokeWidth={2.5} />
+          <circle cx={cx} cy={cy} r={3} fill={couleur} />
+          <text x={cx} y={cy + decalageY} textAnchor="middle" fontSize={10.5} fontWeight={800} fill={couleur}>
+            {`${glyphe} ${formatValeur(payload.valeur)}`}
+          </text>
+        </g>
+      );
+    }
+
+    return <circle cx={cx} cy={cy} r={4.5} fill={couleur} stroke="hsl(var(--card))" strokeWidth={2} />;
+  };
+  PointCourbe.displayName = `PointCourbe(${couleur})`;
+  return PointCourbe;
+};
+
+// Courbe d'évolution "héros" partagée par le score financier et les
+// prédictions mensuelles : aire en dégradé sous une ligne lissée, seuils de
+// référence optionnels (ex. bornes du score), et le dernier point (valeur
+// courante / estimée) mis en valeur distinctement des mois déjà clos.
+const CourbeEvolution: React.FC<{
+  donnees: PointEvolution[];
+  couleur: string;
+  domaine: [number | 'auto', number | 'auto'];
+  formatValeur: (v: number) => string;
+  seuils?: SeuilReference[];
+  hauteur?: number;
+}> = ({ donnees, couleur, domaine, formatValeur, seuils, hauteur = 240 }) => {
+  const { t } = useTranslation();
+  const idZone = idDegrade(couleur);
+
+  // Mois le plus haut / le plus bas de la période affichée, calculés une
+  // seule fois ici (jamais par le backend) : c'est une lecture du
+  // graphique, pas une donnée financière en soi. Le point courant/estimé
+  // n'est jamais candidat — il a déjà son propre traitement visuel, le
+  // désigner en plus comme record serait redondant et confus sur une série
+  // encore courte (2-3 mois).
+  const donneesEnrichies = React.useMemo<PointEvolution[]>(() => {
+    const historique = donnees.filter((d) => !d.estimation);
+    if (historique.length < 2) return donnees;
+    const valeurMax = Math.max(...historique.map((d) => d.valeur));
+    const valeurMin = Math.min(...historique.map((d) => d.valeur));
+    if (valeurMax === valeurMin) return donnees;
+    let maxMarque = false;
+    let minMarque = false;
+    return donnees.map((d) => {
+      if (d.estimation) return d;
+      const estMax = !maxMarque && d.valeur === valeurMax;
+      const estMin = !minMarque && d.valeur === valeurMin;
+      if (estMax) maxMarque = true;
+      if (estMin) minMarque = true;
+      return { ...d, estMax, estMin };
+    });
+  }, [donnees]);
+
+  const PointCourbe = React.useMemo(() => creerPointCourbe(couleur, formatValeur), [couleur, formatValeur]);
+
+  return (
+    <ResponsiveContainer width="100%" height={hauteur}>
+      <AreaChart data={donneesEnrichies} margin={{ top: 28, right: 20, left: 0, bottom: 20 }}>
+        <defs>
+          <linearGradient id={idZone} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={couleur} stopOpacity={0.38} />
+            <stop offset="100%" stopColor={couleur} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        {/* Grille fine dans les deux sens — le repère visuel d'un vrai
+            graphique financier, pas seulement des lignes horizontales. */}
+        <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" strokeOpacity={0.7} />
+        <XAxis dataKey="label" tick={AXE_STYLE} tickLine={false} axisLine={{ stroke: 'hsl(var(--border))' }} />
+        <YAxis
+          domain={domaine}
+          tick={AXE_STYLE}
+          tickLine={false}
+          axisLine={false}
+          width={48}
+          tickFormatter={(v: number) => formatValeur(v)}
+        />
+        {seuils?.map((seuil) => (
+          <ReferenceLine
+            key={seuil.label}
+            y={seuil.valeur}
+            stroke={seuil.couleur}
+            strokeDasharray="4 4"
+            strokeOpacity={0.6}
+            label={{ value: seuil.label, position: 'insideTopRight', fill: seuil.couleur, fontSize: 10, fontWeight: 700 }}
+          />
+        ))}
+        <Tooltip
+          formatter={(value: unknown) => formatValeur(Number(value))}
+          labelFormatter={(label, items) => {
+            const estimation = (items?.[0]?.payload as PointEvolution | undefined)?.estimation;
+            return estimation ? `${label} · ${t('analyse.estimation')}` : String(label);
+          }}
+          {...STYLE_TOOLTIP}
+        />
+        <Area
+          type="linear"
+          dataKey="valeur"
+          stroke={couleur}
+          strokeWidth={2.75}
+          fill={`url(#${idZone})`}
+          dot={PointCourbe}
+          activeDot={{ r: 6, stroke: couleur, strokeWidth: 2, fill: 'hsl(var(--card))' }}
+          isAnimationActive={false}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+};
+
 const GraphiqueHistoriqueScore: React.FC<{ historique: AnalyseFinanciere[]; scoreActuel: number | null }> = ({ historique, scoreActuel }) => {
   const { t } = useTranslation();
-  const donnees = [
+  const donnees: PointEvolution[] = [
     ...[...historique].reverse().map((a) => ({
       label: formatMoisCourt(a.periode_debut),
-      score: a.score_financier ?? 0,
+      valeur: a.score_financier ?? 0,
       estimation: false,
     })),
-    { label: t('analyse.this_month'), score: scoreActuel ?? 0, estimation: true },
+    { label: t('analyse.this_month'), valeur: scoreActuel ?? 0, estimation: true },
+  ];
+
+  // Mêmes seuils que ScoreFinancier (70 = bonne santé, 40 = vigilance) : la
+  // courbe se lit à l'aune des mêmes repères que la jauge au-dessus, pas
+  // des bornes arbitraires propres au graphique.
+  const seuils: SeuilReference[] = [
+    { valeur: 70, label: t('analyse.score_band_good'), couleur: PALETTE[0] },
+    { valeur: 40, label: t('analyse.score_band_watch'), couleur: PALETTE[2] },
   ];
 
   return (
     <CarteGraphique titre={t('analyse.score_evolution')}>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis dataKey="label" tick={AXE_STYLE} />
-          <YAxis domain={[0, 100]} tick={AXE_STYLE} />
-          <Tooltip formatter={(value: unknown) => `${value} / 100`} {...STYLE_TOOLTIP} />
-          <Bar dataKey="score" radius={[6, 6, 0, 0]} isAnimationActive={false}>
-            {donnees.map((d) => (
-              <Cell key={d.label} fill={d.estimation ? PALETTE[1] : PALETTE[4]} fillOpacity={d.estimation ? 1 : 0.65} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <CourbeEvolution
+        donnees={donnees}
+        couleur={COULEUR_MARQUE}
+        domaine={[0, 100]}
+        formatValeur={(v) => `${Math.round(v)}`}
+        seuils={seuils}
+      />
     </CarteGraphique>
   );
 };
@@ -527,34 +761,34 @@ const GraphiqueHistoriquePrediction: React.FC<{ historique: Prediction[]; estima
   historique, estimationActuelle,
 }) => {
   const { t } = useTranslation();
-  const donnees = [
+  const donnees: PointEvolution[] = [
     ...[...historique].reverse().map((p) => ({
       label: formatMoisCourt(p.periode_debut),
-      montant: Number(p.montant_predit ?? 0),
+      valeur: Number(p.montant_predit ?? 0),
       estimation: false,
     })),
     {
       label: t('analyse.estimation'),
-      montant: Number(estimationActuelle.montant_predit ?? 0),
+      valeur: Number(estimationActuelle.montant_predit ?? 0),
       estimation: true,
     },
   ];
 
+  // Capacité d'épargne : une courbe qui plonge sous zéro est un signal
+  // d'alerte en soi — la couleur de la courbe le reflète directement
+  // (rouge dès que l'estimation courante est négative), plutôt qu'un vert
+  // uniforme qui masquerait le problème.
+  const enAlerte = estimationActuelle.type === 'CAPACITE_EPARGNE' && (estimationActuelle.montant_predit ?? 0) < 0;
+  const couleur = enAlerte ? 'hsl(var(--destructive))' : COULEUR_MARQUE;
+
   return (
     <CarteGraphique titre={t('analyse.monthly_evolution')}>
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis dataKey="label" tick={AXE_STYLE} />
-          <YAxis tick={AXE_STYLE} />
-          <Tooltip formatter={(value: unknown) => formatMontant(Number(value))} {...STYLE_TOOLTIP} />
-          <Bar dataKey="montant" radius={[6, 6, 0, 0]} isAnimationActive={false}>
-            {donnees.map((d) => (
-              <Cell key={d.label} fill={d.estimation ? PALETTE[1] : PALETTE[4]} fillOpacity={d.estimation ? 1 : 0.65} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <CourbeEvolution
+        donnees={donnees}
+        couleur={couleur}
+        domaine={['auto', 'auto']}
+        formatValeur={(v) => formatMontant(v)}
+      />
     </CarteGraphique>
   );
 };
@@ -579,7 +813,8 @@ const GraphiqueRisqueBudgetaire: React.FC<{ budgets: Budget[]; categories: Categ
   return (
     <CarteGraphique titre={t('analyse.budget_vs_limit_chart')}>
       <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+        <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 8 }} barGap={4}>
+          <DegradesPalette />
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis dataKey="categorie" tick={AXE_STYLE} interval={0} angle={-20} textAnchor="end" height={55} />
           <YAxis tick={AXE_STYLE} />
@@ -587,10 +822,11 @@ const GraphiqueRisqueBudgetaire: React.FC<{ budgets: Budget[]; categories: Categ
           <Legend wrapperStyle={{ fontSize: 11 }} />
           <Bar dataKey={labelDepense} radius={[6, 6, 0, 0]} isAnimationActive={false}>
             {donnees.map((d) => (
-              <Cell key={d.categorie} fill={d.depasse ? PALETTE[6] : PALETTE[1]} />
+              <Cell key={d.categorie} fill={`url(#${idDegrade(d.depasse ? PALETTE[6] : PALETTE[1])})`} />
             ))}
+            <LabelList dataKey={labelDepense} position="top" formatter={(v: unknown) => formatMontantCourt(Number(v))} style={{ fontSize: 10, fontWeight: 700, fill: 'hsl(var(--foreground))' }} />
           </Bar>
-          <Bar dataKey={labelLimite} fill="hsl(var(--muted-foreground))" fillOpacity={0.35} radius={[6, 6, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey={labelLimite} fill="hsl(var(--muted-foreground))" fillOpacity={0.3} radius={[6, 6, 0, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </CarteGraphique>

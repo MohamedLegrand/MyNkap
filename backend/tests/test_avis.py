@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from app.core.time import maintenant_utc
 
 from app.core.security import create_access_token, get_password_hash
 from app.modules.audit.models import AuditLog
@@ -186,7 +187,7 @@ def _vieillir_le_compte(db_session, id_client, jours=15):
     """Recule artificiellement date_creation pour simuler un client ancien
     — doit_demander_avis exige 14 jours d'ancienneté minimum."""
     c = db_session.query(Client).filter(Client.id_client == id_client).first()
-    c.date_creation = datetime.utcnow() - timedelta(days=jours)
+    c.date_creation = maintenant_utc() - timedelta(days=jours)
     db_session.commit()
 
 
@@ -233,4 +234,4 @@ def test_reporter_avis_repousse_linvitation(client, db_session):
 
     c = db_session.query(Client).filter(Client.email == email).first()
     assert c.prochaine_invitation_avis is not None
-    assert c.prochaine_invitation_avis > datetime.utcnow() + timedelta(days=6)
+    assert c.prochaine_invitation_avis > maintenant_utc() + timedelta(days=6)

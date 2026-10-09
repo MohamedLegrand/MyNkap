@@ -1,6 +1,7 @@
 import os
 import socket
 from datetime import date, datetime
+from app.core.time import maintenant_utc
 from decimal import Decimal
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -275,7 +276,7 @@ def generer_rapport(db: Session, id_rapport: int) -> Optional[Rapport]:
             "titre": config["titre"],
             "periode_debut": rapport.periode_debut.strftime("%d/%m/%Y"),
             "periode_fin": rapport.periode_fin.strftime("%d/%m/%Y"),
-            "date_generation": datetime.utcnow().strftime("%d/%m/%Y %H:%M"),
+            "date_generation": maintenant_utc().strftime("%d/%m/%Y %H:%M"),
             **donnees,
         }
         html = _environnement_jinja.get_template(config["template"]).render(**contexte)

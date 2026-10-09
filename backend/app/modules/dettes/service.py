@@ -11,7 +11,7 @@ from app.modules.dettes.schemas import DetteCreate
 from app.modules.transactions.models import Transaction
 
 STATUTS_VERROUILLES = ("SOLDE", "PERTE")
-
+ 
 
 class CompteIntrouvableError(Exception):
     """Le compte n'existe pas, n'appartient pas au client, ou est désactivé."""

@@ -1,6 +1,7 @@
 import secrets
 import string
 from datetime import datetime, timedelta
+from app.core.time import maintenant_utc
 from decimal import Decimal
 from typing import List, Optional
 from fastapi import HTTPException, Request, status
@@ -228,7 +229,7 @@ def changer_statut_client(
         db.query(RefreshToken).filter(
             RefreshToken.id_client == id_client,
             RefreshToken.est_revoque == False
-        ).update({"est_revoque": True, "date_revocation": datetime.utcnow()})
+        ).update({"est_revoque": True, "date_revocation": maintenant_utc()})
 
     db.commit()
     db.refresh(client)
@@ -287,7 +288,7 @@ def reinitialiser_mot_de_passe_client(
     db.query(RefreshToken).filter(
         RefreshToken.id_client == id_client,
         RefreshToken.est_revoque == False
-    ).update({"est_revoque": True, "date_revocation": datetime.utcnow()})
+    ).update({"est_revoque": True, "date_revocation": maintenant_utc()})
 
     db.commit()
 
@@ -1207,7 +1208,7 @@ def forcer_abonnement_client_admin(
     ab.id_plan = plan_cible.id_plan
     ab.statut = payload.statut
     ab.cycle_facturation = payload.cycle_facturation
-    ab.date_debut = datetime.utcnow()
+    ab.date_debut = maintenant_utc()
     ab.renouvellement_auto = True
 
     # Calcul de date_fin selon la durée passée
@@ -1216,7 +1217,7 @@ def forcer_abonnement_client_admin(
         ab.cycle_facturation = None
     else:
         duree = payload.duree_jours or 30
-        ab.date_fin = datetime.utcnow() + timedelta(days=duree)
+        ab.date_fin = maintenant_utc() + timedelta(days=duree)
 
     db.commit()
     db.refresh(ab)
@@ -1282,7 +1283,7 @@ def valider_paiement_manuel_admin(
 
     donnees_avant = {"statut": paiement.statut}
     paiement.statut = "SUCCESS"
-    paiement.date_confirmation = datetime.utcnow()
+    paiement.date_confirmation = maintenant_utc()
 
     # Réutilise la même logique que la confirmation automatique
     # (plans_service.verifier_paiements_en_attente) au lieu de réimplémenter
@@ -1413,7 +1414,7 @@ def moderer_avis_admin(
 
     donnees_avant = {"statut": avis.statut}
     avis.statut = payload.statut
-    avis.date_moderation = datetime.utcnow()
+    avis.date_moderation = maintenant_utc()
     db.commit()
     db.refresh(avis)
 
@@ -1631,7 +1632,7 @@ def obtenir_kpis_globaux_admin(db: Session) -> AdminGlobalKPIsResponse:
     ).scalar() or 0
     clients_desactives = db.query(func.count(Client.id_client)).filter(Client.statut_compte == "DESACTIVE").scalar() or 0
     
-    il_y_a_30j = datetime.utcnow() - timedelta(days=30)
+    il_y_a_30j = maintenant_utc() - timedelta(days=30)
     nouveaux_30j = db.query(func.count(Client.id_client)).filter(Client.date_creation >= il_y_a_30j).scalar() or 0
 
     clients_kpis = AdminClientsKPIs(

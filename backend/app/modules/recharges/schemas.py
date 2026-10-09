@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
-
+ 
 class InitierRechargeRequest(BaseModel):
     id_compte: int
     montant: Decimal = Field(..., gt=0)

@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from app.core.time import maintenant_utc
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, Boolean, ForeignKey
@@ -37,8 +38,8 @@ class Dette(Base):
     # ligne et les Transaction liées restent en base pour l'historique/audit,
     # seule sa visibilité dans les listages change.
     est_actif = Column(Boolean, default=True, nullable=False)
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
     client = relationship("Client", back_populates="dettes")
     compte = relationship("CompteFinancier", foreign_keys=[id_compte])

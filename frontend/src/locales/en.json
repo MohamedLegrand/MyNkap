@@ -700,6 +700,8 @@
     "savings_abandoned_count_one": "{{count}} savings goal abandoned",
     "savings_abandoned_count_other": "{{count}} savings goals abandoned",
     "score_evolution": "Financial score over time",
+    "score_band_good": "Healthy (70+)",
+    "score_band_watch": "Watch out (40)",
     "this_month": "This month",
     "monthly_evolution": "Monthly evolution",
     "estimation": "Estimate",

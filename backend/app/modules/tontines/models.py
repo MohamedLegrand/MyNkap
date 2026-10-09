@@ -1,4 +1,5 @@
 from datetime import datetime, date as date_type
+from app.core.time import maintenant_utc
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -28,8 +29,8 @@ class Tontine(Base):
     date_debut = Column(Date, nullable=False, default=date_type.today)
     # ACTIVE, TERMINEE (tous les tours clôturés), ANNULEE (manuel)
     statut = Column(String, default="ACTIVE", nullable=False)
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
     client = relationship("Client", back_populates="tontines")
     membres = relationship(

@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -7,13 +8,13 @@ class Utilisateur(Base):
     """
     Modèle de base pour tous les utilisateurs du système (polymorphisme joint).
     """
-    __tablename__ = "utilisateurs"
+    __tablename__ = "utilisateurs" 
 
     id_utilisateur = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     mot_de_passe = Column(String, nullable=False)
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
     est_actif = Column(Boolean, default=True)
     # ACTIF | SUSPENDU (blocage temporaire) | DESACTIVE (compte fermé). Seul
     # `est_actif` conditionne l'accès ; `statut_compte` en précise le motif
@@ -165,7 +166,7 @@ class RefreshToken(Base):
     # perdue) d'une réutilisation tardive (signe plus fort de vol), voir
     # FENETRE_GRACE_REUTILISATION.
     date_revocation = Column(DateTime, nullable=True)
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
 
     # primaryjoin explicite : la FK ci-dessus pointe vers `utilisateurs`,
     # pas directement vers `clients` (heritage par jointure) — SQLAlchemy
@@ -211,4 +212,4 @@ class PendingInscription(Base):
     # — même principe que Utilisateur.otp_code.
     otp_code = Column(String(6), nullable=True)
     otp_expiration = Column(DateTime, nullable=True)
-    date_creation = Column(DateTime, default=datetime.utcnow, nullable=False)
+    date_creation = Column(DateTime, default=maintenant_utc, nullable=False)

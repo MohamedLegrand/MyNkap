@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from app.core.time import maintenant_utc
 from decimal import Decimal
 
 import app.modules.jarvis.service as jarvis_service
@@ -582,7 +583,7 @@ def test_jarvis_confirmer_une_action_expiree_la_marque_annulee(client, monkeypat
     session = TestingSessionLocal()
     try:
         action_db = session.query(ActionIA).filter(ActionIA.id_action == uuid.UUID(id_action)).first()
-        action_db.date_expiration = datetime.utcnow() - timedelta(minutes=1)
+        action_db.date_expiration = maintenant_utc() - timedelta(minutes=1)
         session.commit()
     finally:
         session.close()

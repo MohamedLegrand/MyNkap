@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Boolean, Numeric, JSON, DateTime, ForeignKey, Uuid
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -14,8 +15,8 @@ class Conversation(Base):
     id_conversation = Column(Uuid, primary_key=True, default=uuid.uuid4)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, index=True)
     titre = Column(String, nullable=True)
-    date_creation = Column(DateTime, default=datetime.utcnow)
-    date_dernier_message = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
+    date_dernier_message = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)
 
     client = relationship("Client", back_populates="conversations")
     messages = relationship(
@@ -48,7 +49,7 @@ class Message(Base):
     # de deviner, avec éventuellement des choix cliquables (QCM).
     necessite_clarification = Column(Boolean, default=False, nullable=False)
     options_suggerees = Column(JSON, nullable=True)
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
 
     conversation = relationship("Conversation", back_populates="messages")
     actions = relationship("ActionIA", back_populates="message", cascade="all, delete-orphan")
@@ -79,7 +80,7 @@ class ActionIA(Base):
     confirmation_token = Column(String, nullable=True, unique=True)
     statut = Column(String, default="EN_ATTENTE", nullable=False)  # EN_ATTENTE, EXECUTE, ANNULE
     date_expiration = Column(DateTime, nullable=True)
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
 
     client = relationship("Client", back_populates="actions_ia")
     message = relationship("Message", back_populates="actions")

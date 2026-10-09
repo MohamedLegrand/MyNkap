@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -38,7 +39,7 @@ class RechargeCompte(Base):
     checkout_url = Column(String, nullable=True)
     statut = Column(String, default="PENDING", nullable=False)  # PENDING, SUCCESS, FAILED
     id_transaction = Column(Integer, ForeignKey("transactions.id_transaction"), nullable=True)
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
     date_confirmation = Column(DateTime, nullable=True)
 
     client = relationship("Client")

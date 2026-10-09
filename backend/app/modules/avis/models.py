@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from app.core.database import Base
 
@@ -13,12 +14,12 @@ class Avis(Base):
     même principe que les paiements en litige, rien de visible
     publiquement ne part sans contrôle humain.
     """
-    __tablename__ = "avis"
+    __tablename__ = "avis" 
 
     id_avis = Column(Integer, primary_key=True, index=True)
     id_client = Column(Integer, ForeignKey("clients.id_client"), nullable=False, unique=True, index=True)
     note = Column(Integer, nullable=False)  # 1 à 5
     commentaire = Column(Text, nullable=False)
     statut = Column(String, default="EN_ATTENTE", nullable=False)  # EN_ATTENTE, PUBLIE, REJETE
-    date_creation = Column(DateTime, default=datetime.utcnow)
+    date_creation = Column(DateTime, default=maintenant_utc)
     date_moderation = Column(DateTime, nullable=True)

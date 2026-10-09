@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from app.core.database import Base
 
@@ -7,7 +8,7 @@ class AuditLog(Base):
     """
     Trace de chaque action effectuée dans le système (qui, quoi, sur quelle
     ressource, avec quelles données avant/après). Exigence de traçabilité
-    complète du cahier des charges — jamais modifiée ni supprimée.
+    complète du cahier des charges — jamais modifiée ni supprimée. 
     """
     __tablename__ = "audit_logs"
 
@@ -20,7 +21,7 @@ class AuditLog(Base):
     donnees_apres = Column(JSON, nullable=True)
     adresse_ip = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
-    date_creation = Column(DateTime, default=datetime.utcnow, index=True)
+    date_creation = Column(DateTime, default=maintenant_utc, index=True)
 
 
 class Config(Base):
@@ -35,4 +36,4 @@ class Config(Base):
     valeur = Column(String, nullable=False)
     type = Column(String, nullable=False, default="STRING")  # STRING, INT, BOOL, JSON
     description = Column(String, nullable=True)
-    date_modification = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    date_modification = Column(DateTime, default=maintenant_utc, onupdate=maintenant_utc)

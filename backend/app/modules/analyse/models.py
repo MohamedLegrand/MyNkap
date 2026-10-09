@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.time import maintenant_utc
 from sqlalchemy import Column, Integer, String, Float, Numeric, Date, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -18,7 +19,7 @@ class AnalyseFinanciere(Base):
     periode_fin = Column(Date, nullable=False)
     resultats = Column(JSON, nullable=True)
     score_financier = Column(Float, nullable=True)
-    date_generation = Column(DateTime, default=datetime.utcnow)
+    date_generation = Column(DateTime, default=maintenant_utc)
 
     client = relationship("Client", back_populates="analyses_financieres")
 
@@ -38,6 +39,6 @@ class Prediction(Base):
     montant_predit = Column(Numeric(14, 2), nullable=True)
     niveau_confiance = Column(Float, nullable=True)
     recommandations = Column(String, nullable=True)
-    date_generation = Column(DateTime, default=datetime.utcnow)
+    date_generation = Column(DateTime, default=maintenant_utc)
 
     client = relationship("Client", back_populates="predictions")

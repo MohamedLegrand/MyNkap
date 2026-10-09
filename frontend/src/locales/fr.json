@@ -699,6 +699,8 @@
     "savings_abandoned_count_one": "{{count}} objectif d'épargne abandonné",
     "savings_abandoned_count_other": "{{count}} objectifs d'épargne abandonnés",
     "score_evolution": "Évolution du score financier",
+    "score_band_good": "Bonne santé (70+)",
+    "score_band_watch": "Vigilance (40)",
     "this_month": "Ce mois-ci",
     "monthly_evolution": "Évolution mensuelle",
     "estimation": "Estimation",
