@@ -10,7 +10,7 @@ class DetteCreate(BaseModel):
     id_compte: int
     type: TypeDette
     nom: str = Field(..., min_length=1, max_length=100)
-    montant_total: Decimal = Field(..., gt=0)
+    montant_total: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     personne_impliquee: Optional[str] = None
     date_echeance: Optional[date] = None
 
@@ -34,10 +34,10 @@ class DetteOut(BaseModel):
 
 
 class RembourserRequest(BaseModel):
-    montant: Decimal = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     id_compte: int
 
 
 class EncaisserRequest(BaseModel):
-    montant: Decimal = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     id_compte: int

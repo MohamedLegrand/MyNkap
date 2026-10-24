@@ -53,7 +53,13 @@ def creer_compte(
 ):
     """Créer un compte financier. Un solde_initial > 0 génère automatiquement
     une Transaction DEPOT_INITIAL tracée."""
-    return service.creer_compte(db, client.id_client, payload)
+    try:
+        return service.creer_compte(db, client.id_client, payload)
+    except service.TypeCompteReserveError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le type « Abonnement » est réservé au compte système et ne peut pas être créé.",
+        )
 
 
 @router.get("", response_model=List[CompteFinancierOut])
@@ -106,7 +112,13 @@ def modifier_compte(
     """Modifie le nom et/ou le type d'un compte. Le solde n'est jamais
     modifiable via cet endpoint (voir CompteFinancierUpdate)."""
     compte = _get_compte_ou_404(db, id_compte, client.id_client)
-    return service.modifier_compte(db, compte, payload)
+    try:
+        return service.modifier_compte(db, compte, payload)
+    except service.TypeCompteReserveError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le type « Abonnement » est réservé au compte système.",
+        )
 
 
 @router.post("/{id_compte}/logo", response_model=CompteFinancierOut)

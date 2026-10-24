@@ -139,6 +139,17 @@ def creer_transfert(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Le compte source et le compte destination doivent être différents",
         )
+    except service.CompteAbonnementNonTransferableError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le compte Abonnement ne peut pas être alimenté ni vidé par virement interne. "
+            "Rechargez-le via Mobile Money ou carte bancaire.",
+        )
+    except service.DevisesIncompatiblesError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un virement n'est possible qu'entre deux comptes de la même devise.",
+        )
     except service.CompteIntrouvableError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable")
     except service.SoldeInsuffisantError:

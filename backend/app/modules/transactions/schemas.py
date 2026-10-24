@@ -13,7 +13,7 @@ TypeTransactionCreable = Literal["DEPENSE", "REVENU"]
 class TransactionCreate(BaseModel):
     id_compte: int
     id_categorie: int
-    montant: Decimal = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     type: TypeTransactionCreable
     description: Optional[str] = None
     date: Optional[dt_date] = None
@@ -42,7 +42,7 @@ FrequenceRecurrence = Literal["HEBDOMADAIRE", "MENSUELLE", "TRIMESTRIELLE", "ANN
 class TransactionRecurrenteCreate(BaseModel):
     id_compte: int
     id_categorie: int
-    montant: Decimal = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     type: TypeTransactionCreable
     description: Optional[str] = None
     frequence: FrequenceRecurrence
@@ -54,7 +54,7 @@ class TransactionRecurrenteUpdate(BaseModel):
     # Le compte, la catégorie et le type ne sont volontairement pas
     # modifiables ici : changer le compte source d'un prélèvement
     # automatique est une nouvelle récurrence, pas une modification.
-    montant: Optional[Decimal] = Field(default=None, gt=0)
+    montant: Optional[Decimal] = Field(default=None, gt=0, max_digits=14, decimal_places=2)
     description: Optional[str] = None
     frequence: Optional[FrequenceRecurrence] = None
     prochaine_execution: Optional[dt_date] = None
@@ -82,7 +82,7 @@ class TemplateTransactionCreate(BaseModel):
     id_compte: int
     id_categorie: int
     nom: str = Field(..., min_length=1, max_length=100)
-    montant: Decimal = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     type: TypeTransactionCreable
     description: Optional[str] = None
 
@@ -91,7 +91,7 @@ class TemplateTransactionUpdate(BaseModel):
     id_compte: Optional[int] = None
     id_categorie: Optional[int] = None
     nom: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    montant: Optional[Decimal] = Field(default=None, gt=0)
+    montant: Optional[Decimal] = Field(default=None, gt=0, max_digits=14, decimal_places=2)
     type: Optional[TypeTransactionCreable] = None
     description: Optional[str] = None
 
@@ -116,7 +116,7 @@ class TemplateTransactionOut(BaseModel):
 class TransfertCreate(BaseModel):
     id_compte_source: int
     id_compte_destination: int
-    montant: Decimal = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     description: Optional[str] = None
 
 

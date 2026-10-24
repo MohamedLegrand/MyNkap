@@ -637,7 +637,17 @@ def supprimer_fichier_avatar(avatar_url: Optional[str]) -> None:
     if not avatar_url or not avatar_url.startswith(prefixe):
         return
     nom_fichier = avatar_url[len(prefixe):]
-    chemin = os.path.join(settings.AVATARS_DOSSIER, nom_fichier)
+
+    # Le nom provient d'une URL que le client peut fixer librement
+    # (ProfileUpdate.avatar accepte toute URL http(s)) : un nom comme
+    # « ../../config.py » sortirait du dossier avatars et ferait supprimer un
+    # fichier arbitraire du serveur (traversée de chemin confirmée
+    # exploitable en audit). On vérifie donc que le chemin résolu reste
+    # strictement à l'intérieur du dossier avatars avant toute suppression.
+    dossier = os.path.realpath(settings.AVATARS_DOSSIER)
+    chemin = os.path.realpath(os.path.join(dossier, nom_fichier))
+    if os.path.commonpath([dossier, chemin]) != dossier:
+        return
     if os.path.isfile(chemin):
         try:
             os.remove(chemin)

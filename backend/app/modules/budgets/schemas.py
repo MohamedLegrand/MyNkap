@@ -66,7 +66,7 @@ class CategorieOut(BaseModel):
 # --- Schémas pour les budgets ---
 class BudgetCreate(BaseModel):
     id_categorie: int
-    montant_limite: Decimal = Field(..., gt=0)
+    montant_limite: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     mois: int = Field(..., ge=1, le=12)
     annee: int = Field(..., ge=2000, le=2100)
 
@@ -90,4 +90,4 @@ class BudgetOut(BaseModel):
     est_depasse: bool
 
 class BudgetUpdate(BaseModel):
-    montant_limite: Decimal = Field(..., gt=0)
+    montant_limite: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)

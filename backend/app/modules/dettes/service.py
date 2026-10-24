@@ -73,7 +73,7 @@ def creer_dette(db: Session, id_client: int, payload: DetteCreate) -> Dette:
     opération SQL — jamais un solde qui apparaît/disparaît sans origine
     tracée, même pour ce cas particulier hors DEPENSE/REVENU.
     """
-    compte = comptes_service.obtenir_compte_du_client(db, payload.id_compte, id_client, for_update=True)
+    compte = comptes_service.obtenir_compte_du_client(db, payload.id_compte, id_client, for_update=True, exclure_abonnement=True)
     if compte is None or not compte.est_actif:
         raise CompteIntrouvableError()
 
@@ -167,7 +167,7 @@ def _operer(
     if montant > dette.get_montant_restant():
         raise MontantSuperieurAuRestantError()
 
-    compte = comptes_service.obtenir_compte_du_client(db, id_compte, id_client, for_update=True)
+    compte = comptes_service.obtenir_compte_du_client(db, id_compte, id_client, for_update=True, exclure_abonnement=True)
     if compte is None or not compte.est_actif:
         raise CompteIntrouvableError()
 

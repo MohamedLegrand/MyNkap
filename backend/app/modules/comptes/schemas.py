@@ -22,13 +22,28 @@ def _valider_logo_predefini(valeur: Optional[str]) -> Optional[str]:
     return valeur
 
 
+def _normaliser_devise(valeur: str) -> str:
+    """
+    La devise n'est qu'un libellé de suivi (MyNkap n'applique pas de change),
+    mais on refuse les valeurs non alphabétiques (« 12$ », « ../ »...) et on
+    normalise en majuscules pour une comparaison cohérente entre comptes (le
+    contrôle de devise des virements, voir transactions.service, repose sur
+    une forme stable)."""
+    valeur = valeur.strip().upper()
+    if not valeur.isalpha():
+        raise ValueError("Code devise invalide : trois lettres attendues (ex. XAF, EUR).")
+    return valeur
+
+
 class CompteFinancierCreate(BaseModel):
     nom: str = Field(..., min_length=1, max_length=100)
     type: TypeCompte
     devise: str = Field(default="XAF", min_length=3, max_length=3)
+
+    _normaliser_devise = field_validator("devise")(_normaliser_devise)
     # Génère une Transaction DEPOT_INITIAL si > 0 (principe du solde initial
     # traçable, 6.4) — jamais écrit directement sans origine.
-    solde_initial: Decimal = Field(default=Decimal("0"), ge=0)
+    solde_initial: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
     # Logo prédéfini choisi à la création (facultatif) ; pour importer sa
     # propre image, voir POST /comptes/{id}/logo.
     logo: Optional[str] = None

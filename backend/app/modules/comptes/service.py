@@ -14,8 +14,15 @@ from app.modules.epargne.models import ObjectifEpargne
 from app.modules.transactions.models import Transaction
 
 
+class TypeCompteReserveError(Exception):
+    """Le type ABONNEMENT est réservé au compte système créé automatiquement
+    pour chaque client : le client ne peut ni en créer un, ni convertir un
+    compte vers/depuis ce type (voir creer_compte / modifier_compte)."""
+
+
 def obtenir_compte_du_client(
-    db: Session, id_compte: int, id_client: int, for_update: bool = False
+    db: Session, id_compte: int, id_client: int, for_update: bool = False,
+    exclure_abonnement: bool = False,
 ) -> Optional[CompteFinancier]:
     """
     Récupère un compte en vérifiant qu'il appartient bien au client courant.
@@ -27,13 +34,27 @@ def obtenir_compte_du_client(
     opérations concurrentes de lire le même solde de départ (race
     condition/"lost update"). Ne jamais utiliser for_update pour un simple
     affichage : ça bloquerait inutilement les autres requêtes.
+
+    `exclure_abonnement=True` : le compte Abonnement n'est PAS un compte
+    opérationnel. Il ne se crédite que par une recharge HR-Skills Pay
+    réellement encaissée (module recharges) et ne se débite que par le
+    renouvellement d'abonnement (plans.service). Toute autre opération
+    cliente (transaction REVENU/DEPENSE, dette/créance, virement, épargne…)
+    qui le viserait permettrait d'y injecter de l'argent jamais réellement
+    payé et de s'offrir un abonnement gratuit (contournement de paiement
+    confirmé exploitable en audit). Les appels opérationnels passent donc
+    exclure_abonnement=True, ce qui fait traiter ce compte comme introuvable ;
+    seuls l'affichage, la recharge et le renouvellement y accèdent.
     """
     query = db.query(CompteFinancier).filter(
         CompteFinancier.id_compte == id_compte, CompteFinancier.id_client == id_client
     )
     if for_update:
         query = query.with_for_update()
-    return query.first()
+    compte = query.first()
+    if compte is not None and exclure_abonnement and compte.type == "ABONNEMENT":
+        return None
+    return compte
 
 
 def lister_comptes(
@@ -92,6 +113,14 @@ def creer_compte(db: Session, id_client: int, payload: CompteFinancierCreate) ->
     (ex. dependency FastAPI) sur les endpoints concernés (JARVIS, Analyse,
     Rapports...), pas sur la création de compte.
     """
+    # Le compte Abonnement est créé et géré uniquement par le système (un
+    # seul par client, voir creer_compte_abonnement/get_or_create). Interdire
+    # au client d'en créer un : sinon il pourrait s'en fabriquer un second
+    # avec un solde_initial auto-déclaré et s'offrir un abonnement sans jamais
+    # payer (voir obtenir_compte_du_client, exclure_abonnement).
+    if payload.type == "ABONNEMENT":
+        raise TypeCompteReserveError()
+
     nouveau_compte = CompteFinancier(
         id_client=id_client,
         nom=payload.nom,
@@ -178,6 +207,11 @@ def modifier_compte(db: Session, compte: CompteFinancier, payload: CompteFinanci
     """Modifie le nom et/ou le type d'un compte. Le solde n'est jamais
     modifiable via cette fonction (voir CompteFinancierUpdate)."""
     donnees = payload.model_dump(exclude_unset=True)
+    # Ni transformer un compte ordinaire en compte Abonnement, ni dénaturer
+    # le compte Abonnement système en un autre type (voir creer_compte).
+    if donnees.get("type") == "ABONNEMENT" or compte.type == "ABONNEMENT":
+        if donnees.get("type", compte.type) != compte.type:
+            raise TypeCompteReserveError()
     ancien_logo = compte.logo
     for champ, valeur in donnees.items():
         setattr(compte, champ, valeur)
@@ -202,7 +236,13 @@ def _supprimer_fichier_logo(logo_url: Optional[str]) -> None:
     prefixe = f"{settings.BACKEND_URL}/avatars/"
     if not logo_url or not logo_url.startswith(prefixe):
         return
-    chemin = os.path.join(settings.AVATARS_DOSSIER, logo_url[len(prefixe):])
+    # Défense en profondeur contre la traversée de chemin : on ne supprime
+    # que si le chemin résolu reste à l'intérieur du dossier (même garde que
+    # auth.services.supprimer_fichier_avatar).
+    dossier = os.path.realpath(settings.AVATARS_DOSSIER)
+    chemin = os.path.realpath(os.path.join(dossier, logo_url[len(prefixe):]))
+    if os.path.commonpath([dossier, chemin]) != dossier:
+        return
     if os.path.isfile(chemin):
         try:
             os.remove(chemin)

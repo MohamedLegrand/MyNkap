@@ -13,7 +13,7 @@ class MembreTontineCreate(BaseModel):
 
 class TontineCreate(BaseModel):
     nom: str = Field(..., min_length=1, max_length=100)
-    montant_cotisation: Decimal = Field(..., gt=0)
+    montant_cotisation: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     devise: str = "XAF"
     frequence: FrequenceTontine
     date_debut: date

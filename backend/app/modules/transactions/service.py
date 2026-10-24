@@ -45,6 +45,28 @@ class TransfertInvalideError(Exception):
     """Le compte source et destination sont identiques."""
 
 
+class CompteAbonnementNonTransferableError(Exception):
+    """
+    Un virement interne vise (en source ou destination) le compte
+    Abonnement. Ce compte finance les abonnements payants : il n'est crédité
+    que par une recharge HR-Skills Pay réellement confirmée (module
+    recharges) et débité que par le renouvellement automatique
+    (plans.service). L'alimenter par virement interne depuis un compte au
+    solde librement auto-déclaré (solde_initial saisi par le client)
+    reviendrait à payer son abonnement avec de l'argent jamais réellement
+    encaissé (contournement de paiement confirmé exploitable en audit).
+    """
+
+
+class DevisesIncompatiblesError(Exception):
+    """
+    Virement entre deux comptes de devises différentes. MyNkap n'applique
+    aucune conversion de change : transférer 1000 XAF vers un compte EUR
+    créditait 1000 EUR, corrompant le patrimoine net. Tant qu'aucun taux de
+    change n'est géré, un tel virement est refusé.
+    """
+
+
 class TransactionRecurrenteIntrouvableError(Exception):
     """La récurrence n'existe pas ou n'appartient pas au client."""
 
@@ -53,14 +75,24 @@ class TemplateIntrouvableError(Exception):
     """Le template n'existe pas, n'appartient pas au client, ou est désactivé."""
 
 
-def _obtenir_compte_actif(db: Session, id_compte: int, id_client: int, for_update: bool = False) -> CompteFinancier:
+def _obtenir_compte_actif(
+    db: Session, id_compte: int, id_client: int, for_update: bool = False,
+    exclure_abonnement: bool = True,
+) -> CompteFinancier:
     """
     `for_update=True` doit être utilisé partout où ce compte va être
     débité/crédité dans la foulée, pour empêcher deux opérations
     concurrentes de partir du même solde de départ (voir
     comptes.service.obtenir_compte_du_client).
+
+    `exclure_abonnement=True` par défaut : aucune transaction cliente
+    (DEPENSE/REVENU, template, récurrente) ne doit pouvoir cibler le compte
+    Abonnement (voir obtenir_compte_du_client). Le virement passe False car
+    il traite ce cas lui-même avec un message dédié (voir executer_transfert).
     """
-    compte = comptes_service.obtenir_compte_du_client(db, id_compte, id_client, for_update=for_update)
+    compte = comptes_service.obtenir_compte_du_client(
+        db, id_compte, id_client, for_update=for_update, exclure_abonnement=exclure_abonnement
+    )
     if compte is None or not compte.est_actif:
         raise CompteIntrouvableError()
     return compte
@@ -148,6 +180,23 @@ def annuler_transaction(db: Session, id_client: int, id_transaction: int) -> Tra
     if originale.type == "ANNULATION":
         raise TransactionDejaAnnuleeError()
 
+    # Le compte est verrouillé (FOR UPDATE) AVANT le contrôle « déjà
+    # annulée » : toutes les annulations d'une même transaction portent sur
+    # le même compte, donc ce verrou sérialise deux annulations concurrentes
+    # de la même transaction. Sans ça (contrôle fait avant le verrou), deux
+    # requêtes simultanées lisaient toutes deux « pas encore annulée » puis
+    # inséraient chacune leur ANNULATION — chaque annulation recréditant le
+    # compte, c'était une création d'argent par course (TOCTOU, confirmé
+    # exploitable en audit : solde gonflé de plusieurs fois le montant).
+    # exclure_abonnement : on ne laisse pas annuler une transaction portée par
+    # le compte Abonnement (un renouvellement, un dépôt de recharge) — ce
+    # serait un remboursement en argent réel d'une opération d'abonnement.
+    compte = comptes_service.obtenir_compte_du_client(
+        db, originale.id_compte, id_client, for_update=True, exclure_abonnement=True
+    )
+    if compte is None:
+        raise CompteIntrouvableError()
+
     deja_annulee = (
         db.query(Transaction)
         .filter(Transaction.id_transaction_annulee == originale.id_transaction)
@@ -155,10 +204,6 @@ def annuler_transaction(db: Session, id_client: int, id_transaction: int) -> Tra
     )
     if deja_annulee is not None:
         raise TransactionDejaAnnuleeError()
-
-    compte = comptes_service.obtenir_compte_du_client(db, originale.id_compte, id_client, for_update=True)
-    if compte is None:
-        raise CompteIntrouvableError()
 
     # Calculé à partir de l'originale, avant toute insertion : si le
     # découvert est refusé, aucune ligne ANNULATION ne doit exister, même
@@ -326,11 +371,22 @@ def executer_transfert(db: Session, id_client: int, payload: TransfertCreate) ->
 
     id_premier, id_second = sorted((payload.id_compte_source, payload.id_compte_destination))
     comptes_verrouilles = {
-        id_premier: _obtenir_compte_actif(db, id_premier, id_client, for_update=True),
-        id_second: _obtenir_compte_actif(db, id_second, id_client, for_update=True),
+        id_premier: _obtenir_compte_actif(db, id_premier, id_client, for_update=True, exclure_abonnement=False),
+        id_second: _obtenir_compte_actif(db, id_second, id_client, for_update=True, exclure_abonnement=False),
     }
     source = comptes_verrouilles[payload.id_compte_source]
     destination = comptes_verrouilles[payload.id_compte_destination]
+
+    # Le compte Abonnement ne participe à aucun virement interne : il ne se
+    # finance que par recharge réellement encaissée et ne se vide que par le
+    # renouvellement d'abonnement (voir CompteAbonnementNonTransferableError).
+    if source.type == "ABONNEMENT" or destination.type == "ABONNEMENT":
+        raise CompteAbonnementNonTransferableError()
+
+    # Aucune conversion de change n'est gérée : un virement n'a de sens
+    # qu'entre deux comptes de même devise (voir DevisesIncompatiblesError).
+    if source.devise != destination.devise:
+        raise DevisesIncompatiblesError()
 
     if not source.est_suffisant(payload.montant):
         raise SoldeInsuffisantError()

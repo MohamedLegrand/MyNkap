@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class ObjectifEpargneCreate(BaseModel):
     nom: str = Field(..., min_length=1, max_length=100)
-    montant_cible: Decimal = Field(..., gt=0)
+    montant_cible: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     date_echeance: Optional[date] = None
 
 
@@ -29,12 +29,12 @@ class ObjectifEpargneOut(BaseModel):
 
 
 class AlimenterRequest(BaseModel):
-    montant: Decimal = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     id_compte_source: int
 
 
 class RetirerRequest(BaseModel):
-    montant: Decimal = Field(..., gt=0)
+    montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     id_compte_destination: int
 
 

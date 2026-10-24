@@ -51,7 +51,17 @@ def _executer_transfert(
         return transactions_service.executer_transfert(db, id_client, payload)
     except transactions_service.TransfertInvalideError:
         raise TransfertInvalideError()
-    except transactions_service.CompteIntrouvableError:
+    except (
+        transactions_service.CompteIntrouvableError,
+        # Le compte Abonnement n'est pas une destination/source d'épargne
+        # valide : traité comme un compte introuvable côté épargne.
+        transactions_service.CompteAbonnementNonTransferableError,
+    ):
+        raise CompteIntrouvableError()
+    except transactions_service.DevisesIncompatiblesError:
+        # L'épargne aligne la devise du compte dédié sur le compte source
+        # (voir alimenter) ; une incompatibilité résiduelle est traitée comme
+        # un compte invalide plutôt que de remonter en 500.
         raise CompteIntrouvableError()
     except transactions_service.SoldeInsuffisantError:
         raise SoldeInsuffisantError()
@@ -165,6 +175,25 @@ def alimenter(
     if objectif.statut == "ABANDONNE":
         raise ObjectifVerrouilleError()
 
+    # Le compte épargne dédié est créé en XAF par défaut (creer_objectif ne
+    # connaît pas encore la devise qui l'alimentera). Tant qu'il est vide,
+    # il adopte la devise de son premier compte source : sans ça, un client
+    # dont le compte est en EUR verrait son épargne comptabilisée en XAF
+    # (mélange de devises dans le patrimoine), et depuis l'ajout du contrôle
+    # de devise sur les virements, son alimentation serait même refusée.
+    compte_source = comptes_service.obtenir_compte_du_client(
+        db, id_compte_source, id_client, exclure_abonnement=True
+    )
+    compte_epargne = comptes_service.obtenir_compte_du_client(db, objectif.id_compte_epargne, id_client)
+    if (
+        compte_source is not None
+        and compte_epargne is not None
+        and compte_epargne.solde == 0
+        and compte_epargne.devise != compte_source.devise
+    ):
+        compte_epargne.devise = compte_source.devise
+        db.flush()
+
     _executer_transfert(
         db, id_client, id_compte_source, objectif.id_compte_epargne, montant, f"Épargne : {objectif.nom}"
     )
@@ -216,7 +245,12 @@ def abandonner(
 
     # Valide la destination même si le solde est nul, pour ne jamais
     # ignorer silencieusement un id_compte_destination invalide.
-    compte_destination = comptes_service.obtenir_compte_du_client(db, id_compte_destination, id_client)
+    # exclure_abonnement : un retrait d'épargne ne doit pas pouvoir atterrir
+    # sur le compte Abonnement (ce serait un crédit non payé — voir
+    # comptes.service.obtenir_compte_du_client).
+    compte_destination = comptes_service.obtenir_compte_du_client(
+        db, id_compte_destination, id_client, exclure_abonnement=True
+    )
     if compte_destination is None or not compte_destination.est_actif:
         raise CompteIntrouvableError()
 
