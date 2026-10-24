@@ -442,7 +442,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.kpis.client_base')}</span>
                 <Users className="h-5 w-5 text-primary" />
@@ -454,7 +454,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.kpis.revenue')}</span>
                 <TrendingUp className="h-5 w-5 text-secondary" />
@@ -463,7 +463,7 @@ export const AdminDashboard: React.FC = () => {
               <p className="text-xs text-muted-foreground mt-2">{t('admin.dashboard.kpis.total_volume_label')} {formatXAF(kpis.finances.volume_total_transactions)}</p>
             </div>
 
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.kpis.payer_conversion')}</span>
                 <Zap className="h-5 w-5 text-forest-500 dark:text-forest-400" />
@@ -472,7 +472,7 @@ export const AdminDashboard: React.FC = () => {
               <p className="text-xs text-muted-foreground mt-2">{t('admin.dashboard.kpis.payers_label')} {kpis.abonnements.abonnes_essentiel + kpis.abonnements.abonnes_premium} {t('admin.dashboard.kpis.subscribers_suffix')}</p>
             </div>
 
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.kpis.fraud_alerts')}</span>
                 <AlertOctagon className="h-5 w-5 text-destructive" />
@@ -494,14 +494,14 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
             <div className="p-4 border-b border-border flex items-center justify-between gap-4">
               <div className="relative flex-1 max-w-md">
                 <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder={t('admin.dashboard.clients.search_placeholder')}
-                  className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
@@ -622,7 +622,7 @@ export const AdminDashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
@@ -701,11 +701,11 @@ export const AdminDashboard: React.FC = () => {
 
           {auditStats && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.audit.total_events')}</span>
                 <p className="text-3xl font-black text-primary tabular-nums mt-1">{auditStats.total_logs}</p>
               </div>
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
                 <span className="text-xs font-bold text-muted-foreground uppercase mb-2 block">{t('admin.dashboard.audit.top_actions')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {auditStats.repartition_actions.slice(0, 6).map((a) => (
@@ -718,7 +718,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
@@ -774,7 +774,7 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {configs.map((cfg) => (
-              <div key={cfg.cle} className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-3">
+              <div key={cfg.cle} className="bg-card p-5 rounded-2xl border border-border shadow-xs space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="text-sm font-mono font-bold text-foreground">{cfg.cle}</h4>
@@ -814,15 +814,15 @@ export const AdminDashboard: React.FC = () => {
 
           {subscriptionsOverview && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.subscriptions.total_subscribers')}</span>
                 <p className="text-2xl font-black text-primary tabular-nums mt-1">{subscriptionsOverview.total_abonnes}</p>
               </div>
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.subscriptions.revenue')}</span>
                 <p className="text-2xl font-black text-secondary tabular-nums mt-1">{formatXAF(subscriptionsOverview.chiffre_affaires_total)}</p>
               </div>
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
                 <span className="text-xs font-bold text-muted-foreground uppercase mb-1 block">{t('admin.dashboard.subscriptions.by_plan')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {subscriptionsOverview.repartition_plans.map((p) => (
@@ -839,25 +839,25 @@ export const AdminDashboard: React.FC = () => {
             <div className="inline-flex rounded-xl bg-muted p-1 gap-1">
               <button
                 onClick={() => setModeSubscriptions('abonnements')}
-                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'abonnements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'abonnements' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {t('admin.dashboard.subscriptions.tab_subscriptions')}
               </button>
               <button
                 onClick={() => setModeSubscriptions('paiements')}
-                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'paiements' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'paiements' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {t('admin.dashboard.subscriptions.tab_payments')}
               </button>
               <button
                 onClick={() => setModeSubscriptions('recharges')}
-                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'recharges' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'recharges' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {t('admin.dashboard.subscriptions.tab_recharges')}
               </button>
               <button
                 onClick={() => setModeSubscriptions('plans')}
-                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'plans' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${modeSubscriptions === 'plans' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 {t('admin.dashboard.subscriptions.tab_plans')}
               </button>
@@ -866,7 +866,7 @@ export const AdminDashboard: React.FC = () => {
             {modeSubscriptions === 'plans' && (
               <button
                 onClick={handleOuvrirCreationPlan}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>{t('admin.dashboard.subscriptions.new_plan')}</span>
@@ -875,7 +875,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           {modeSubscriptions === 'plans' ? (
-            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
@@ -940,7 +940,7 @@ export const AdminDashboard: React.FC = () => {
               {plans.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_plans')}</p>}
             </div>
           ) : modeSubscriptions === 'abonnements' ? (
-            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
@@ -974,7 +974,7 @@ export const AdminDashboard: React.FC = () => {
               {subscriptions.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_subscriptions')}</p>}
             </div>
           ) : modeSubscriptions === 'recharges' ? (
-            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
@@ -1010,7 +1010,7 @@ export const AdminDashboard: React.FC = () => {
               {recharges.length === 0 && <p className="p-6 text-center text-xs text-muted-foreground">{t('admin.dashboard.subscriptions.none_recharges')}</p>}
             </div>
           ) : (
-            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">
@@ -1074,22 +1074,22 @@ export const AdminDashboard: React.FC = () => {
 
           {fraudOverview && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('analyse.suspicious_transactions')}</span>
                 <p className="text-2xl font-black text-destructive tabular-nums mt-1">{fraudOverview.total_transactions_suspectes}</p>
               </div>
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.fraud.clients_concerned')}</span>
                 <p className="text-2xl font-black text-primary tabular-nums mt-1">{fraudOverview.nombre_clients_concernes}</p>
               </div>
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs">
                 <span className="text-xs font-bold text-muted-foreground uppercase">{t('admin.dashboard.fraud.amount_at_risk')}</span>
                 <p className="text-2xl font-black text-destructive tabular-nums mt-1">{formatXAF(fraudOverview.montant_total_suspect)}</p>
               </div>
             </div>
           )}
 
-          <div className="bg-card rounded-2xl border border-destructive/30 overflow-hidden shadow-sm">
+          <div className="bg-card rounded-2xl border border-destructive/30 overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-destructive/10 border-b border-destructive/20 text-destructive uppercase font-bold text-[10px]">
@@ -1140,7 +1140,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase font-bold text-[10px]">

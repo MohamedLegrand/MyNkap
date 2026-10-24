@@ -442,7 +442,7 @@ export const ClientDashboard: React.FC = () => {
           la Vue d'ensemble — les autres sections (Comptes, Paramètres...)
           affichent directement leur propre contenu, sans ce récapitulatif. */}
       {activeTab === 'overview' && (
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-forest-600 to-secondary p-6 sm:p-8 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-primary via-forest-600 to-secondary p-6 sm:p-8 text-white shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
@@ -533,7 +533,7 @@ export const ClientDashboard: React.FC = () => {
           </div>
           <button
             onClick={() => setIsAvisModalOpen(true)}
-            className="bg-card hover:bg-accent border border-border text-foreground font-bold text-xs py-2.5 px-5 rounded-xl shadow-sm transition-all whitespace-nowrap shrink-0"
+            className="bg-card hover:bg-accent border border-border text-foreground font-bold text-xs py-2.5 px-5 rounded-xl shadow-xs transition-all whitespace-nowrap shrink-0"
           >
             {t('overview.avis_cta')}
           </button>
@@ -559,7 +559,7 @@ export const ClientDashboard: React.FC = () => {
           <div className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${
             nombreCartesHero === 5 ? 'lg:grid-cols-5' : nombreCartesHero === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
           }`}>
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow relative overflow-hidden">
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.total_balance')}</span>
                 <div className="p-2 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
@@ -572,7 +572,7 @@ export const ClientDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.income_history')}</span>
                 <div className="p-2 rounded-xl bg-forest-500/10 text-forest-600 dark:text-forest-400">
@@ -584,7 +584,7 @@ export const ClientDashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.expenses_history')}</span>
                 <div className="p-2 rounded-xl bg-destructive/10 text-destructive">
@@ -597,7 +597,7 @@ export const ClientDashboard: React.FC = () => {
             </div>
 
             {afficherCarteEpargne && (
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.savings_reserves')}</span>
                   <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
@@ -615,7 +615,7 @@ export const ClientDashboard: React.FC = () => {
             )}
 
             {afficherCarteDettes && (
-              <div className="bg-card p-5 rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
+              <div className="bg-card p-5 rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('overview.debts_ongoing')}</span>
                   <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
@@ -785,7 +785,7 @@ export const ClientDashboard: React.FC = () => {
                     {comptesActifs.map((acc) => (
                       <div
                         key={acc.id_compte}
-                        className="p-4 rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all space-y-3"
+                        className="p-4 rounded-2xl border bg-card shadow-xs hover:shadow-md transition-all space-y-3"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
@@ -815,7 +815,7 @@ export const ClientDashboard: React.FC = () => {
               </div>
 
               {/* Bloc Dernières Transactions */}
-              <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+              <div className="bg-card rounded-2xl border border-border p-5 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-border pb-4">
                   <div>
                     <h3 className="text-base font-bold text-foreground">{t('overview.recent_transactions')}</h3>
@@ -866,7 +866,7 @@ export const ClientDashboard: React.FC = () => {
                 menu latéral), voir plus bas activeTab === 'jarvis'. */}
             <div className="space-y-8">
               {/* Suivi des Budgets par Catégorie */}
-              <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+              <div className="bg-card rounded-2xl border border-border p-5 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <PieChart className="h-4 w-4 text-primary" />
@@ -915,7 +915,7 @@ export const ClientDashboard: React.FC = () => {
 
               {/* Projets d'Épargne — réservé aux forfaits Standard et Premium */}
               {abonnement?.plan.acces_epargne && (
-              <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+              <div className="bg-card rounded-2xl border border-border p-5 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <PiggyBank className="h-4 w-4 text-forest-600" />
@@ -1083,7 +1083,7 @@ export const ClientDashboard: React.FC = () => {
 
       {/* Détail d'un transfert entre comptes */}
       {transfertDetailId !== null && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
               <h3 className="text-lg font-bold tracking-tight">{t('transfers.detail_title')}</h3>
@@ -1237,7 +1237,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
           {comptes.map((acc) => (
             <div
               key={acc.id_compte}
-              className={`p-4 rounded-2xl border bg-card shadow-sm hover:shadow-md transition-all space-y-3 ${!acc.est_actif ? 'opacity-60' : ''}`}
+              className={`p-4 rounded-2xl border bg-card shadow-xs hover:shadow-md transition-all space-y-3 ${!acc.est_actif ? 'opacity-60' : ''}`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -1305,7 +1305,7 @@ const ComptesSection: React.FC<ComptesSectionProps> = ({
             <ArrowRightLeft className="h-4 w-4 text-primary" />
             <span>{t('transfers.history')}</span>
           </h3>
-          <div className="bg-card rounded-2xl border border-border shadow-sm divide-y divide-border">
+          <div className="bg-card rounded-2xl border border-border shadow-xs divide-y divide-border">
             {transferts.map((tr) => (
               <button
                 key={tr.id_transfert}
@@ -1425,7 +1425,7 @@ const BudgetsSection: React.FC<BudgetsSectionProps> = ({
       </div>
 
       {/* Budgets */}
-      <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+      <div className="bg-card rounded-2xl border border-border p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <PieChart className="h-4 w-4 text-primary" />
@@ -1564,7 +1564,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
           <select
             value={filtreCompte}
             onChange={(e) => setFiltreCompte(e.target.value)}
-            className="bg-background border border-border rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+            className="bg-background border border-border rounded-lg px-2.5 py-1.5 font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
           >
             <option value="">{t('transactions.all_accounts')}</option>
             {comptes.map((c) => (
@@ -1574,7 +1574,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
           <select
             value={filtreType}
             onChange={(e) => setFiltreType(e.target.value)}
-            className="bg-background border border-border rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+            className="bg-background border border-border rounded-lg px-2.5 py-1.5 font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
           >
             <option value="">{t('transactions.all_types')}</option>
             <option value="DEPENSE">{t('transactions.expenses')}</option>
@@ -1583,7 +1583,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ transactions,
         </div>
       </div>
 
-      <div className="bg-card rounded-2xl border border-border shadow-sm">
+      <div className="bg-card rounded-2xl border border-border shadow-xs">
         {transactionsFiltrees.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">{t('transactions.none_match')}</p>
         ) : (
@@ -1769,11 +1769,11 @@ const DettesSection: React.FC<DettesSectionProps> = ({ dettes, onOpenDetteModal,
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-3">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-xs space-y-3">
           <h4 className="text-sm font-bold text-foreground">{t('debts.my_debts')}</h4>
           {renderListe(dettesDues, true)}
         </div>
-        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-3">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-xs space-y-3">
           <h4 className="text-sm font-bold text-foreground">{t('debts.my_claims')}</h4>
           {renderListe(creances, false)}
         </div>
@@ -1817,7 +1817,7 @@ const EpargneSection: React.FC<EpargneSectionProps> = ({ objectifs, onOpenObject
           {objectifs.map((o) => {
             const verrouille = o.statut === 'ABANDONNE' || o.statut === 'ATTEINT';
             return (
-              <div key={o.id_objectif} className="p-4 rounded-2xl border bg-card shadow-sm space-y-3">
+              <div key={o.id_objectif} className="p-4 rounded-2xl border bg-card shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-bold text-foreground">{o.nom}</h4>
                   <span className="font-black text-forest-600 dark:text-forest-400 text-sm">{Math.round(o.pourcentage_atteint)}%</span>
@@ -1942,14 +1942,14 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
           <FileText className="h-5 w-5 text-primary" />
           <span>{t('reports.generate_title')}</span>
         </h3>
-        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-4">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-xs space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">{t('reports.type_label')}</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as Rapport['type'])}
-                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               >
                 {typesDisponibles.map((tr) => (
                   <option key={tr.valeur} value={tr.valeur}>{t(tr.labelKey)}</option>
@@ -1963,7 +1963,7 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
                 value={periodeDebut}
                 max={periodeFin}
                 onChange={(e) => setPeriodeDebut(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
             </div>
             <div className="space-y-1.5">
@@ -1974,7 +1974,7 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
                 min={periodeDebut}
                 max={aujourdHui}
                 onChange={(e) => setPeriodeFin(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -1994,7 +1994,7 @@ const RapportsSection: React.FC<RapportsSectionProps> = ({ rapports, plan, onGen
 
       <div>
         <h3 className="text-base font-bold text-foreground mb-4">{t('reports.generated_title')}</h3>
-        <div className="bg-card rounded-2xl border border-border shadow-sm">
+        <div className="bg-card rounded-2xl border border-border shadow-xs">
           {rapportsAffiches.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">{t('reports.none_yet')}</p>
           ) : (

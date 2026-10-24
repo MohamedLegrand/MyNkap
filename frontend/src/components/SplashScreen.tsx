@@ -58,7 +58,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background transition-opacity duration-400 ${
+      className={`fixed inset-0 z-100 flex flex-col items-center justify-center bg-background transition-opacity duration-400 ${
         visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
     >
@@ -73,7 +73,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
           className="h-24 w-24 rounded-2xl object-cover shadow-xl border border-border"
         />
       </div>
-      <h1 className="mt-6 text-3xl sm:text-4xl font-black tracking-tight text-primary min-h-[2.75rem]">
+      <h1 className="mt-6 text-3xl sm:text-4xl font-black tracking-tight text-primary min-h-11">
         {texteAffiche}
         {!termine && texteAffiche.length > 0 && <span className="text-primary animate-pulse">▌</span>}
       </h1>

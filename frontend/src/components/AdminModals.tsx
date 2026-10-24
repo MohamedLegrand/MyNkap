@@ -34,7 +34,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
@@ -55,7 +55,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
               placeholder={t('admin.modals.create_admin.username_placeholder')}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-hidden"
             />
           </div>
 
@@ -67,7 +67,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
               placeholder={t('admin.modals.create_admin.email_placeholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-hidden"
             />
           </div>
 
@@ -98,7 +98,7 @@ export const CreateAdminModal: React.FC<CreateAdminModalProps> = ({ isOpen, onCl
             <select
               value={niveauAcces}
               onChange={(e) => setNiveauAcces(Number(e.target.value))}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-hidden"
             >
               <option value={1}>{t('admin.modals.create_admin.access_level_1')}</option>
               <option value={2}>{t('admin.modals.create_admin.access_level_2')}</option>
@@ -145,7 +145,7 @@ export const ResetClientPasswordModal: React.FC<ResetClientPasswordModalProps> =
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
@@ -233,7 +233,7 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
@@ -260,7 +260,7 @@ export const EditConfigModal: React.FC<EditConfigModalProps> = ({
               required
               value={valeur}
               onChange={(e) => setValeur(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-primary focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-primary focus:outline-hidden"
             />
           </div>
 
@@ -302,7 +302,7 @@ export const ViewAuditDetailModal: React.FC<ViewAuditDetailModalProps> = ({ isOp
   if (!isOpen || !auditItem) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-2xl rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2">
@@ -448,7 +448,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2">
@@ -553,10 +553,10 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
                   <span>{t('admin.modals.client_detail.force_plan_title')}</span>
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  <select value={idPlan} onChange={(e) => setIdPlan(e.target.value)} className="bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
+                  <select value={idPlan} onChange={(e) => setIdPlan(e.target.value)} className="bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary">
                     {plans.map((p) => <option key={p.id_plan} value={p.id_plan}>{p.nom}</option>)}
                   </select>
-                  <select value={statutForce} onChange={(e) => setStatutForce(e.target.value as typeof statutForce)} className="bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
+                  <select value={statutForce} onChange={(e) => setStatutForce(e.target.value as typeof statutForce)} className="bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary">
                     <option value="ESSAI">ESSAI</option>
                     <option value="ACTIF">ACTIF</option>
                     <option value="EXPIRE">EXPIRE</option>
@@ -569,7 +569,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ isOpen, id
                   value={dureeJours}
                   onChange={(e) => setDureeJours(e.target.value)}
                   placeholder={t('admin.modals.client_detail.duration_placeholder')}
-                  className="w-full bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-background border border-border rounded-lg px-2.5 py-2 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
                 />
                 {messageForcage && <p className="text-xs font-semibold text-forest-600 dark:text-forest-400">{messageForcage}</p>}
                 <button type="submit" disabled={isForcing} className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50">
@@ -702,7 +702,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2">
@@ -724,7 +724,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
               value={nom}
               onChange={(e) => setNom(e.target.value.toUpperCase())}
               placeholder={t('admin.modals.plan.name_placeholder')}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-60"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-hidden disabled:opacity-60"
             />
             {estPlanSysteme && (
               <p className="text-[10px] text-muted-foreground">{t('admin.modals.plan.system_plan_hint')}</p>
@@ -741,7 +741,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
                 required
                 value={prixMensuel}
                 onChange={(e) => setPrixMensuel(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-hidden"
               />
             </div>
             <div className="space-y-1">
@@ -753,7 +753,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
                 required
                 value={prixAnnuel}
                 onChange={(e) => setPrixAnnuel(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-hidden"
               />
             </div>
           </div>
@@ -765,7 +765,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({ isOpen, plan, onClose, onS
               required
               value={devise}
               onChange={(e) => setDevise(e.target.value.toUpperCase())}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-hidden"
             />
           </div>
 
@@ -835,7 +835,7 @@ export const TransactionSuspecteDetailModal: React.FC<TransactionSuspecteDetailM
   if (!isOpen || idTransaction === null) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-destructive/30 shadow-2xl overflow-hidden">
         <div className="p-5 border-b border-border flex items-center justify-between bg-destructive/10 shrink-0">
           <div className="flex items-center gap-2">
@@ -890,7 +890,7 @@ export const AvisDetailModal: React.FC<AvisDetailModalProps> = ({ isOpen, avis, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
           <div className="flex items-center gap-2">
@@ -919,7 +919,7 @@ export const AvisDetailModal: React.FC<AvisDetailModalProps> = ({ isOpen, avis, 
               l'aperçu du tableau (line-clamp-2) : c'est tout l'intérêt de
               cette modale, pouvoir lire l'avis en entier avant de statuer. */}
           <div className="bg-muted/30 p-4 rounded-xl border border-border">
-            <p className="text-foreground whitespace-pre-wrap break-words leading-relaxed">{avis.commentaire}</p>
+            <p className="text-foreground whitespace-pre-wrap wrap-break-word leading-relaxed">{avis.commentaire}</p>
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">

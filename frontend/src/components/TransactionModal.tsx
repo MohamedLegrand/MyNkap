@@ -226,7 +226,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         {/* Header Modal */}
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40 shrink-0">
@@ -263,7 +263,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 placeholder={t('modals.compte.name_placeholder')}
                 value={nouveauCompteNom}
                 onChange={(e) => setNouveauCompteNom(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
             </div>
 
@@ -272,7 +272,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
               <select
                 value={nouveauCompteType}
                 onChange={(e) => setNouveauCompteType(e.target.value as 'MOBILE_MONEY' | 'BANCAIRE' | 'ESPECES')}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               >
                 <option value="MOBILE_MONEY">{t('modals.compte.type_mobile_money')}</option>
                 <option value="BANCAIRE">{t('modals.compte.type_bank')}</option>
@@ -288,7 +288,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 placeholder="0"
                 value={nouveauCompteSolde}
                 onChange={(e) => setNouveauCompteSolde(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
             </div>
 
@@ -315,7 +315,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 onClick={() => setType('DEPENSE')}
                 className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
                   type === 'DEPENSE'
-                    ? 'bg-destructive text-destructive-foreground shadow-sm'
+                    ? 'bg-destructive text-destructive-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -327,7 +327,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 onClick={() => setType('REVENU')}
                 className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
                   type === 'REVENU'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -348,7 +348,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                   placeholder="ex: 15000"
                   value={montant}
                   onChange={(e) => setMontant(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary pr-16"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-lg font-bold focus:outline-hidden focus:ring-2 focus:ring-primary pr-16"
                 />
                 <span className="absolute right-4 top-3.5 text-xs font-black text-muted-foreground uppercase">XAF</span>
               </div>
@@ -382,7 +382,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 max={AUJOURDHUI}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
               {date !== AUJOURDHUI && (
                 <p className="text-[11px] text-muted-foreground">
@@ -400,7 +400,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
               <select
                 value={idCompte}
                 onChange={(e) => setIdCompte(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               >
                 {comptes.map((c) => (
                   <option key={c.id_compte} value={c.id_compte}>
@@ -459,7 +459,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                 placeholder={t('modals.transaction.description_placeholder')}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
             </div>
 

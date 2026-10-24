@@ -143,7 +143,7 @@ const scoreCouleur = (score: number) =>
 const ScoreFinancier: React.FC<{ score: number | null }> = ({ score }) => {
   const { t } = useTranslation();
   return (
-    <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
+    <div className="bg-card rounded-2xl border border-border p-5 shadow-xs flex items-center gap-4">
       <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0">
         <Gauge className="h-6 w-6" />
       </div>
@@ -168,7 +168,7 @@ const ScoreFinancier: React.FC<{ score: number | null }> = ({ score }) => {
 };
 
 const CarteGraphique: React.FC<{ titre: string; children: React.ReactNode }> = ({ titre, children }) => (
-  <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
+  <div className="bg-card rounded-2xl border border-border p-5 shadow-xs">
     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">{titre}</h4>
     {children}
   </div>
@@ -370,7 +370,7 @@ const CarteComparaison: React.FC<{ titre: string; actuelle: number; precedente: 
   const stable = actuelle === precedente;
   const bon = inverse ? hausse : !hausse;
   return (
-    <div className="bg-card rounded-2xl border border-border p-5 shadow-sm space-y-2">
+    <div className="bg-card rounded-2xl border border-border p-5 shadow-xs space-y-2">
       <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{titre}</p>
       <p className="text-xl font-black text-foreground tabular-nums">{formatMontant(actuelle)}</p>
       <p className="text-xs text-muted-foreground">{t('analyse.previous_period', { montant: formatMontant(precedente) })}</p>
@@ -470,7 +470,7 @@ const RenduComparaison: React.FC<{ resultats: Record<string, unknown> }> = ({ re
 };
 
 const StatComportement: React.FC<{ label: string; valeur: number; alerte?: boolean; sousTexte?: string }> = ({ label, valeur, alerte, sousTexte }) => (
-  <div className="bg-card rounded-2xl border border-border p-5 shadow-sm text-center space-y-1.5">
+  <div className="bg-card rounded-2xl border border-border p-5 shadow-xs text-center space-y-1.5">
     <p className={`text-2xl font-black tabular-nums ${alerte && valeur > 0 ? 'text-destructive' : 'text-foreground'}`}>{valeur}</p>
     <p className="text-xs font-semibold text-muted-foreground">{label}</p>
     {sousTexte && valeur > 0 && <p className="text-[11px] text-destructive font-semibold">{sousTexte}</p>}
@@ -888,7 +888,7 @@ const RenduPrediction: React.FC<RenduPredictionProps> = ({ prediction, historiqu
 
   return (
     <div className="space-y-4">
-      <div className="bg-card rounded-2xl border border-border p-6 shadow-sm space-y-5">
+      <div className="bg-card rounded-2xl border border-border p-6 shadow-xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">{t('analyse.estimated_amount')}</p>
@@ -1013,7 +1013,7 @@ export const AnalyseSection: React.FC = () => {
         <button
           onClick={() => setMode('analyse')}
           className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${
-            mode === 'analyse' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            mode === 'analyse' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           {t('analyse.tab_analysis')}
@@ -1021,7 +1021,7 @@ export const AnalyseSection: React.FC = () => {
         <button
           onClick={() => setMode('prediction')}
           className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors ${
-            mode === 'prediction' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            mode === 'prediction' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           {t('analyse.tab_predictions')}
@@ -1036,7 +1036,7 @@ export const AnalyseSection: React.FC = () => {
                 onClick={() => setTypeAnalyse(item.valeur)}
                 className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${
                   typeAnalyse === item.valeur
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                     : 'bg-card text-muted-foreground border-border hover:text-foreground'
                 }`}
               >
@@ -1050,7 +1050,7 @@ export const AnalyseSection: React.FC = () => {
                 onClick={() => setTypePrediction(item.valeur)}
                 className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${
                   typePrediction === item.valeur
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                     : 'bg-card text-muted-foreground border-border hover:text-foreground'
                 }`}
               >

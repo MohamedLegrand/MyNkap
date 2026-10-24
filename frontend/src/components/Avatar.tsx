@@ -27,7 +27,7 @@ export const Avatar: React.FC<AvatarProps> = ({ src, nom, className = 'h-9 w-9' 
     );
   }
   return (
-    <div className={`${className} rounded-xl bg-primary text-primary-foreground font-bold flex items-center justify-center shadow-sm shrink-0`}>
+    <div className={`${className} rounded-xl bg-primary text-primary-foreground font-bold flex items-center justify-center shadow-xs shrink-0`}>
       {nom ? nom[0].toUpperCase() : '?'}
     </div>
   );

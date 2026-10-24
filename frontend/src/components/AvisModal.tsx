@@ -75,7 +75,7 @@ export const AvisModal: React.FC<AvisModalProps> = ({ isOpen, onClose, onSubmitt
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
@@ -141,7 +141,7 @@ export const AvisModal: React.FC<AvisModalProps> = ({ isOpen, onClose, onSubmitt
                   value={commentaire}
                   onChange={(e) => setCommentaire(e.target.value)}
                   placeholder={t('modals.avis.comment_placeholder')}
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-hidden focus:ring-2 focus:ring-primary"
                 />
               </div>
 

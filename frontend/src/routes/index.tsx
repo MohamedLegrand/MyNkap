@@ -77,7 +77,7 @@ const SiteHeader = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo & Brand */}
         <Link to="/" className="flex items-center gap-3">
-          <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-sm border border-border" />
+          <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-xs border border-border" />
           <span className="text-2xl font-black tracking-tight text-primary">
             MyNkap
           </span>
@@ -102,7 +102,7 @@ const SiteHeader = () => {
           </Link>
           <Link
             to="/register"
-            className="bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 px-5 rounded-xl transition-all shadow-sm"
+            className="bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 px-5 rounded-xl transition-all shadow-xs"
           >
             {t('nav.register')}
           </Link>
@@ -136,7 +136,7 @@ const SiteHeader = () => {
             <Link to="/login" className="text-center py-2.5 font-semibold text-sm hover:text-primary transition-colors">
               {t('nav.login')}
             </Link>
-            <Link to="/register" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-sm">
+            <Link to="/register" className="text-center bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold py-2.5 rounded-xl shadow-xs">
               {t('nav.register')}
             </Link>
           </div>
@@ -167,7 +167,7 @@ const SiteFooter = () => {
         {/* Colonne 1: Marque & Description */}
         <div className="md:col-span-4 space-y-4">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpg" alt="MyNkap" className="h-12 w-12 rounded-xl object-cover border border-border shadow-sm" />
+            <img src="/logo.jpg" alt="MyNkap" className="h-12 w-12 rounded-xl object-cover border border-border shadow-xs" />
             <span className="text-xl font-black text-foreground">MyNkap</span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
@@ -402,7 +402,7 @@ const AiChatDemo = () => {
           <input
             disabled
             placeholder={t('landing.ia.demo_placeholder')}
-            className="bg-transparent border-none text-xs flex-1 outline-none text-muted-foreground"
+            className="bg-transparent border-none text-xs flex-1 outline-hidden text-muted-foreground"
           />
           <button className="bg-primary text-primary-foreground p-1.5 rounded-lg" aria-label={t('landing.ia.demo_send')}>
             <MessageSquare className="w-4 h-4" />
@@ -442,7 +442,7 @@ const AvisPublicsSection = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {avis.map((a, idx) => (
-            <div key={idx} className="bg-card p-6 rounded-2xl border border-border shadow-sm text-left space-y-3">
+            <div key={idx} className="bg-card p-6 rounded-2xl border border-border shadow-xs text-left space-y-3">
               <div className="flex items-center gap-0.5">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <Star key={n} className={`h-4 w-4 ${n <= a.note ? 'fill-secondary text-secondary' : 'text-muted-foreground/30'}`} />
@@ -476,7 +476,7 @@ const LandingPage = () => {
       <SiteHeader />
 
       {/* 2. Hero Section */}
-      <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
+      <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-linear-to-b from-primary/5 via-transparent to-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-6">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
@@ -494,7 +494,7 @@ const LandingPage = () => {
               </Link>
               <a
                 href="#ia"
-                className="bg-card hover:bg-muted text-foreground border border-border font-bold py-3.5 px-8 rounded-xl transition-all shadow-sm"
+                className="bg-card hover:bg-muted text-foreground border border-border font-bold py-3.5 px-8 rounded-xl transition-all shadow-xs"
               >
                 {t('landing.hero.cta_secondary')}
               </a>
@@ -577,11 +577,11 @@ const LandingPage = () => {
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 w-full text-left">
-              <div className="p-5 bg-card rounded-2xl border border-border shadow-sm">
+              <div className="p-5 bg-card rounded-2xl border border-border shadow-xs">
                 <div className="text-primary font-bold text-lg mb-2">{t('landing.features.mobile_money_title')}</div>
                 <p className="text-xs text-muted-foreground">{t('landing.features.mobile_money_desc')}</p>
               </div>
-              <div className="p-5 bg-card rounded-2xl border border-border shadow-sm">
+              <div className="p-5 bg-card rounded-2xl border border-border shadow-xs">
                 <div className="text-secondary font-bold text-lg mb-2">{t('landing.features.savings_title')}</div>
                 <p className="text-xs text-muted-foreground">{t('landing.features.savings_desc')}</p>
               </div>
@@ -673,7 +673,7 @@ const LandingPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-card p-6 rounded-2xl border border-border shadow-sm text-left space-y-3">
+            <div className="bg-card p-6 rounded-2xl border border-border shadow-xs text-left space-y-3">
               <div className="p-3 bg-primary/10 text-primary w-12 h-12 rounded-xl flex justify-center items-center">
                 <Database className="w-6 h-6" />
               </div>
@@ -683,7 +683,7 @@ const LandingPage = () => {
               </p>
             </div>
 
-            <div className="bg-card p-6 rounded-2xl border border-border shadow-sm text-left space-y-3">
+            <div className="bg-card p-6 rounded-2xl border border-border shadow-xs text-left space-y-3">
               <div className="p-3 bg-secondary/10 text-secondary w-12 h-12 rounded-xl flex justify-center items-center">
                 <TrendingUp className="w-6 h-6" />
               </div>
@@ -693,7 +693,7 @@ const LandingPage = () => {
               </p>
             </div>
 
-            <div className="bg-card p-6 rounded-2xl border border-border shadow-sm text-left space-y-3">
+            <div className="bg-card p-6 rounded-2xl border border-border shadow-xs text-left space-y-3">
               <div className="p-3 bg-primary/10 text-primary w-12 h-12 rounded-xl flex justify-center items-center">
                 <Shield className="w-6 h-6" />
               </div>
@@ -723,7 +723,7 @@ const LandingPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
             {/* Plan Gratuit */}
-            <div className="bg-card p-8 rounded-2xl border border-border shadow-sm flex flex-col justify-between text-left relative">
+            <div className="bg-card p-8 rounded-2xl border border-border shadow-xs flex flex-col justify-between text-left relative">
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">{t('landing.pricing.free.name')}</h3>
                 <div className="text-3xl font-extrabold text-primary">{t('landing.pricing.free.price')}</div>
@@ -744,7 +744,7 @@ const LandingPage = () => {
             </div>
 
             {/* Plan Essentiel */}
-            <div className="bg-card p-8 rounded-2xl border border-border shadow-sm flex flex-col justify-between text-left relative">
+            <div className="bg-card p-8 rounded-2xl border border-border shadow-xs flex flex-col justify-between text-left relative">
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">{t('landing.pricing.essential.name')}</h3>
                 <div className="text-3xl font-extrabold text-primary">{t('landing.pricing.essential.price')} <span className="text-xs font-normal text-muted-foreground">{t('landing.pricing.essential.price_suffix')}</span></div>
@@ -779,7 +779,7 @@ const LandingPage = () => {
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-primary" /> {t('landing.pricing.premium.feature4')}</li>
                 </ul>
               </div>
-              <Link to="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-sm">
+              <Link to="/register" className="mt-8 block text-center bg-primary hover:bg-primary/95 text-primary-foreground font-semibold py-2.5 rounded-xl transition-all text-xs shadow-xs">
                 {t('landing.pricing.premium.cta')}
               </Link>
             </div>
@@ -823,7 +823,7 @@ const AboutPage = () => {
       <SiteHeader />
 
       {/* Hero */}
-      <section className="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
+      <section className="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-linear-to-b from-primary/5 via-transparent to-transparent">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
             <span>{t('about_page.badge')}</span>
@@ -842,7 +842,7 @@ const AboutPage = () => {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-14 items-center">
           <div className="md:col-span-5 flex justify-center">
             <figure className="w-full max-w-xs space-y-3">
-              <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-border shadow-xl bg-muted">
+              <div className="aspect-3/4 overflow-hidden rounded-2xl border border-border shadow-xl bg-muted">
                 <img
                   src="/fondateur.jpg"
                   alt={t('about_page.founder_photo_alt')}
@@ -892,22 +892,22 @@ const AboutPage = () => {
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs space-y-1.5">
               <Wallet className="h-6 w-6 text-primary" />
               <h3 className="text-sm font-bold">{t('about_page.card1_title')}</h3>
               <p className="text-xs text-muted-foreground">{t('about_page.card1_desc')}</p>
             </div>
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs space-y-1.5">
               <TrendingUp className="h-6 w-6 text-secondary" />
               <h3 className="text-sm font-bold">{t('about_page.card2_title')}</h3>
               <p className="text-xs text-muted-foreground">{t('about_page.card2_desc')}</p>
             </div>
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs space-y-1.5">
               <img src="/ia.jpg" alt="" className="h-8 w-8 rounded-full object-cover" />
               <h3 className="text-sm font-bold">{t('about_page.card3_title')}</h3>
               <p className="text-xs text-muted-foreground">{t('about_page.card3_desc')}</p>
             </div>
-            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-1.5">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs space-y-1.5">
               <Shield className="h-6 w-6 text-secondary" />
               <h3 className="text-sm font-bold">{t('about_page.card4_title')}</h3>
               <p className="text-xs text-muted-foreground">{t('about_page.card4_desc')}</p>
@@ -982,7 +982,7 @@ const ContactPage = () => {
       <Seo title={t('seo.contact_title')} description={t('seo.contact_description')} path="/contact" />
       <SiteHeader />
 
-      <section className="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-gradient-to-b from-primary/5 via-transparent to-transparent">
+      <section className="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-linear-to-b from-primary/5 via-transparent to-transparent">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold tracking-wide">
             <MessageSquare className="h-4 w-4" />
@@ -1029,7 +1029,7 @@ const ContactPage = () => {
                       value={nom}
                       onChange={(e) => setNom(e.target.value)}
                       placeholder={t('contact_page.full_name_placeholder')}
-                      className="w-full bg-background border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary"
                     />
                   </div>
                 </div>
@@ -1045,7 +1045,7 @@ const ContactPage = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="vous@exemple.com"
-                      className="w-full bg-background border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary"
                     />
                   </div>
                 </div>
@@ -1059,7 +1059,7 @@ const ContactPage = () => {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder={t('contact_page.message_placeholder')}
-                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-hidden focus:ring-2 focus:ring-primary"
                   />
                 </div>
 
@@ -1266,7 +1266,7 @@ const AuthLayout = ({
 };
 
 const baseInputClassName =
-  'w-full py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
+  'w-full py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40';
 const inputClassName = `${baseInputClassName} pl-11 pr-4`;
 
 // Champ de formulaire avec icône, pour un rendu plus professionnel sur les pages d'authentification

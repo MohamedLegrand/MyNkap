@@ -29,8 +29,8 @@ const LANGUES: { valeur: string; label: string }[] = [
 const TYPES_PHOTO_ACCEPTES = ['image/jpeg', 'image/png', 'image/webp'];
 const TAILLE_MAX_PHOTO = 1 * 1024 * 1024; // 1 Mo, même limite que le backend
 
-const CARD = 'bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4';
-const INPUT = 'w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary';
+const CARD = 'bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-xs space-y-4';
+const INPUT = 'w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary';
 const LABEL = 'text-xs font-semibold text-muted-foreground';
 const BTN_PRIMARY = 'py-2.5 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-md hover:bg-primary/95 flex items-center justify-center gap-2 disabled:opacity-50';
 

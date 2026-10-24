@@ -126,7 +126,7 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight">{modeEdition ? t('modals.transaction_recurrente.title_edit') : t('modals.transaction_recurrente.title_create')}</h3>
@@ -143,10 +143,10 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             {!modeEdition && (
               <div className="grid grid-cols-2 gap-3 p-1 bg-muted rounded-xl">
-                <button type="button" onClick={() => setType('DEPENSE')} className={`py-2.5 rounded-lg text-xs font-bold transition-all ${type === 'DEPENSE' ? 'bg-destructive text-destructive-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                <button type="button" onClick={() => setType('DEPENSE')} className={`py-2.5 rounded-lg text-xs font-bold transition-all ${type === 'DEPENSE' ? 'bg-destructive text-destructive-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}>
                   {t('categories.expense')}
                 </button>
-                <button type="button" onClick={() => setType('REVENU')} className={`py-2.5 rounded-lg text-xs font-bold transition-all ${type === 'REVENU' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                <button type="button" onClick={() => setType('REVENU')} className={`py-2.5 rounded-lg text-xs font-bold transition-all ${type === 'REVENU' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}>
                   {t('categories.income')}
                 </button>
               </div>
@@ -156,13 +156,13 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground">{t('accounts.title')}</label>
-                  <select value={idCompte} onChange={(e) => setIdCompte(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
+                  <select value={idCompte} onChange={(e) => setIdCompte(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary">
                     {comptes.map((c) => <option key={c.id_compte} value={c.id_compte}>{c.nom}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_detail.category')}</label>
-                  <select value={idCategorie} onChange={(e) => setIdCategorie(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
+                  <select value={idCategorie} onChange={(e) => setIdCategorie(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary">
                     {categoriesFiltrees.map((c) => <option key={c.id_categorie} value={c.id_categorie}>{c.nom}</option>)}
                   </select>
                 </div>
@@ -171,17 +171,17 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">{t('modals.dette_operation.amount_label')}</label>
-              <input type="number" required min={1} value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="ex: 15000" className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
+              <input type="number" required min={1} value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="ex: 15000" className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary" />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_recurrente.description_label')}</label>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('modals.transaction_recurrente.description_placeholder')} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
+              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('modals.transaction_recurrente.description_placeholder')} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary" />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_recurrente.frequency_label')}</label>
-              <select value={frequence} onChange={(e) => setFrequence(e.target.value as TransactionRecurrente['frequence'])} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary">
+              <select value={frequence} onChange={(e) => setFrequence(e.target.value as TransactionRecurrente['frequence'])} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary">
                 {FREQUENCE_KEYS.map((f) => <option key={f.valeur} value={f.valeur}>{t(f.labelKey)}</option>)}
               </select>
             </div>
@@ -189,11 +189,11 @@ export const TransactionRecurrenteModal: React.FC<TransactionRecurrenteModalProp
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_recurrente.next_execution')}</label>
-                <input type="date" required value={prochaineExecution} onChange={(e) => setProchaineExecution(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input type="date" required value={prochaineExecution} onChange={(e) => setProchaineExecution(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">{t('modals.transaction_recurrente.end_date')}</label>
-                <input type="date" value={dateFin} min={prochaineExecution} onChange={(e) => setDateFin(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input type="date" value={dateFin} min={prochaineExecution} onChange={(e) => setDateFin(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary" />
               </div>
             </div>
 

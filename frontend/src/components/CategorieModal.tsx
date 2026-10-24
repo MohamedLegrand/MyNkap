@@ -77,7 +77,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight">{modeEdition ? t('modals.categorie.title_edit') : t('modals.categorie.title_create')}</h3>
@@ -98,7 +98,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
               placeholder={t('modals.categorie.name_placeholder')}
               value={nom}
               onChange={(e) => setNom(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -112,7 +112,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
                 disabled={modeEdition}
                 onClick={() => setType('DEPENSE')}
                 className={`py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                  type === 'DEPENSE' ? 'bg-destructive text-destructive-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  type === 'DEPENSE' ? 'bg-destructive text-destructive-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {t('categories.expense')}
@@ -122,7 +122,7 @@ export const CategorieModal: React.FC<CategorieModalProps> = ({ isOpen, onClose,
                 disabled={modeEdition}
                 onClick={() => setType('REVENU')}
                 className={`py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                  type === 'REVENU' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  type === 'REVENU' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {t('categories.income')}

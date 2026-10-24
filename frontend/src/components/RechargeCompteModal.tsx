@@ -167,7 +167,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
@@ -208,7 +208,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                     type="button"
                     onClick={() => setMethode('MOBILE_MONEY')}
                     className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      methode === 'MOBILE_MONEY' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      methode === 'MOBILE_MONEY' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <Smartphone className="h-3.5 w-3.5" />
@@ -218,7 +218,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                     type="button"
                     onClick={() => setMethode('CARTE')}
                     className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      methode === 'CARTE' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      methode === 'CARTE' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <CreditCard className="h-3.5 w-3.5" />
@@ -236,7 +236,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                   value={montant}
                   onChange={(e) => setMontant(e.target.value)}
                   placeholder="10000"
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
                 />
               </div>
 
@@ -253,7 +253,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                 <select
                   value={pays}
                   onChange={(e) => handleChangerPays(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
                 >
                   {(paysDisponibles.length > 0 ? paysDisponibles : [{ pays: 'CM', nom: 'Cameroun', devise: 'XAF', operateurs: [] }]).map((p) => (
                     <option key={p.pays} value={p.pays}>{p.nom}</option>
@@ -270,7 +270,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                       type="button"
                       onClick={() => setOperator(op)}
                       className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                        operator === op ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                        operator === op ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {OPERATEUR_LOGOS[op] && (
@@ -297,7 +297,7 @@ export const RechargeCompteModal: React.FC<RechargeCompteModalProps> = ({ isOpen
                     placeholder="ex: 655500393"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ''))}
-                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">{t('modals.plan_upgrade.phone_hint')}</p>

@@ -64,7 +64,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight">{t('accounts.transfer_between')}</h3>
@@ -93,7 +93,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
                     setIdCompteDestination(prochaine ? String(prochaine.id_compte) : '');
                   }
                 }}
-                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               >
                 {comptes.map((c) => (
                   <option key={c.id_compte} value={c.id_compte}>{c.nom}</option>
@@ -106,7 +106,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
               <select
                 value={idCompteDestination}
                 onChange={(e) => setIdCompteDestination(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               >
                 {comptesDestinationDisponibles.map((c) => (
                   <option key={c.id_compte} value={c.id_compte}>{c.nom}</option>
@@ -125,7 +125,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
               placeholder="ex: 10000"
               value={montant}
               onChange={(e) => setMontant(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
             />
             {soldeSource !== undefined && (
               <p className="text-[11px] text-muted-foreground">
@@ -141,7 +141,7 @@ export const TransfertModal: React.FC<TransfertModalProps> = ({ isOpen, onClose,
               placeholder={t('modals.transfert.note_placeholder')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary"
             />
           </div>
 

@@ -244,11 +244,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           <div className="flex items-center gap-4">
             <NotificationsBell basePath="/admin/notifications" />
 
-            <div className="h-5 w-[1px] bg-border" />
+            <div className="h-5 w-px bg-border" />
 
             {/* Profile Admin */}
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground font-black flex items-center justify-center shadow-sm">
+              <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground font-black flex items-center justify-center shadow-xs">
                 A
               </div>
               <div className="text-left">

@@ -140,7 +140,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
       {/* Header avec Icône de Sécurité */}
       <div className="text-center space-y-3">
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary/20 via-primary/10 to-secondary/20 text-primary flex items-center justify-center border border-primary/20 shadow-sm">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-linear-to-tr from-primary/20 via-primary/10 to-secondary/20 text-primary flex items-center justify-center border border-primary/20 shadow-xs">
           <ShieldCheck className="h-7 w-7 text-primary" />
         </div>
         <div>
@@ -168,7 +168,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
               onChange={(e) => handleChange(idx, e.target.value)}
               onKeyDown={(e) => handleKeyDown(idx, e)}
               onPaste={idx === 0 ? handlePaste : undefined}
-              className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border bg-background text-foreground shadow-sm transition-all focus:outline-none focus:ring-2 ${
+              className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-black rounded-xl border bg-background text-foreground shadow-xs transition-all focus:outline-hidden focus:ring-2 ${
                 digit
                   ? 'border-primary ring-1 ring-primary/50 bg-primary/5'
                   : 'border-border focus:ring-secondary'

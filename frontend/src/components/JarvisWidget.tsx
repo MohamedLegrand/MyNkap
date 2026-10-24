@@ -320,10 +320,10 @@ export const JarvisWidget: React.FC<JarvisWidgetProps> = ({ typeAnalyse, typeAna
   const enCours = isSending || isTranscribing;
 
   return (
-    <div id="jarvis-widget" className="bg-gradient-to-b from-secondary/10 via-card to-card rounded-2xl border border-secondary/30 p-5 shadow-sm space-y-4">
+    <div id="jarvis-widget" className="bg-linear-to-b from-secondary/10 via-card to-card rounded-2xl border border-secondary/30 p-5 shadow-xs space-y-4">
       <div className="flex items-center justify-between pb-2 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-secondary text-secondary-foreground shadow-sm">
+          <div className="p-2 rounded-xl bg-secondary text-secondary-foreground shadow-xs">
             <Bot className="h-5 w-5" />
           </div>
           <div>
@@ -512,7 +512,7 @@ export const JarvisWidget: React.FC<JarvisWidgetProps> = ({ typeAnalyse, typeAna
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             disabled={enCours || isRecording}
-            className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs pr-10 focus:outline-none focus:ring-2 focus:ring-secondary disabled:opacity-60"
+            className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs pr-10 focus:outline-hidden focus:ring-2 focus:ring-secondary disabled:opacity-60"
           />
           <button
             type="submit"
