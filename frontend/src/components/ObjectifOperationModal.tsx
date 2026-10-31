@@ -98,7 +98,7 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
   const titre = estAlimentation ? t('savings.contribute') : estAbandon ? t('savings.abandon') : t('savings.withdraw');
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight">{titre} — {objectifAffiche.nom}</h3>
@@ -132,7 +132,7 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
                 placeholder="ex: 20000"
                 value={montant}
                 onChange={(e) => setMontant(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
               <div className="flex flex-wrap gap-1.5">
                 {MONTANTS_RAPIDES.filter((m) => estAlimentation || m <= Number(objectifAffiche.montant_actuel)).map((m) => (
@@ -173,7 +173,7 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
             <select
               value={idCompte}
               onChange={(e) => setIdCompte(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
             >
               {comptes.map((c) => (
                 <option key={c.id_compte} value={c.id_compte}>{c.nom}</option>

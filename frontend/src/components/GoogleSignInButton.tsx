@@ -62,7 +62,7 @@ export const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onCreden
         conteneurRef.current.innerHTML = '';
         window.google.accounts.id.renderButton(conteneurRef.current, {
           type: 'standard',
-          theme: 'outline',
+          theme: 'outline-solid',
           size: 'large',
           text: 'continue_with',
           shape: 'pill',

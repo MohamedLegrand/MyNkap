@@ -159,7 +159,7 @@ export const AutomatisationsSection: React.FC<AutomatisationsSectionProps> = ({
                 <p className="text-sm text-muted-foreground">{t('automations.none_recurring')}</p>
               </div>
             ) : (
-              <div className="bg-card rounded-2xl border border-border shadow-sm divide-y divide-border">
+              <div className="bg-card rounded-2xl border border-border shadow-xs divide-y divide-border">
                 {recurrentes.map((r) => (
                   <div key={r.id_transaction_recurrente} className={`p-4 flex items-center justify-between gap-3 ${!r.est_active ? 'opacity-60' : ''}`}>
                     <div className="min-w-0">

@@ -45,7 +45,7 @@ export const ObjectifModal: React.FC<ObjectifModalProps> = ({ isOpen, onClose, o
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight">{t('savings.create')}</h3>
@@ -63,7 +63,7 @@ export const ObjectifModal: React.FC<ObjectifModalProps> = ({ isOpen, onClose, o
               placeholder={t('modals.objectif.name_placeholder')}
               value={nom}
               onChange={(e) => setNom(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -76,7 +76,7 @@ export const ObjectifModal: React.FC<ObjectifModalProps> = ({ isOpen, onClose, o
               placeholder="ex: 500000"
               value={montantCible}
               onChange={(e) => setMontantCible(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -86,7 +86,7 @@ export const ObjectifModal: React.FC<ObjectifModalProps> = ({ isOpen, onClose, o
               type="date"
               value={dateEcheance}
               onChange={(e) => setDateEcheance(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
             />
             {dateEcheance && (
               <p className="text-[11px] text-muted-foreground">

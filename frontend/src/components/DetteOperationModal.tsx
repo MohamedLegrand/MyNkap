@@ -69,7 +69,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-sm rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight">{estDette ? t('debts.repay') : t('debts.collect')} — {detteAffichee.nom}</h3>
@@ -93,7 +93,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
               placeholder="ex: 10000"
               value={montant}
               onChange={(e) => setMontant(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -104,7 +104,7 @@ export const DetteOperationModal: React.FC<DetteOperationModalProps> = ({ isOpen
             <select
               value={idCompte}
               onChange={(e) => setIdCompte(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
             >
               {comptes.map((c) => (
                 <option key={c.id_compte} value={c.id_compte}>{c.nom}</option>

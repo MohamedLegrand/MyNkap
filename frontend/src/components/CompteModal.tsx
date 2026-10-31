@@ -173,7 +173,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight">{modeEdition ? t('modals.compte.title_edit') : t('modals.compte.title_create')}</h3>
@@ -199,7 +199,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
                 placeholder={t('modals.compte.name_placeholder')}
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
             </div>
 
@@ -208,7 +208,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as 'MOBILE_MONEY' | 'BANCAIRE' | 'ESPECES')}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               >
                 <option value="MOBILE_MONEY">{t('modals.compte.type_mobile_money')}</option>
                 <option value="BANCAIRE">{t('modals.compte.type_bank')}</option>
@@ -280,7 +280,7 @@ export const CompteModal: React.FC<CompteModalProps> = ({ isOpen, onClose, onSuc
                   placeholder="0"
                   value={soldeInitial}
                   onChange={(e) => setSoldeInitial(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
                 />
               </div>
             )}

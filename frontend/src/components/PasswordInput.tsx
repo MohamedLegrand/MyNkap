@@ -17,8 +17,8 @@ export const PasswordInput: React.FC<PasswordInputProps> = ({ className, showLoc
   const [visible, setVisible] = useState(false);
 
   const defaultClassName = showLockIcon
-    ? 'w-full py-2.5 pl-11 pr-11 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40'
-    : 'w-full bg-background border border-border rounded-xl pl-3.5 pr-11 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-none';
+    ? 'w-full py-2.5 pl-11 pr-11 rounded-xl border border-border bg-background text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/40'
+    : 'w-full bg-background border border-border rounded-xl pl-3.5 pr-11 py-2 text-sm font-semibold focus:ring-2 focus:ring-primary focus:outline-hidden';
 
   return (
     <div className="relative">

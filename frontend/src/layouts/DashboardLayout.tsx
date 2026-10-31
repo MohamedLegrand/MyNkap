@@ -128,7 +128,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* Brand Header */}
         <div className="p-5 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-sm border border-border" />
+            <img src="/logo.jpg" alt="MyNkap Logo" className="h-14 w-14 rounded-xl object-cover shadow-xs border border-border" />
             <div>
               <span className="text-xl font-black tracking-tight text-primary">
                 MyNkap

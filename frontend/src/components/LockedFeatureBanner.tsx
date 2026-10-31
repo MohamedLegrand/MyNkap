@@ -30,7 +30,7 @@ export const LockedFeatureBanner: React.FC<LockedFeatureBannerProps> = ({ titre,
       {onUpgrade && (
         <button
           onClick={onUpgrade}
-          className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold py-2.5 px-5 rounded-xl transition-all shadow-sm"
+          className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold py-2.5 px-5 rounded-xl transition-all shadow-xs"
         >
           {t('locked.upgrade_cta')}
         </button>

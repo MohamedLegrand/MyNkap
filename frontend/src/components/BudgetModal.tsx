@@ -103,7 +103,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-card w-full max-w-md rounded-2xl border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <h3 className="text-lg font-bold tracking-tight">{modeEdition ? t('modals.budget.title_edit') : t('modals.budget.title_create')}</h3>
@@ -172,7 +172,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
                 placeholder="ex: 50000"
                 value={montantLimite}
                 onChange={(e) => setMontantLimite(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
               <div className="flex flex-wrap gap-1.5">
                 {MONTANTS_RAPIDES.map((m) => (
@@ -224,7 +224,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
                     <select
                       value={mois}
                       onChange={(e) => setMois(Number(e.target.value))}
-                      className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
                     >
                       {MOIS_KEYS.map((key, idx) => (
                         <option key={key} value={idx + 1}>{t(key)}</option>
@@ -240,7 +240,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
                       max={2100}
                       value={annee}
                       onChange={(e) => setAnnee(Number(e.target.value))}
-                      className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
                     />
                   </div>
                 </div>
