@@ -848,7 +848,11 @@
       "target_amount_label": "Montant cible (XAF)",
       "due_date_label": "Échéance (facultatif)",
       "due_date_hint": "Une échéance permet d'estimer le montant mensuel à épargner pour l'atteindre.",
-      "submit": "Créer l'objectif"
+      "submit": "Créer l'objectif",
+      "simulation_title": "Simulation",
+      "monthly_effort": "Effort mensuel",
+      "over_months_one": "sur {{count}} mois",
+      "over_months_other": "sur {{count}} mois"
     },
     "objectif_operation": {
       "error": "Opération impossible.",
@@ -858,7 +862,11 @@
       "available_for_withdrawal": "Disponible pour retrait",
       "source_account": "Compte source",
       "destination_account": "Compte de destination",
-      "confirm_abandon": "Confirmer l'abandon"
+      "confirm_abandon": "Confirmer l'abandon",
+      "early_withdraw_warning_one": "Il reste {{count}} mois avant l'échéance de cet objectif, qui n'est pas encore atteint. Êtes-vous sûr de vouloir puiser dans cette épargne ?",
+      "early_withdraw_warning_other": "Il reste {{count}} mois avant l'échéance de cet objectif, qui n'est pas encore atteint. Êtes-vous sûr de vouloir puiser dans cette épargne ?",
+      "keep_saving": "Garder mon épargne",
+      "withdraw_anyway": "Retirer quand même"
     },
     "transfert": {
       "error": "Transfert impossible.",

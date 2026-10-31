@@ -13,6 +13,8 @@ from app.modules.epargne.schemas import (
     ObjectifEpargneCreate,
     ObjectifEpargneOut,
     RetirerRequest,
+    SimulationObjectifOut,
+    SimulationObjectifRequest,
 )
 from app.modules.plans.dependencies import exiger_fonctionnalite
 
@@ -53,6 +55,17 @@ def creer_objectif(
     return _to_out(objectif, valeurs)
 
 
+@router.post("/simuler", response_model=SimulationObjectifOut)
+def simuler_objectif(
+    payload: SimulationObjectifRequest,
+    client: Client = Depends(get_current_active_client),
+):
+    """Simule l'effort d'épargne (effort mensuel + courbe de projection) pour
+    une cible et une échéance données, SANS créer d'objectif ni de compte —
+    alimente le simulateur visuel avant que le client ne s'engage."""
+    return service.simuler_objectif(payload.montant_cible, payload.date_echeance, payload.montant_initial)
+
+
 @router.get("", response_model=List[ObjectifEpargneOut])
 def lister_objectifs(
     db: Session = Depends(get_db),
@@ -78,6 +91,22 @@ def obtenir_objectif(
 def _gerer_erreurs_operation(func, *args, **kwargs):
     try:
         return func(*args, **kwargs)
+    except service.RetraitAnticipeNonConfirmeError as erreur:
+        # 409 : le retrait n'est pas interdit, il manque juste la
+        # confirmation (verrou virtuel). Détail structuré pour que le
+        # frontend affiche l'avertissement puis réessaie avec
+        # confirmer_retrait_anticipe=true.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "RETRAIT_ANTICIPE",
+                "mois_restants": erreur.mois_restants,
+                "message": (
+                    f"Il reste {erreur.mois_restants} mois avant l'échéance de cet objectif, "
+                    "et il n'est pas encore atteint. Confirmez pour retirer quand même."
+                ),
+            },
+        )
     except service.ObjectifIntrouvableError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Objectif d'épargne introuvable.")
     except service.ObjectifVerrouilleError:
@@ -122,7 +151,8 @@ def retirer(
     """Transfère de l'argent du compte épargne dédié vers un compte de
     destination choisi par le client, sans abandonner l'objectif."""
     objectif = _gerer_erreurs_operation(
-        service.retirer, db, client.id_client, id_objectif, payload.montant, payload.id_compte_destination
+        service.retirer, db, client.id_client, id_objectif, payload.montant, payload.id_compte_destination,
+        payload.confirmer_retrait_anticipe,
     )
     valeurs = service.calculer_valeurs_objectif(objectif)
     return _to_out(objectif, valeurs)

@@ -45,5 +45,12 @@ celery_app.conf.beat_schedule = {
         # (00h05) — une échéance se compte en jours, pas besoin de plus.
         "schedule": crontab(hour=0, minute=10),
     },
+    "notifier-ruptures-solde-proches": {
+        "task": "app.worker.tasks.notifier_ruptures_solde_proches",
+        # 00h15, après les récurrences du jour (00h05) pour projeter sur des
+        # soldes à jour. Une rupture de solde se compte en jours : une passe
+        # quotidienne suffit (et l'anti-spam évite de re-notifier chaque jour).
+        "schedule": crontab(hour=0, minute=15),
+    },
 }
 celery_app.conf.timezone = "UTC"

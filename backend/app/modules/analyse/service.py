@@ -13,6 +13,8 @@ from app.modules.budgets.models import Categorie
 from app.modules.comptes import service as comptes_service
 from app.modules.dettes import service as dettes_service
 from app.modules.epargne.models import ObjectifEpargne
+from app.modules.notifications import service as notifications_service
+from app.modules.notifications.models import Notification
 from app.modules.tontines.models import CotisationTour, Tontine, TourTontine
 from app.modules.transactions.models import Transaction, Transfert
 
@@ -529,3 +531,193 @@ def generer_snapshots_mensuels_tous_clients(db: Session) -> int:
 
     db.commit()
     return nb_generes
+
+
+# --- Alertes proactives de rupture de solde (JARVIS "conseiller proactif") ---
+#
+# Contrairement au reste du module Analyse (toujours déclenché par le client
+# qui ouvre l'onglet Analyse ou interroge JARVIS), ces alertes sont POUSSÉES :
+# une tâche Celery quotidienne (voir worker.tasks) détecte qu'un compte de
+# dépense va tomber à zéro AVANT la fin du mois au rythme actuel, et crée une
+# notification sans que le client ait rien demandé.
+
+# Fenêtre d'observation du rythme de dépense : 30 jours glissants, cohérent
+# avec la fenêtre déjà utilisée pour la détection de transactions suspectes.
+NB_JOURS_FENETRE_BURN = 30
+
+# Seuls les comptes réellement « de dépense » peuvent déclencher l'alerte :
+# EPARGNE est fait pour accumuler (un solde qui descend y est voulu) et
+# ABONNEMENT est un compte réservé au prélèvement de l'abonnement — projeter
+# une rupture dessus n'aurait aucun sens pour le client.
+TYPES_COMPTE_DEPENSE = {"MOBILE_MONEY", "BANCAIRE", "ESPECES"}
+
+TYPE_NOTIF_ALERTE_SOLDE = "ALERTE_SOLDE"
+
+
+def _depense_compte_fenetre(db: Session, id_client: int, id_compte: int, date_debut: date, date_fin: date) -> Decimal:
+    """Total des DÉPENSES réelles (hors transactions annulées) sur un compte
+    donné et une fenêtre donnée. Volontairement limité au type DEPENSE : les
+    transferts sortants (ex. alimentation d'un objectif d'épargne) sont des
+    mouvements voulus, pas un rythme de dépense subi — les inclure ferait
+    sur-alerter un client qui épargne beaucoup."""
+    annulees = _sous_requete_transactions_annulees(db)
+    total = db.query(func.sum(Transaction.montant)).filter(
+        Transaction.id_client == id_client,
+        Transaction.id_compte == id_compte,
+        Transaction.type == "DEPENSE",
+        Transaction.date >= date_debut,
+        Transaction.date <= date_fin,
+        Transaction.id_transaction.notin_(annulees),
+    ).scalar()
+    return Decimal(str(total)) if total is not None else Decimal("0")
+
+
+def _top_categorie_depense_compte(
+    db: Session, id_client: int, id_compte: int, date_debut: date, date_fin: date
+) -> Optional[str]:
+    """Catégorie sur laquelle le client dépense le plus depuis ce compte sur
+    la fenêtre — pour que l'alerte nomme un levier concret à actionner
+    ("réduisez Restaurant") plutôt qu'un conseil vague."""
+    annulees = _sous_requete_transactions_annulees(db)
+    ligne = (
+        db.query(Categorie.nom, func.sum(Transaction.montant).label("total"))
+        .join(Transaction, Transaction.id_categorie == Categorie.id_categorie)
+        .filter(
+            Transaction.id_client == id_client,
+            Transaction.id_compte == id_compte,
+            Transaction.type == "DEPENSE",
+            Transaction.date >= date_debut,
+            Transaction.date <= date_fin,
+            Transaction.id_transaction.notin_(annulees),
+        )
+        .group_by(Categorie.nom)
+        .order_by(func.sum(Transaction.montant).desc())
+        .first()
+    )
+    return ligne[0] if ligne is not None else None
+
+
+def projeter_rupture_solde(db: Session, id_client: int, aujourdhui: Optional[date] = None) -> List[dict]:
+    """
+    Pour chaque compte de dépense du client, projette la date à laquelle son
+    solde tombera à zéro AU RYTHME DE DÉPENSE des NB_JOURS_FENETRE_BURN
+    derniers jours. Ne renvoie que les comptes dont la rupture tombe AVANT la
+    fin du mois en cours (le trou de trésorerie que l'alerte veut signaler) —
+    un compte qui tient jusqu'à la fin du mois n'est pas remonté (le client
+    touchera vraisemblablement un revenu d'ici là).
+
+    `aujourdhui` est injectable pour des tests déterministes ; en production
+    il vaut toujours date.today().
+    """
+    aujourdhui = aujourdhui or date.today()
+    _, fin_mois = _limites_mois(aujourdhui.year, aujourdhui.month)
+    jours_restants_mois = (fin_mois - aujourdhui).days
+    # Dernier jour du mois : plus aucun "avant la fin du mois" à anticiper.
+    if jours_restants_mois <= 0:
+        return []
+
+    date_debut_fenetre = aujourdhui - timedelta(days=NB_JOURS_FENETRE_BURN)
+
+    resultats: List[dict] = []
+    for compte in comptes_service.lister_comptes(db, id_client):
+        if not compte.est_actif or compte.type not in TYPES_COMPTE_DEPENSE or compte.solde <= 0:
+            continue
+
+        depense = _depense_compte_fenetre(db, id_client, compte.id_compte, date_debut_fenetre, aujourdhui)
+        if depense <= 0:
+            continue
+
+        burn_quotidien = depense / NB_JOURS_FENETRE_BURN
+        # int() tronque vers 0 = plancher pour une valeur positive : le
+        # nombre de jours PLEINS que le solde couvre encore.
+        jours_avant_zero = int(compte.solde / burn_quotidien)
+        date_rupture = aujourdhui + timedelta(days=jours_avant_zero)
+        if date_rupture >= fin_mois:
+            continue  # tient jusqu'à la fin du mois -> pas d'alerte
+
+        # Dépense quotidienne à ne pas dépasser pour tenir jusqu'à la fin du
+        # mois, et donc l'effort de réduction à fournir (toujours > 0 ici,
+        # puisque la rupture tombe avant la fin du mois).
+        cible_quotidienne = compte.solde / jours_restants_mois
+        reduction_quotidienne = burn_quotidien - cible_quotidienne
+
+        resultats.append({
+            "id_compte": compte.id_compte,
+            "nom_compte": compte.nom,
+            "devise": compte.devise,
+            "solde": compte.solde,
+            "burn_quotidien": burn_quotidien.quantize(Decimal("1")),
+            "date_rupture": date_rupture,
+            "jours_avant_zero": jours_avant_zero,
+            "jours_restants_mois": jours_restants_mois,
+            "reduction_quotidienne": reduction_quotidienne.quantize(Decimal("1")),
+            "categorie_principale": _top_categorie_depense_compte(
+                db, id_client, compte.id_compte, date_debut_fenetre, aujourdhui
+            ),
+        })
+
+    return resultats
+
+
+def _formuler_alerte_solde(projection: dict) -> Tuple[str, str]:
+    """Construit (titre, message) d'une alerte de rupture de solde — montants
+    en XAF entiers (le franc CFA n'a pas de subdivision d'usage courant, des
+    centimes dans un conseil quotidien n'apporteraient rien)."""
+    nom = projection["nom_compte"]
+    devise = projection["devise"]
+    titre = f"Votre compte « {nom} » risque d'être à zéro avant la fin du mois"
+    message = (
+        f"Au rythme de vos dépenses actuelles (~{projection['burn_quotidien']} {devise}/jour), "
+        f"le solde de votre compte « {nom} » ({projection['solde']} {devise}) sera épuisé vers le "
+        f"{projection['date_rupture'].strftime('%d/%m')}, soit {projection['jours_restants_mois']} "
+        "jours avant la fin du mois."
+    )
+    if projection["categorie_principale"] and projection["reduction_quotidienne"] > 0:
+        message += (
+            f" Votre plus grosse dépense sur ce compte est « {projection['categorie_principale']} » : "
+            f"en réduisant vos dépenses d'environ {projection['reduction_quotidienne']} {devise}/jour, "
+            "vous tiendriez jusqu'à la fin du mois."
+        )
+    return titre, message
+
+
+def notifier_ruptures_solde_proches(db: Session, aujourdhui: Optional[date] = None) -> int:
+    """
+    Tâche planifiée quotidienne (voir worker.tasks) : pour chaque client,
+    crée une notification ALERTE_SOLDE par compte dont le solde va tomber à
+    zéro avant la fin du mois.
+
+    Anti-spam : au plus une alerte par compte et par mois civil. Le compte
+    concerné est encodé dans le `lien` (/dashboard?compte=<id>), ce qui sert
+    à la fois à la navigation au clic et à la déduplication (on ne recrée pas
+    d'alerte si une existe déjà ce mois-ci pour ce même lien). Renvoie le
+    nombre de notifications créées.
+    """
+    aujourdhui = aujourdhui or date.today()
+    debut_mois = maintenant_utc().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    nb_creees = 0
+    for (id_client,) in db.query(Client.id_client).all():
+        for projection in projeter_rupture_solde(db, id_client, aujourdhui):
+            lien = f"/dashboard?compte={projection['id_compte']}"
+            deja_alerte = (
+                db.query(Notification)
+                .filter(
+                    Notification.destinataire_type == "CLIENT",
+                    Notification.id_utilisateur == id_client,
+                    Notification.type == TYPE_NOTIF_ALERTE_SOLDE,
+                    Notification.lien == lien,
+                    Notification.date_creation >= debut_mois,
+                )
+                .first()
+            )
+            if deja_alerte is not None:
+                continue
+
+            titre, message = _formuler_alerte_solde(projection)
+            notifications_service.creer_notification_client(
+                db, id_client, TYPE_NOTIF_ALERTE_SOLDE, titre, message, lien
+            )
+            nb_creees += 1
+
+    return nb_creees

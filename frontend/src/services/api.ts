@@ -87,13 +87,26 @@ export const api = {
 
     if (!response.ok) {
       let message = response.statusText;
+      let detail: unknown;
       try {
         const body = await response.json();
-        if (body?.detail) message = body.detail;
+        detail = body?.detail;
+        // `detail` peut être une chaîne (cas courant) ou un objet structuré
+        // (ex. 409 RETRAIT_ANTICIPE : { code, mois_restants, message }). On
+        // garde une `message` exploitable comme texte dans les deux cas, et
+        // on expose `detail`/`status` sur l'erreur pour un traitement fin.
+        if (typeof detail === 'string') {
+          message = detail;
+        } else if (detail && typeof detail === 'object' && 'message' in detail) {
+          message = String((detail as { message: unknown }).message);
+        }
       } catch {
         // Le corps de la réponse n'est pas du JSON exploitable, on garde le statusText.
       }
-      throw new Error(message);
+      const erreur = new Error(message) as Error & { status?: number; detail?: unknown };
+      erreur.status = response.status;
+      erreur.detail = detail;
+      throw erreur;
     }
 
     if (response.status === 204) {

@@ -33,6 +33,20 @@ class TransfertInvalideError(Exception):
     """Le compte source et destination sont identiques."""
 
 
+class RetraitAnticipeNonConfirmeError(Exception):
+    """
+    Retrait demandé AVANT l'échéance sur un objectif non encore atteint, sans
+    confirmation explicite. Ce n'est pas un blocage dur (le client reste
+    maître de son argent) mais une friction volontaire : le « verrou virtuel »
+    qui empêche de puiser dans l'épargne projet sur un coup de tête. Porte le
+    nombre de mois restants pour un message parlant côté client.
+    """
+
+    def __init__(self, mois_restants: int):
+        self.mois_restants = mois_restants
+        super().__init__(f"Retrait anticipé non confirmé ({mois_restants} mois avant l'échéance).")
+
+
 def _executer_transfert(
     db: Session, id_client: int, id_compte_source: int, id_compte_destination: int, montant: Decimal, description: str
 ):
@@ -67,13 +81,72 @@ def _executer_transfert(
         raise SoldeInsuffisantError()
 
 
-def _mois_restants(date_echeance: date) -> int:
+def _mois_restants(date_echeance: date, aujourdhui: Optional[date] = None) -> int:
     """Nombre de mois jusqu'à l'échéance, jamais inférieur à 1 (une échéance
     ce mois-ci ou déjà dépassée est traitée comme "il faut le montant
-    maintenant", pas comme une division par zéro/négative)."""
-    aujourdhui = date.today()
+    maintenant", pas comme une division par zéro/négative). `aujourdhui` est
+    injectable pour des simulations déterministes (voir simuler_objectif)."""
+    aujourdhui = aujourdhui or date.today()
     mois = (date_echeance.year - aujourdhui.year) * 12 + (date_echeance.month - aujourdhui.month)
     return max(mois, 1)
+
+
+def simuler_objectif(
+    montant_cible: Decimal,
+    date_echeance: Optional[date],
+    montant_initial: Decimal = Decimal("0"),
+    aujourdhui: Optional[date] = None,
+) -> dict:
+    """
+    Simulation AVANT création (aucune écriture en base, ne crée ni objectif
+    ni compte épargne dédié) : à partir d'une cible, d'une échéance et d'un
+    montant déjà disponible, calcule l'effort mensuel requis et une
+    projection mois par mois jusqu'à la cible. C'est la source de données du
+    simulateur visuel côté frontend ("je veux 3 000 000 XAF d'ici 2 ans" ->
+    125 000 XAF/mois + la courbe).
+
+    Sans échéance, l'effort mensuel n'a pas de sens (pas d'horizon) :
+    montant_mensuel_requis et projection sont alors vides, on se contente de
+    renvoyer la cible.
+    """
+    aujourdhui = aujourdhui or date.today()
+    montant_restant = max(montant_cible - montant_initial, Decimal("0"))
+
+    if date_echeance is None:
+        return {
+            "montant_cible": montant_cible,
+            "montant_initial": montant_initial,
+            "date_echeance": None,
+            "nombre_mois": None,
+            "montant_mensuel_requis": None,
+            "projection": [],
+        }
+
+    nombre_mois = _mois_restants(date_echeance, aujourdhui)
+    montant_mensuel_requis = (montant_restant / nombre_mois).quantize(Decimal("0.01"))
+
+    # Courbe d'accumulation : un point par mois à partir du mois prochain. Le
+    # dernier point est forcé à la cible exacte — l'arrondi au centime de
+    # l'effort mensuel, cumulé, tomberait sinon à quelques centimes près et
+    # la courbe n'atteindrait pas visuellement l'objectif.
+    reference = aujourdhui.replace(day=1)
+    projection = []
+    for i in range(1, nombre_mois + 1):
+        cumule = min(montant_initial + montant_mensuel_requis * i, montant_cible)
+        total_mois = reference.month + i
+        annee = reference.year + (total_mois - 1) // 12
+        mois = (total_mois - 1) % 12 + 1
+        projection.append({"mois": f"{annee:04d}-{mois:02d}", "montant_cumule": cumule.quantize(Decimal("0.01"))})
+    projection[-1]["montant_cumule"] = montant_cible
+
+    return {
+        "montant_cible": montant_cible,
+        "montant_initial": montant_initial,
+        "date_echeance": date_echeance,
+        "nombre_mois": nombre_mois,
+        "montant_mensuel_requis": montant_mensuel_requis,
+        "projection": projection,
+    }
 
 
 def calculer_valeurs_objectif(objectif: ObjectifEpargne) -> dict:
@@ -206,15 +279,30 @@ def alimenter(
 
 
 def retirer(
-    db: Session, id_client: int, id_objectif: int, montant: Decimal, id_compte_destination: int
+    db: Session, id_client: int, id_objectif: int, montant: Decimal, id_compte_destination: int,
+    confirmer_retrait_anticipe: bool = False,
 ) -> ObjectifEpargne:
     """Symétrique de alimenter() : transfert du compte épargne dédié vers un
-    compte de destination choisi par le client."""
+    compte de destination choisi par le client.
+
+    Verrou virtuel : si l'échéance n'est pas encore passée et que l'objectif
+    n'est pas atteint, un retrait exige une confirmation explicite
+    (confirmer_retrait_anticipe) — sinon RetraitAnticipeNonConfirmeError est
+    levée pour que le client voie un avertissement avant de puiser dans son
+    épargne projet."""
     objectif = obtenir_objectif_du_client(db, id_objectif, id_client)
     if objectif is None:
         raise ObjectifIntrouvableError()
     if objectif.statut == "ABANDONNE":
         raise ObjectifVerrouilleError()
+
+    if (
+        not confirmer_retrait_anticipe
+        and objectif.date_echeance is not None
+        and date.today() < objectif.date_echeance
+        and objectif.compte_epargne.solde < objectif.montant_cible
+    ):
+        raise RetraitAnticipeNonConfirmeError(_mois_restants(objectif.date_echeance))
 
     _executer_transfert(
         db, id_client, objectif.id_compte_epargne, id_compte_destination, montant, f"Retrait épargne : {objectif.nom}"

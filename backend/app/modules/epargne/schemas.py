@@ -1,7 +1,29 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
+
+
+class SimulationObjectifRequest(BaseModel):
+    montant_cible: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
+    date_echeance: Optional[date] = None
+    # Montant déjà disponible au départ (facultatif) : réduit l'effort
+    # mensuel restant à fournir.
+    montant_initial: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
+
+
+class PointProjectionEpargne(BaseModel):
+    mois: str  # "AAAA-MM"
+    montant_cumule: Decimal
+
+
+class SimulationObjectifOut(BaseModel):
+    montant_cible: Decimal
+    montant_initial: Decimal
+    date_echeance: Optional[date]
+    nombre_mois: Optional[int]
+    montant_mensuel_requis: Optional[Decimal]
+    projection: List[PointProjectionEpargne]
 
 
 class ObjectifEpargneCreate(BaseModel):
@@ -36,6 +58,10 @@ class AlimenterRequest(BaseModel):
 class RetirerRequest(BaseModel):
     montant: Decimal = Field(..., gt=0, max_digits=14, decimal_places=2)
     id_compte_destination: int
+    # Verrou virtuel : passer à True pour confirmer un retrait AVANT l'échéance
+    # sur un objectif non atteint (sinon le retrait est refusé avec un
+    # avertissement — voir service.retirer).
+    confirmer_retrait_anticipe: bool = False
 
 
 class AbandonnerRequest(BaseModel):

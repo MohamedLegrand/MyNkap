@@ -33,6 +33,9 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [objectifFrais, setObjectifFrais] = useState<ObjectifEpargne | null>(null);
+  // Verrou virtuel : renseigné quand le serveur refuse un retrait anticipé
+  // (409 RETRAIT_ANTICIPE) faute de confirmation — déclenche l'avertissement.
+  const [retraitAnticipe, setRetraitAnticipe] = useState<{ moisRestants: number } | null>(null);
 
   useEffect(() => {
     if (isOpen && comptes.length > 0 && !idCompte) {
@@ -68,15 +71,19 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
   const estAbandon = operation === 'abandonner';
   const endpoint = `/epargne/${objectifAffiche.id_objectif}/${operation}`;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const soumettre = async (confirmerRetraitAnticipe: boolean) => {
     if (!idCompte) return;
     setError(null);
     setIsSubmitting(true);
     try {
       const body = estAbandon
         ? { id_compte_destination: Number(idCompte) }
-        : { montant: Number(montant), [estAlimentation ? 'id_compte_source' : 'id_compte_destination']: Number(idCompte) };
+        : {
+            montant: Number(montant),
+            [estAlimentation ? 'id_compte_source' : 'id_compte_destination']: Number(idCompte),
+            // N'ajoute le drapeau que pour un retrait explicitement confirmé.
+            ...(operation === 'retirer' && confirmerRetraitAnticipe ? { confirmer_retrait_anticipe: true } : {}),
+          };
       await api.request(endpoint, { method: 'POST', body: JSON.stringify(body) });
       if (!estAbandon) {
         try {
@@ -86,13 +93,26 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
         }
       }
       setMontant('');
+      setRetraitAnticipe(null);
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('modals.objectif_operation.error'));
+      const erreur = err as Error & { status?: number; detail?: { code?: string; mois_restants?: number } };
+      if (operation === 'retirer' && erreur.status === 409 && erreur.detail?.code === 'RETRAIT_ANTICIPE') {
+        // Pas une vraie erreur : le serveur demande une confirmation. On
+        // affiche l'avertissement plutôt qu'un message d'échec.
+        setRetraitAnticipe({ moisRestants: erreur.detail.mois_restants ?? 0 });
+      } else {
+        setError(erreur instanceof Error ? erreur.message : t('modals.objectif_operation.error'));
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    soumettre(false);
   };
 
   const titre = estAlimentation ? t('savings.contribute') : estAbandon ? t('savings.abandon') : t('savings.withdraw');
@@ -131,7 +151,7 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
                 max={estAlimentation ? undefined : objectifAffiche.montant_actuel}
                 placeholder="ex: 20000"
                 value={montant}
-                onChange={(e) => setMontant(e.target.value)}
+                onChange={(e) => { setMontant(e.target.value); setRetraitAnticipe(null); }}
                 className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary"
               />
               <div className="flex flex-wrap gap-1.5">
@@ -181,23 +201,51 @@ export const ObjectifOperationModal: React.FC<ObjectifOperationModalProps> = ({
             </select>
           </div>
 
+          {/* Verrou virtuel : avertissement avant de puiser dans l'épargne
+              projet non arrivée à échéance. Le client peut confirmer. */}
+          {retraitAnticipe && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                {t('modals.objectif_operation.early_withdraw_warning', { count: retraitAnticipe.moisRestants })}
+              </p>
+            </div>
+          )}
+
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
-          <div className="pt-2 flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
-              {t('common.cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !idCompte}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2 disabled:opacity-50 ${
-                estAbandon ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-primary text-primary-foreground hover:bg-primary/95'
-              }`}
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>{estAbandon ? t('modals.objectif_operation.confirm_abandon') : t('common.confirm')}</span>
-            </button>
-          </div>
+          {retraitAnticipe ? (
+            <div className="pt-2 flex gap-3">
+              <button type="button" onClick={() => setRetraitAnticipe(null)} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
+                {t('modals.objectif_operation.keep_saving')}
+              </button>
+              <button
+                type="button"
+                onClick={() => soumettre(true)}
+                disabled={isSubmitting || !idCompte}
+                className="flex-1 py-3 px-4 rounded-xl bg-amber-600 text-white text-sm font-bold shadow-md hover:bg-amber-600/90 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span>{t('modals.objectif_operation.withdraw_anyway')}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="pt-2 flex gap-3">
+              <button type="button" onClick={onClose} className="flex-1 py-3 px-4 rounded-xl border border-border text-sm font-semibold hover:bg-muted">
+                {t('common.cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || !idCompte}
+                className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2 disabled:opacity-50 ${
+                  estAbandon ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-primary text-primary-foreground hover:bg-primary/95'
+                }`}
+              >
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                <span>{estAbandon ? t('modals.objectif_operation.confirm_abandon') : t('common.confirm')}</span>
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

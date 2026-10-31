@@ -1,5 +1,5 @@
 from app.core.database import SessionLocal
-from app.modules.analyse.service import generer_snapshots_mensuels_tous_clients
+from app.modules.analyse.service import generer_snapshots_mensuels_tous_clients, notifier_ruptures_solde_proches
 from app.modules.plans.service import notifier_renouvellements_proches, verifier_paiements_en_attente
 from app.modules.rapports.service import generer_rapport
 from app.modules.recharges.service import verifier_recharges_en_attente
@@ -75,6 +75,22 @@ def notifier_renouvellements_abonnement_proches() -> int:
     db = SessionLocal()
     try:
         return notifier_renouvellements_proches(db)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.tasks.notifier_ruptures_solde_proches")
+def notifier_ruptures_solde_proches_tache() -> int:
+    """
+    Tâche planifiée quotidiennement (voir celery_app.beat_schedule) : prévient
+    chaque client dont un compte de dépense va tomber à zéro avant la fin du
+    mois au rythme actuel — c'est le volet « conseiller proactif » de JARVIS.
+    Toute la logique vit dans analyse.service pour rester testable sans
+    Celery/Redis démarrés — voir tests/test_alertes_solde.py.
+    """
+    db = SessionLocal()
+    try:
+        return notifier_ruptures_solde_proches(db)
     finally:
         db.close()
 

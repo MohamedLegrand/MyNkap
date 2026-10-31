@@ -849,7 +849,11 @@
       "target_amount_label": "Target amount (XAF)",
       "due_date_label": "Due date (optional)",
       "due_date_hint": "A due date lets us estimate the monthly amount needed to reach the goal.",
-      "submit": "Create goal"
+      "submit": "Create goal",
+      "simulation_title": "Simulation",
+      "monthly_effort": "Monthly effort",
+      "over_months_one": "over {{count}} month",
+      "over_months_other": "over {{count}} months"
     },
     "objectif_operation": {
       "error": "Operation failed.",
@@ -859,7 +863,11 @@
       "available_for_withdrawal": "Available for withdrawal",
       "source_account": "Source account",
       "destination_account": "Destination account",
-      "confirm_abandon": "Confirm abandon"
+      "confirm_abandon": "Confirm abandon",
+      "early_withdraw_warning_one": "There is {{count}} month left before this goal's due date, and it hasn't been reached yet. Are you sure you want to dip into these savings?",
+      "early_withdraw_warning_other": "There are {{count}} months left before this goal's due date, and it hasn't been reached yet. Are you sure you want to dip into these savings?",
+      "keep_saving": "Keep saving",
+      "withdraw_anyway": "Withdraw anyway"
     },
     "transfert": {
       "error": "Transfer failed.",
